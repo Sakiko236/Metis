@@ -1,0 +1,52 @@
+# ==========================================
+# Metis - Git Ignore Configuration
+# ==========================================
+
+# Sensitive User Config & Private Data (Protects API Keys & Chat Logs)
+sessions.json
+config.json
+metis_config.json
+metis_sessions.json
+pinpoint_config.json
+pinpoint_sessions.json
+surgical_config.json
+surgical_sessions.json
+*.local.json
+.env
+.env.*
+*.key
+*.pem
+*.secret
+*.token
+
+# Build Artifacts & Executables
+*.exe
+*.pdb
+*.obj
+*.log
+*.tmp
+*.bak
+
+# Runtime Cache & Python Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & Editor Temporary Files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Windows OS Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Explicitly Keep Required Native Dependencies
+!lib/
+!lib/webview2/
+!lib/webview2/*.dll

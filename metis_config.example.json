@@ -1,0 +1,89 @@
+{
+  "ActiveVendorId": "deepseek",
+  "MaxVerifyLoops": 5,
+  "CommandTimeoutSeconds": 60,
+  "Vendors": [
+    {
+      "Id": "deepseek",
+      "DisplayName": "DeepSeek",
+      "Type": 3,
+      "BaseUrl": "https://api.deepseek.com/v1",
+      "ApiKey": "",
+      "SelectedModel": "deepseek-chat",
+      "PresetModels": [
+        "deepseek-chat",
+        "deepseek-reasoner"
+      ]
+    },
+    {
+      "Id": "openai",
+      "DisplayName": "OpenAI",
+      "Type": 1,
+      "BaseUrl": "https://api.openai.com/v1",
+      "ApiKey": "",
+      "SelectedModel": "gpt-4o",
+      "PresetModels": [
+        "gpt-4o",
+        "gpt-4.1",
+        "gpt-4o-mini",
+        "o3-mini",
+        "o1"
+      ]
+    },
+    {
+      "Id": "claude",
+      "DisplayName": "Anthropic Claude",
+      "Type": 2,
+      "BaseUrl": "https://api.anthropic.com/v1",
+      "ApiKey": "",
+      "SelectedModel": "claude-3-7-sonnet-latest",
+      "PresetModels": [
+        "claude-3-7-sonnet-latest",
+        "claude-3-5-sonnet-latest",
+        "claude-3-5-haiku-latest"
+      ]
+    },
+    {
+      "Id": "gemini",
+      "DisplayName": "Google Gemini",
+      "Type": 0,
+      "BaseUrl": "https://generativelanguage.googleapis.com/v1beta",
+      "ApiKey": "",
+      "SelectedModel": "gemini-2.5-flash",
+      "PresetModels": [
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
+        "gemini-1.5-pro"
+      ]
+    },
+    {
+      "Id": "ollama",
+      "DisplayName": "Ollama (Local Models)",
+      "Type": 4,
+      "BaseUrl": "http://localhost:11434/v1",
+      "ApiKey": "",
+      "SelectedModel": "qwen2.5-coder:7b",
+      "PresetModels": [
+        "qwen2.5-coder:7b",
+        "qwen2.5-coder:14b",
+        "deepseek-r1:8b",
+        "llama3.1:8b"
+      ]
+    },
+    {
+      "Id": "custom",
+      "DisplayName": "Custom (OpenAI-Compatible)",
+      "Type": 5,
+      "BaseUrl": "https://api.openai.com/v1",
+      "ApiKey": "",
+      "SelectedModel": "gpt-4o-mini",
+      "PresetModels": [
+        "gpt-4o-mini",
+        "deepseek-v3",
+        "qwen-max"
+      ]
+    }
+  ],
+  "Theme": "dark"
+}

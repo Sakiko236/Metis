@@ -223,16 +223,23 @@ impl WhitelistManager {
             target_file.last_saved_content.clone()
         };
 
+        let is_initially_empty = current_content.trim().is_empty();
+
         let updated_content = match edit.action_type {
             SurgicalActionType::WriteFull => edit.new_content.clone(),
             SurgicalActionType::SearchReplace => {
-                match Self::try_apply_search_replace(&current_content, &edit.search_block, &edit.replace_block) {
-                    Some(res) => res,
-                    None => {
-                        return Err(format!(
-                            "SEARCH block failed to match original code in `{}`. Please ensure the SEARCH block matches the file's current content verbatim.",
-                            target_file.file_name
-                        ));
+                if is_initially_empty {
+                    // Empty file being populated for the first time
+                    edit.replace_block.clone()
+                } else {
+                    match Self::try_apply_search_replace(&current_content, &edit.search_block, &edit.replace_block) {
+                        Some(res) => res,
+                        None => {
+                            return Err(format!(
+                                "SEARCH block failed to match original code in `{}`. Please ensure the SEARCH block matches the file's current content verbatim.",
+                                target_file.file_name
+                            ));
+                        }
                     }
                 }
             }
@@ -257,10 +264,17 @@ impl WhitelistManager {
             target_file.file_name.clone()
         };
 
-        let status_message = format!(
-            "⚡ Modified file {} in-place ({} lines / {} bytes, update #{})",
-            display_name, line_count, updated_content.len(), target_file.edit_count
-        );
+        let status_message = if is_initially_empty {
+            format!(
+                "⚡ Populated empty file {} in-place ({} lines / {} bytes, update #{})",
+                display_name, line_count, updated_content.len(), target_file.edit_count
+            )
+        } else {
+            format!(
+                "⚡ Modified file {} in-place ({} lines / {} bytes, update #{})",
+                display_name, line_count, updated_content.len(), target_file.edit_count
+            )
+        };
 
         Ok((status_message, target_file.clone()))
     }
@@ -281,6 +295,10 @@ impl WhitelistManager {
     }
 
     pub fn try_apply_search_replace(current: &str, search: &str, replace: &str) -> Option<String> {
+        if current.trim().is_empty() {
+            return Some(replace.to_string());
+        }
+
         if search.is_empty() {
             return None;
         }

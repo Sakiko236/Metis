@@ -44,13 +44,18 @@ impl AgentLoop {
         r#"You are Metis, a laser-focused, file-centric micro-agent designed for surgical code modifications with zero blast radius.
 You operate under strict security boundaries:
 1. You may ONLY modify files that are explicitly in the whitelist. You are strictly forbidden from creating new files or deleting existing files.
-2. Prefer surgical in-place edits using <metis_replace file="filename">
+2. For modifying existing files, prefer surgical in-place edits using <metis_replace file="filename">
 <<<<<<< SEARCH
 [exact existing code]
 =======
 [replacement code]
 >>>>>>> REPLACE
 </metis_replace>
+For empty files or complete file rewrites, write the content using:
+<metis_write file="filename">
+[new file content]
+</metis_write>
+(Note: On empty files, <metis_replace> with an empty SEARCH block is also accepted).
 3. To run terminal commands for testing or building, emit:
 <metis_cmd>
 your command here
@@ -71,9 +76,16 @@ search keywords
         }
 
         for f in files {
-            sb.push_str(&format!("=== FILE: {} (Full Path: {}) ===\n", f.relative_path, f.full_path));
-            sb.push_str(&f.last_saved_content);
-            sb.push_str(&format!("\n=== END OF FILE: {} ===\n\n", f.relative_path));
+            if f.last_saved_content.trim().is_empty() {
+                sb.push_str(&format!(
+                    "=== FILE: {} (Full Path: {}) [EMPTY FILE - 0 bytes] ===\n(This file is currently empty. Populate it using <metis_write file=\"{}\">)\n=== END OF FILE: {} ===\n\n",
+                    f.relative_path, f.full_path, f.file_name, f.relative_path
+                ));
+            } else {
+                sb.push_str(&format!("=== FILE: {} (Full Path: {}) ===\n", f.relative_path, f.full_path));
+                sb.push_str(&f.last_saved_content);
+                sb.push_str(&format!("\n=== END OF FILE: {} ===\n\n", f.relative_path));
+            }
         }
         sb
     }

@@ -23,50 +23,86 @@ impl ConfigManager {
         cfg.theme = "dark".to_string();
         cfg.thinking_intensity = "medium".to_string();
 
-        cfg.vendors = vec![
-            VendorProfile::new(
-                "gemini",
-                "Google Gemini",
-                VendorType::Gemini,
-                "https://generativelanguage.googleapis.com/v1beta",
-                "gemini-3.8-flash",
-            ),
-            VendorProfile::new(
-                "openai",
-                "OpenAI",
-                VendorType::OpenAI,
-                "https://api.openai.com/v1",
-                "gpt-6.1-sol",
-            ),
-            VendorProfile::new(
-                "claude",
-                "Anthropic Claude",
-                VendorType::Claude,
-                "https://api.anthropic.com/v1",
-                "claude-sonnet-5-5",
-            ),
-            VendorProfile::new(
-                "deepseek",
-                "DeepSeek",
-                VendorType::DeepSeek,
-                "https://api.deepseek.com/v1",
-                "deepseek-flash",
-            ),
-            VendorProfile::new(
-                "ollama",
-                "Ollama (Local Models)",
-                VendorType::Ollama,
-                "http://localhost:11434/v1",
-                "qwen3-coder:30b",
-            ),
-            VendorProfile::new(
-                "custom",
-                "Custom (OpenAI-Compatible)",
-                VendorType::CustomOpenAI,
-                "https://api.openai.com/v1",
-                "deepseek-flash",
-            ),
+        let mut gemini = VendorProfile::new(
+            "gemini",
+            "Google Gemini",
+            VendorType::Gemini,
+            "https://generativelanguage.googleapis.com/v1beta",
+            "gemini-2.5-flash",
+        );
+        gemini.preset_models = vec![
+            "gemini-2.5-flash".to_string(),
+            "gemini-2.5-pro".to_string(),
+            "gemini-2.0-flash".to_string(),
+            "gemini-1.5-pro".to_string(),
         ];
+
+        let mut openai = VendorProfile::new(
+            "openai",
+            "OpenAI",
+            VendorType::OpenAI,
+            "https://api.openai.com/v1",
+            "gpt-4o",
+        );
+        openai.preset_models = vec![
+            "gpt-4o".to_string(),
+            "gpt-4o-mini".to_string(),
+            "o3-mini".to_string(),
+            "gpt-4.5-preview".to_string(),
+        ];
+
+        let mut claude = VendorProfile::new(
+            "claude",
+            "Anthropic Claude",
+            VendorType::Claude,
+            "https://api.anthropic.com/v1",
+            "claude-3-7-sonnet-20250219",
+        );
+        claude.preset_models = vec![
+            "claude-3-7-sonnet-20250219".to_string(),
+            "claude-3-5-sonnet-20241022".to_string(),
+            "claude-3-5-haiku-20241022".to_string(),
+            "claude-3-opus-20240229".to_string(),
+        ];
+
+        let mut deepseek = VendorProfile::new(
+            "deepseek",
+            "DeepSeek",
+            VendorType::DeepSeek,
+            "https://api.deepseek.com/v1",
+            "deepseek-chat",
+        );
+        deepseek.preset_models = vec![
+            "deepseek-chat".to_string(),
+            "deepseek-reasoner".to_string(),
+        ];
+
+        let mut ollama = VendorProfile::new(
+            "ollama",
+            "Ollama (Local Models)",
+            VendorType::Ollama,
+            "http://localhost:11434/v1",
+            "qwen2.5-coder:latest",
+        );
+        ollama.preset_models = vec![
+            "qwen2.5-coder:latest".to_string(),
+            "deepseek-r1:latest".to_string(),
+            "llama3.3:latest".to_string(),
+        ];
+
+        let mut custom = VendorProfile::new(
+            "custom",
+            "Custom (OpenAI-Compatible)",
+            VendorType::CustomOpenAI,
+            "https://api.openai.com/v1",
+            "gpt-4o",
+        );
+        custom.preset_models = vec![
+            "gpt-4o".to_string(),
+            "deepseek-chat".to_string(),
+        ];
+
+        cfg.vendors = vec![deepseek, gemini, openai, claude, ollama, custom];
 
         cfg
     }

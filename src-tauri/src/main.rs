@@ -21,7 +21,7 @@ async fn main() {
 }
 
 async fn run_headless_self_test() -> i32 {
-    println!("=== Metis v1.2.2 Tauri 2.0 Headless End-to-End Self-Test ===");
+    println!("=== Metis v1.2.3 Tauri 2.0 Headless End-to-End Self-Test ===");
 
     // 1. Config Persistence
     let cfg = ConfigManager::load_or_create_default();
@@ -120,6 +120,33 @@ async fn run_headless_self_test() -> i32 {
         return 8;
     }
     println!("[PASS] Session Title Auto-Extraction & Tag Stripping Verified: {:?}", extracted_title.unwrap());
+
+    // 8. Empty File Population Verification
+    let empty_file = temp_dir.join("new_empty.txt");
+    let _ = std::fs::write(&empty_file, "");
+    wl.add_file(&empty_file.to_string_lossy());
+
+    let edit_empty_sr = SurgicalFileEdit {
+        action_type: SurgicalActionType::SearchReplace,
+        target_file: "new_empty.txt".to_string(),
+        new_content: String::new(),
+        search_block: String::new(),
+        replace_block: "Hello from empty file initial content!".to_string(),
+    };
+    match wl.apply_edit_in_place(&edit_empty_sr) {
+        Ok((msg, _)) => {
+            let content = std::fs::read_to_string(&empty_file).unwrap_or_default();
+            if content != "Hello from empty file initial content!" {
+                eprintln!("FAIL: Empty file content was not populated correctly: {}", content);
+                return 9;
+            }
+            println!("[PASS] Empty File Population Verified: {}", msg);
+        }
+        Err(e) => {
+            eprintln!("FAIL: Populating empty file failed: {}", e);
+            return 10;
+        }
+    }
 
     println!("=== All Metis Tauri 2.0 Self-Test Suites Passed Successfully! ===");
     0

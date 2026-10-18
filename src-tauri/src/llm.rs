@@ -30,7 +30,7 @@ impl MultiVendorClient {
 
         match vendor.vendor_type {
             VendorType::Gemini => {
-                Self::call_gemini(vendor, base_url, &full_system, history, on_chunk).await
+                Self::call_gemini(vendor, base_url, &full_system, history, thinking_intensity, on_chunk).await
             }
             VendorType::Claude => {
                 Self::call_claude(vendor, base_url, &full_system, history, thinking_intensity, on_chunk).await
@@ -96,6 +96,7 @@ impl MultiVendorClient {
         let mut stream = resp.bytes_stream();
         let mut full_output = String::new();
         let mut buffer = String::new();
+        let mut is_in_reasoning = false;
 
         while let Some(chunk_result) = stream.next().await {
             let chunk = chunk_result.map_err(|e| format!("Stream read error: {}", e))?;
@@ -115,10 +116,20 @@ impl MultiVendorClient {
                         if let Some(choices) = v.get("choices").and_then(|c| c.as_array()) {
                             if let Some(delta) = choices.first().and_then(|c| c.get("delta")) {
                                 if let Some(content) = delta.get("content").and_then(|s| s.as_str()) {
+                                    if is_in_reasoning {
+                                        is_in_reasoning = false;
+                                        full_output.push_str("</think>\n");
+                                        on_chunk("</think>\n");
+                                    }
                                     full_output.push_str(content);
                                     on_chunk(content);
                                 } else if let Some(reasoning) = delta.get("reasoning_content").and_then(|s| s.as_str()) {
                                     // Handle DeepSeek reasoner
+                                    if !is_in_reasoning {
+                                        is_in_reasoning = true;
+                                        full_output.push_str("<think>");
+                                        on_chunk("<think>");
+                                    }
                                     full_output.push_str(reasoning);
                                     on_chunk(reasoning);
                                 }
@@ -127,6 +138,11 @@ impl MultiVendorClient {
                     }
                 }
             }
+        }
+
+        if is_in_reasoning {
+            full_output.push_str("</think>\n");
+            on_chunk("</think>\n");
         }
 
         Ok(full_output)
@@ -236,17 +252,29 @@ impl MultiVendorClient {
         base_url: &str,
         system_prompt: &str,
         history: &[ChatHistoryItem],
+        thinking_intensity: &str,
         mut on_chunk: F,
     ) -> Result<String, String>
     where
         F: FnMut(&str),
     {
-        let url = format!(
-            "{}/models/{}:streamGenerateContent?alt=sse&key={}",
-            base_url,
-            vendor.selected_model,
-            vendor.api_key.trim()
-        );
+        let raw_model = vendor.selected_model.trim();
+        let clean_model = if raw_model.is_empty() {
+            "gemini-2.5-flash"
+        } else {
+            raw_model.trim_start_matches("models/")
+        };
+
+        let url = if vendor.api_key.trim().is_empty() {
+            format!("{}/models/{}:streamGenerateContent?alt=sse", base_url, clean_model)
+        } else {
+            format!(
+                "{}/models/{}:streamGenerateContent?alt=sse&key={}",
+                base_url,
+                clean_model,
+                vendor.api_key.trim()
+            )
+        };
 
         let mut contents = Vec::new();
         for item in history {
@@ -256,14 +284,31 @@ impl MultiVendorClient {
             }));
         }
 
-        let payload = json!({
+        let budget_tokens = match thinking_intensity.to_lowercase().as_str() {
+            "off" => 0,
+            "low" => 2048,
+            "high" => 24576,
+            _ => 8192,
+        };
+
+        let mut gen_config = json!({
+            "temperature": 0.2
+        });
+
+        // Gemini 2.5 Flash / Pro and 2.0 Thinking models support thinkingConfig
+        let supports_thinking = !clean_model.contains("1.5");
+        if supports_thinking {
+            gen_config["thinkingConfig"] = json!({
+                "thinkingBudget": budget_tokens
+            });
+        }
+
+        let mut payload = json!({
             "contents": contents,
             "systemInstruction": {
                 "parts": [{ "text": system_prompt }]
             },
-            "generationConfig": {
-                "temperature": 0.2
-            }
+            "generationConfig": gen_config
         });
 
         let client = reqwest::Client::builder()
@@ -271,12 +316,27 @@ impl MultiVendorClient {
             .build()
             .map_err(|e| e.to_string())?;
 
-        let resp = client
-            .post(&url)
-            .json(&payload)
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request error: {}", e))?;
+        let mut req = client.post(&url).json(&payload);
+        if !vendor.api_key.trim().is_empty() {
+            req = req.header("x-goog-api-key", vendor.api_key.trim());
+        }
+
+        let mut resp = req.send().await.map_err(|e| format!("HTTP request error: {}", e))?;
+
+        // If the endpoint failed because thinkingConfig was rejected, fallback gracefully without thinkingConfig
+        if !resp.status().is_success() && supports_thinking {
+            let body = resp.text().await.unwrap_or_default();
+            if body.contains("thinkingConfig") || body.contains("thinkingBudget") || body.contains("not supported") {
+                payload["generationConfig"] = json!({ "temperature": 0.2 });
+                let mut retry_req = client.post(&url).json(&payload);
+                if !vendor.api_key.trim().is_empty() {
+                    retry_req = retry_req.header("x-goog-api-key", vendor.api_key.trim());
+                }
+                resp = retry_req.send().await.map_err(|e| format!("HTTP request error on retry: {}", e))?;
+            } else {
+                return Err(format!("Gemini API Error (HTTP {}): {}", 400, body));
+            }
+        }
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -287,6 +347,7 @@ impl MultiVendorClient {
         let mut stream = resp.bytes_stream();
         let mut full_output = String::new();
         let mut buffer = String::new();
+        let mut is_in_thought = false;
 
         while let Some(chunk_result) = stream.next().await {
             let chunk = chunk_result.map_err(|e| format!("Stream read error: {}", e))?;
@@ -304,7 +365,19 @@ impl MultiVendorClient {
                             if let Some(first) = candidates.first() {
                                 if let Some(parts) = first.get("content").and_then(|c| c.get("parts")).and_then(|p| p.as_array()) {
                                     for part in parts {
+                                        let is_thought = part.get("thought").and_then(|t| t.as_bool()).unwrap_or(false);
                                         if let Some(txt) = part.get("text").and_then(|t| t.as_str()) {
+                                            if is_thought {
+                                                if !is_in_thought {
+                                                    is_in_thought = true;
+                                                    full_output.push_str("<think>");
+                                                    on_chunk("<think>");
+                                                }
+                                            } else if is_in_thought {
+                                                is_in_thought = false;
+                                                full_output.push_str("</think>\n");
+                                                on_chunk("</think>\n");
+                                            }
                                             full_output.push_str(txt);
                                             on_chunk(txt);
                                         }
@@ -315,6 +388,11 @@ impl MultiVendorClient {
                     }
                 }
             }
+        }
+
+        if is_in_thought {
+            full_output.push_str("</think>\n");
+            on_chunk("</think>\n");
         }
 
         Ok(full_output)
@@ -378,7 +456,23 @@ impl MultiVendorClient {
             }
         }
 
-        // 2. Parse raw SEARCH/REPLACE blocks outside tags
+        // 2. Parse <metis_write file="..."> (for empty files or complete rewrites)
+        let write_re = Regex::new(r#"(?is)<(?:metis|surgical|pinpoint)_write(?:\s+(?:file|path|name)?\s*=?\s*["']?([^"'>\r\n]+)["']?)?\s*>\r?\n?(.*?)(?:</(?:metis|surgical|pinpoint)_write>|$)"#).unwrap();
+        for cap in write_re.captures_iter(&cleaned) {
+            let file_attr = cap.get(1).map_or("", |m| m.as_str()).trim();
+            let body = cap.get(2).map_or("", |m| m.as_str());
+            if !parsed.file_edits.iter().any(|e| e.target_file.eq_ignore_ascii_case(file_attr)) {
+                parsed.file_edits.push(SurgicalFileEdit {
+                    action_type: SurgicalActionType::WriteFull,
+                    target_file: file_attr.to_string(),
+                    new_content: body.to_string(),
+                    search_block: String::new(),
+                    replace_block: String::new(),
+                });
+            }
+        }
+
+        // 3. Parse raw SEARCH/REPLACE blocks outside tags
         for sr in sr_block_re.captures_iter(&cleaned) {
             let search = sr.get(1).map_or("", |m| m.as_str());
             let replace = sr.get(2).map_or("", |m| m.as_str());
@@ -392,22 +486,6 @@ impl MultiVendorClient {
                     new_content: String::new(),
                     search_block: search.to_string(),
                     replace_block: replace.to_string(),
-                });
-            }
-        }
-
-        // 3. Fallback <metis_write file="...">
-        if parsed.file_edits.is_empty() {
-            let write_re = Regex::new(r#"(?is)<(?:metis|surgical|pinpoint)_write(?:\s+(?:file|path|name)?\s*=?\s*["']?([^"'>\r\n]+)["']?)?\s*>\r?\n?(.*?)(?:</(?:metis|surgical|pinpoint)_write>|$)"#).unwrap();
-            for cap in write_re.captures_iter(&cleaned) {
-                let file_attr = cap.get(1).map_or("", |m| m.as_str()).trim();
-                let body = cap.get(2).map_or("", |m| m.as_str());
-                parsed.file_edits.push(SurgicalFileEdit {
-                    action_type: SurgicalActionType::WriteFull,
-                    target_file: file_attr.to_string(),
-                    new_content: body.to_string(),
-                    search_block: String::new(),
-                    replace_block: String::new(),
                 });
             }
         }

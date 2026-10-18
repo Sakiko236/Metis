@@ -775,11 +775,7 @@ async fn run_autonomous_loop(app: tauri::AppHandle, state: Arc<AppState>, user_p
         broadcast_full_state(&app, &state, None, None).await;
 
         if !had_actions {
-            // No tools or edits were invoked — conversational turn is naturally complete!
-            let mut store = state.session_store.lock().await;
-            if let Some(active) = store.get_active_session_mut() {
-                active.ui_events.push(UiStreamEvent::new("loop_success", "Completed all requested tasks."));
-            }
+            // Conversational turn naturally complete, no need to emit banner
             break;
         }
 

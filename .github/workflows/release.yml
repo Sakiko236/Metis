@@ -19,8 +19,6 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
-          - platform: 'macos-13'
-            args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
           - platform: 'windows-latest'
@@ -42,7 +40,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
 
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
@@ -70,7 +68,7 @@ jobs:
 
             #### 📦 Supported Platforms
             * **Windows**: `.msi` (Windows Installer) and `.exe` (NSIS setup installer)
-            * **macOS**: `.dmg` (Apple Silicon & Intel)
+            * **macOS**: `.dmg` (Apple Silicon M1/M2/M3/M4)
             * **Linux**: `.deb` (Debian/Ubuntu) and `.AppImage` (Universal Linux)
 
             #### ✨ Key Features

@@ -76,7 +76,6 @@ Download the appropriate release package for your operating system from the [Rel
   * **MSI Package**: `Metis_<version>_x64_en-US.msi`
 * **🍎 macOS**:
   * **Apple Silicon (M1/M2/M3/M4)**: `Metis_<version>_aarch64.dmg`
-  * **Intel Mac**: `Metis_<version>_x64.dmg`
 * **🐧 Linux**:
   * **Debian / Ubuntu**: `metis_<version>_amd64.deb`
   * **Universal Linux**: `metis_<version>_amd64.AppImage`

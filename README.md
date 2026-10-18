@@ -17,10 +17,7 @@
 
 <div align="center">
   <p><b>Clean, minimalist workspace and file management</b></p>
-  <img src="assets/pic1.png" alt="Metis Minimalist Main Interface" width="850" />
-  <br/><br/>
-  <p><b>Laser-focused file modification and streaming chat interaction</b></p>
-  <img src="assets/pic2.png" alt="Metis Conversational Micro-Editing" width="850" />
+  <img src="assets/firstpage.png" alt="Metis Minimalist Main Interface" width="850" />
 </div>
 
 ---

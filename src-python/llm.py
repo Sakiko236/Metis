@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import copy
 import json
 import re
 import ssl
@@ -97,7 +98,7 @@ class MultiVendorClient:
             )
         else:
             return await asyncio.to_thread(
-                cls._call_openai_compatible_sync,
+                cls._call_responses_api_sync,
                 vendor,
                 base_url,
                 full_system,
@@ -106,10 +107,32 @@ class MultiVendorClient:
             )
 
     @staticmethod
+    def build_responses_tools() -> List[dict]:
+        """
+        OpenAI and DeepSeek standard Responses API tool specification for live web search.
+        Allows models to dynamically evaluate search on the provider cluster without forcing it.
+        """
+        return [
+            {
+                "type": "web_search",
+            }
+        ]
+
+    @staticmethod
     def build_deepseek_tools() -> List[dict]:
         """
-        DeepSeek standard tool calling specification for live web search.
-        Allows DeepSeek to dynamically assess whether search is required without forcing it.
+        DeepSeek live web search specification for Responses API & Chat Completions fallback.
+        """
+        return [
+            {
+                "type": "web_search",
+            }
+        ]
+
+    @staticmethod
+    def build_chat_completions_search_tools() -> List[dict]:
+        """
+        Legacy function calling schema for Chat Completions fallback.
         """
         return [
             {
@@ -130,6 +153,233 @@ class MultiVendorClient:
                 },
             }
         ]
+
+    @staticmethod
+    def resolve_responses_url(base_url: str) -> str:
+        """
+        Resolve base URL to the standardized /v1/responses endpoint.
+        """
+        clean = base_url.rstrip("/")
+        if clean.endswith("/chat/completions"):
+            clean = clean[:-17]
+        if clean.endswith("/responses"):
+            return clean
+        if clean.endswith("/v1"):
+            return f"{clean}/responses"
+        return f"{clean}/v1/responses"
+
+    @classmethod
+    def _call_responses_api_sync(
+        cls,
+        vendor: VendorProfile,
+        base_url: str,
+        system_prompt: str,
+        history: List[ChatHistoryItem],
+        on_chunk: Callable[[str], None],
+    ) -> Tuple[bool, str]:
+        url = cls.resolve_responses_url(base_url)
+
+        input_items: List[dict] = []
+        for item in history:
+            role = "assistant" if item.role == "assistant" else "user"
+            content = (item.content or "").strip()
+            if content:
+                input_items.append({"role": role, "content": content})
+
+        if not input_items:
+            input_items.append({"role": "user", "content": "Please proceed."})
+
+        payload: dict = {
+            "model": vendor.selected_model,
+            "instructions": system_prompt,
+            "input": input_items,
+            "stream": True,
+            "temperature": 0.2,
+        }
+
+        # Allow vendor API live search dynamically without forcing it
+        if vendor.api_key and vendor.api_key.strip():
+            payload["tools"] = cls.build_responses_tools()
+
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "User-Agent": "Metis-Agent/1.3",
+        }
+        if vendor.api_key and vendor.api_key.strip():
+            headers["Authorization"] = f"Bearer {vendor.api_key.strip()}"
+
+        ctx = ssl.create_default_context()
+
+        def open_responses_stream(req_payload: dict):
+            data_bytes = json.dumps(req_payload).encode("utf-8")
+            req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
+            return urllib.request.urlopen(req, timeout=180, context=ctx)
+
+        resp = None
+        try:
+            resp = open_responses_stream(payload)
+        except urllib.error.HTTPError as he:
+            body = ""
+            try:
+                body = he.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+
+            # If provider endpoint returns 404 / 405 / 501, seamlessly fallback to Chat Completions
+            if he.code in (404, 405, 501):
+                return cls._call_chat_completions_fallback_sync(
+                    vendor,
+                    base_url,
+                    system_prompt,
+                    history,
+                    on_chunk,
+                )
+
+            body_lower = body.lower()
+            # If tools / web_search not supported by model or endpoint, retry without tools
+            if "tools" in payload and any(term in body_lower for term in ("tool", "tools", "web_search", "not supported", "unknown")):
+                payload.pop("tools", None)
+                try:
+                    resp = open_responses_stream(payload)
+                except urllib.error.HTTPError as he2:
+                    if he2.code in (404, 405, 501):
+                        return cls._call_chat_completions_fallback_sync(
+                            vendor,
+                            base_url,
+                            system_prompt,
+                            history,
+                            on_chunk,
+                        )
+                    body2 = ""
+                    try:
+                        body2 = he2.read().decode("utf-8", errors="replace")
+                    except Exception:
+                        pass
+                    return False, f"Responses API Error (HTTP {he2.code}): {body2}"
+                except Exception as e2:
+                    return False, f"HTTP request error on retry: {e2}"
+            elif he.code == 400 and any(term in body_lower for term in ("instructions", "unknown parameter", "unrecognized field", "input")):
+                # Older endpoint only supports /chat/completions schema
+                return cls._call_chat_completions_fallback_sync(
+                    vendor,
+                    base_url,
+                    system_prompt,
+                    history,
+                    on_chunk,
+                )
+            else:
+                return False, f"Responses API Error (HTTP {he.code}): {body}"
+        except Exception as e:
+            return False, f"HTTP request error: {e}"
+
+        output_parts: List[str] = []
+        is_in_reasoning = False
+        has_shown_search = False
+
+        try:
+            with resp:
+                for raw_line in resp:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    json_str = line[5:].strip()
+                    if json_str == "[DONE]":
+                        break
+                    try:
+                        v = json.loads(json_str)
+                    except Exception:
+                        continue
+
+                    event_type = v.get("type", "")
+
+                    # 1. Server-side web search status indicators
+                    if event_type == "response.output_item.added":
+                        item = v.get("item", {})
+                        if isinstance(item, dict) and item.get("type") == "web_search_call":
+                            if not has_shown_search:
+                                has_shown_search = True
+                                notice = "🔍 Searching web via vendor grounding...\n\n"
+                                output_parts.append(notice)
+                                on_chunk(notice)
+                    elif "web_search_call" in event_type or event_type.endswith(".searching"):
+                        if not has_shown_search:
+                            has_shown_search = True
+                            notice = "🔍 Searching web via vendor grounding...\n\n"
+                            output_parts.append(notice)
+                            on_chunk(notice)
+
+                    # 2. Reasoning / Thinking deltas (DeepSeek-R1 / OpenAI o-series)
+                    if event_type in (
+                        "response.reasoning_text.delta",
+                        "response.reasoning_summary_text.delta",
+                        "response.reasoning.delta",
+                    ):
+                        delta = v.get("delta")
+                        reasoning_txt = delta if isinstance(delta, str) else (delta.get("text") if isinstance(delta, dict) else "")
+                        if reasoning_txt:
+                            if not is_in_reasoning:
+                                is_in_reasoning = True
+                                output_parts.append("<think>")
+                                on_chunk("<think>")
+                            output_parts.append(reasoning_txt)
+                            on_chunk(reasoning_txt)
+
+                    elif event_type in (
+                        "response.reasoning_text.done",
+                        "response.reasoning_summary_text.done",
+                        "response.reasoning.done",
+                    ):
+                        if is_in_reasoning:
+                            is_in_reasoning = False
+                            output_parts.append("</think>\n")
+                            on_chunk("</think>\n")
+
+                    # 3. Output text deltas
+                    elif event_type in (
+                        "response.output_text.delta",
+                        "response.text.delta",
+                    ):
+                        delta = v.get("delta")
+                        content_txt = delta if isinstance(delta, str) else (delta.get("text") if isinstance(delta, dict) else "")
+                        if content_txt:
+                            if is_in_reasoning:
+                                is_in_reasoning = False
+                                output_parts.append("</think>\n")
+                                on_chunk("</think>\n")
+                            output_parts.append(content_txt)
+                            on_chunk(content_txt)
+
+                    # 4. Standard choices fallback if proxy wraps completion chunks
+                    elif "choices" in v:
+                        choices = v.get("choices")
+                        if isinstance(choices, list) and choices:
+                            c_delta = choices[0].get("delta", {})
+                            if isinstance(c_delta, dict):
+                                content = c_delta.get("content")
+                                reasoning = c_delta.get("reasoning_content") or c_delta.get("reasoning")
+                                if isinstance(content, str) and content:
+                                    if is_in_reasoning:
+                                        is_in_reasoning = False
+                                        output_parts.append("</think>\n")
+                                        on_chunk("</think>\n")
+                                    output_parts.append(content)
+                                    on_chunk(content)
+                                elif isinstance(reasoning, str) and reasoning:
+                                    if not is_in_reasoning:
+                                        is_in_reasoning = True
+                                        output_parts.append("<think>")
+                                        on_chunk("<think>")
+                                    output_parts.append(reasoning)
+                                    on_chunk(reasoning)
+
+            if is_in_reasoning:
+                output_parts.append("</think>\n")
+                on_chunk("</think>\n")
+
+            return True, "".join(output_parts)
+        except Exception as e:
+            return False, f"Responses API stream read error: {e}"
 
     @staticmethod
     def call_deepseek_search_api(api_key: str, query: str, count: int = 5) -> List[dict]:
@@ -162,7 +412,7 @@ class MultiVendorClient:
             return []
 
     @classmethod
-    def _call_openai_compatible_sync(
+    def _call_chat_completions_fallback_sync(
         cls,
         vendor: VendorProfile,
         base_url: str,
@@ -190,7 +440,7 @@ class MultiVendorClient:
             "temperature": 0.2,
         }
         if is_deepseek and vendor.api_key and vendor.api_key.strip():
-            payload["tools"] = cls.build_deepseek_tools()
+            payload["tools"] = cls.build_chat_completions_search_tools()
 
         headers = {
             "Content-Type": "application/json",
@@ -360,6 +610,9 @@ class MultiVendorClient:
             return True, "".join(full_output)
         except Exception as e:
             return False, f"Stream read error: {e}"
+
+    # Backward compatibility alias
+    _call_openai_compatible_sync = _call_responses_api_sync
 
     @classmethod
     def prepare_claude_messages(cls, history: List[ChatHistoryItem]) -> List[dict]:

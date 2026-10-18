@@ -92,11 +92,11 @@ flowchart TD
 * Real-time streaming parser extracts `thought` parts dynamically, rendering breathing animation placeholders without polluting generated code.
 * Automatic fallback protection for legacy models without thinking support.
 
-### 3. 🌐 Native Vendor API Search Grounding
-* Direct integration with official vendor search specifications:
+### 3. 🌐 Responses API & Native Vendor Search Grounding
+* Direct migration to modern **Responses API** (`/v1/responses`) and official vendor search specifications:
+  - **OpenAI & DeepSeek**: Unified Responses API (`POST /v1/responses`) with native server-side live web search (`tools: [{"type": "web_search"}]`), semantic event streaming (`response.output_text.delta`, `response.reasoning_text.delta`), and automatic fallback to `/chat/completions` for legacy proxies.
   - **Google Gemini**: Google Search Grounding (`google_search`).
   - **Anthropic Claude**: Server-side Web Search tool (`web_search_20250101`).
-  - **DeepSeek**: Native Function Calling for live search powered by DeepSeek's official Web Search API (`/v1/tools/search`).
 * Models dynamically evaluate whether external technical documentation or references are required, performing search grounding via official API endpoints without forced or redundant queries.
 
 ### 4. 🛡️ Strict Prohibition on File Creation & Deletion

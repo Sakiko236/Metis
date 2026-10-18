@@ -8,8 +8,9 @@
    - **独立打包免环境依赖**：通过 `scripts/build_sidecar.py` 与 PyInstaller 将 Python 引擎编译为独立原生二进制 `metis-engine` 并随 Tauri 安装包自动分发，终端用户无需安装任何 Python 环境。
 2. **Gemini 2.5 思考预算与流式思考规范支持 (Gemini Thinking Budget & SSE Streaming)**
    - 完整支持 `thinkingConfig.thinkingBudget` 三档调节（`low=2048`、`medium=8192`、`high=24576`），流式解析 `thought: true` 分块并实时激活前端呼吸动效。
-3. **厂商原生 API 搜索规范集成 (Native Vendor API Search Grounding)**
-   - 取消内置 DuckDuckGo 爬虫，全面切换为调用模型厂商原生搜索规范（包括 Gemini `google_search` Grounding、Claude `web_search`、以及 DeepSeek 官方搜索接口 `POST /v1/tools/search` 的原生工具调用）。模型在需要最新文档或技术规格时自主执行联网检索，允许 API 搜索但不强制。
+3. **OpenAI 与 DeepSeek 全面迁移现代 Responses API 协议与原生搜索 (Modern Responses API & Native Search Grounding)**
+   - **统一直连 Responses 规范 (`POST /v1/responses`)**：将 OpenAI、DeepSeek 及兼容厂商全面迁移至现代 Responses 协议，直接接收并解析语义级 SSE 流式事件（`response.output_text.delta`、`response.reasoning_text.delta` 与 `web_search_call` 等），在模型服务端原生执行集群联网检索（`tools: [{"type": "web_search"}]`），允许 API 搜索但不强制，并对未实现 Responses 接口的旧版中转网关保持无缝兼容与自动回退。
+   - **厂商原生搜索全矩阵支持**：结合 Gemini `google_search` Grounding、Claude `web_search_20250101` 与 OpenAI / DeepSeek Responses 原生 web_search，模型根据对话需要自主联网检索，彻底摆脱外部冗余爬虫。
 
 #### 🐛 问题修复 (Bug Fixes)
 1. **Ollama 厂商枚举序列化与探测按钮修复 (VendorType Serialization Fix)**

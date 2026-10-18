@@ -720,21 +720,30 @@ async def run_self_test() -> int:
         return 6
     print(f"[PASS] Terminal Execution Verified (Exit 0): {exec_res.combined_output().strip()}", flush=True)
 
-    # 7. Vendor API Web Search Grounding Tool Specification Verification (Gemini, Claude, DeepSeek)
+    # 7. Vendor API Web Search Grounding Tool Specification Verification (Gemini, Claude, Responses API / DeepSeek)
     gemini_tools = MultiVendorClient.build_gemini_tools()
     claude_tools = MultiVendorClient.build_claude_tools()
+    responses_tools = MultiVendorClient.build_responses_tools()
     deepseek_tools = MultiVendorClient.build_deepseek_tools()
+    url_oai = MultiVendorClient.resolve_responses_url("https://api.openai.com/v1")
+    url_deepseek = MultiVendorClient.resolve_responses_url("https://api.deepseek.com")
+    url_chat = MultiVendorClient.resolve_responses_url("https://api.deepseek.com/v1/chat/completions")
     if (
         not gemini_tools
         or "google_search" not in gemini_tools[0]
         or not claude_tools
         or claude_tools[0].get("type") != "web_search_20250101"
+        or not responses_tools
+        or responses_tools[0].get("type") != "web_search"
         or not deepseek_tools
-        or deepseek_tools[0].get("function", {}).get("name") != "web_search"
+        or deepseek_tools[0].get("type") != "web_search"
+        or url_oai != "https://api.openai.com/v1/responses"
+        or url_deepseek != "https://api.deepseek.com/v1/responses"
+        or url_chat != "https://api.deepseek.com/v1/responses"
     ):
-        print("FAIL: Vendor API search tool specification verification failed.", file=sys.stderr, flush=True)
+        print("FAIL: Vendor API search tool specification or Responses API URL resolution failed.", file=sys.stderr, flush=True)
         return 7
-    print(f"[PASS] Vendor API Search Grounding Specifications Verified (Gemini, Claude, DeepSeek Search)", flush=True)
+    print(f"[PASS] Vendor API Search Grounding & Responses API Protocol Verified (OpenAI, DeepSeek, Claude, Gemini)", flush=True)
 
     # 8. Session Title Extraction, Tag Stripping & Gemini Thinking Config verification (low, medium, high)
     sample_reply = "<think>Thinking deeply...</think>\n<metis_title>Python Sidecar Architecture</metis_title>\nReady to assist!"

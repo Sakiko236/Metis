@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
 [assembly: AssemblyTitle("Metis Setup")]
@@ -43,6 +44,18 @@ namespace MetisSetup
         public InstallerWindow()
         {
             Title = "Metis v1.0.0 Setup Wizard";
+            try
+            {
+                using (Stream iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Metis.ico"))
+                {
+                    if (iconStream != null)
+                    {
+                        Icon = BitmapFrame.Create(iconStream);
+                    }
+                }
+            }
+            catch { }
+
             Width = 650;
             Height = 480;
             ResizeMode = ResizeMode.NoResize;

@@ -12,6 +12,7 @@ using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using Microsoft.Win32;
 using Microsoft.Web.WebView2.Core;
@@ -66,6 +67,18 @@ namespace Metis
             BindActiveSessionWhitelist();
 
             Title = "Metis";
+            try
+            {
+                using (Stream iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Metis.ico"))
+                {
+                    if (iconStream != null)
+                    {
+                        Icon = BitmapFrame.Create(iconStream);
+                    }
+                }
+            }
+            catch { }
+
             Width = 1320;
             Height = 860;
             MinWidth = 980;

@@ -17,6 +17,7 @@ set WV=lib\webview2
   /resource:%WV%\Microsoft.Web.WebView2.Wpf.dll,Microsoft.Web.WebView2.Wpf.dll ^
   /resource:%WV%\WebView2Loader.dll,WebView2Loader.dll ^
   /resource:src\frontend\app.html,app.html ^
+  /resource:src\Metis.ico,Metis.ico ^
   src\Models.cs src\ConfigManager.cs src\MediaAttachmentHelper.cs src\WhitelistManager.cs src\VerificationRunner.cs src\WebSearchRunner.cs src\MultiVendorClient.cs src\MainWindow.cs src\Program.cs
 
 if %ERRORLEVEL% NEQ 0 (
@@ -31,6 +32,7 @@ echo [2/2] Building Metis-Setup.exe ...
   /r:"%FW%\WPF\WindowsBase.dll" ^
   /r:"%FW%\System.Xaml.dll" ^
   /resource:Metis.exe,Metis.exe ^
+  /resource:src\Metis.ico,Metis.ico ^
   src\Installer.cs
 
 if %ERRORLEVEL% EQU 0 (

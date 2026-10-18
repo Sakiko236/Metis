@@ -3823,7 +3823,7 @@
     return true;
   }
 
-  function mdInline(s) {
+  function mdInline(s, displayMathBlocks) {
     if (!s) return '';
     // 1. Mask inline code first so formulas and dollar signs inside code are not touched
     const codes = [];
@@ -3835,9 +3835,15 @@
     // 1.5 Protect escaped dollar signs: \$
     s = s.replace(/\\(\$)/g, '\u0002');
 
-    // 2. Mask display math: \[ ... \] and $$ ... $$ / $$$$ ... $$$$
+    // 2. Mask display math (pre-extracted placeholders and inline occurrences)
     const maths = [];
-    s = s.replace(/\\\[([\s\S]*?)\\\]/g, function(_, expr) {
+    if (displayMathBlocks && displayMathBlocks.length) {
+      s = s.replace(/\uF001DM_(\d+)_\uF001/g, function(_, idx) {
+        maths.push(renderMathBlock(displayMathBlocks[+idx]));
+        return '\u0001' + (maths.length - 1) + '\u0001';
+      });
+    }
+    s = s.replace(/(?:\\{1,4}\[)([\s\S]*?)(?:\\{1,4}\])/g, function(_, expr) {
       maths.push(renderMathBlock(expr.trim()));
       return '\u0001' + (maths.length - 1) + '\u0001';
     });
@@ -3846,8 +3852,8 @@
       return '\u0001' + (maths.length - 1) + '\u0001';
     });
 
-    // 3. Mask inline math: \( ... \) and $ ... $ (excluding plain currency)
-    s = s.replace(/\\\(([\s\S]*?)\\\)/g, function(_, expr) {
+    // 3. Mask inline math: \( ... \) or \\( ... \\) and $ ... $ (excluding plain currency)
+    s = s.replace(/(?:\\{1,4}\()([\s\S]*?)(?:\\{1,4}\))/g, function(_, expr) {
       maths.push(renderMathInline(expr.trim()));
       return '\u0001' + (maths.length - 1) + '\u0001';
     });
@@ -3918,14 +3924,56 @@
     return expanded.slice(removeCount);
   }
 
-  function renderMarkdownToHtml(src) {
+  function renderMarkdownToHtml(src, displayMathBlocks) {
+    if (!displayMathBlocks) {
+      displayMathBlocks = [];
+
+      // 1. Mask fenced code blocks so formulas inside code are untouched
+      const codeBlocks = [];
+      src = src.replace(/(^|\n)(\s*```[^\n]*\n[\s\S]*?(?:\n\s*```\s*($|\n)|$))/g, function(m, p1, block, p3) {
+        codeBlocks.push(block);
+        return p1 + '\n\uF002CODEBLOCK_' + (codeBlocks.length - 1) + '_\uF002\n' + (p3 || '');
+      });
+
+      // 1.5 Mask inline code
+      const inlineCodes = [];
+      src = src.replace(/`([^`\n]+)`/g, function(m, c) {
+        inlineCodes.push(c);
+        return '\uF003INLINECODE_' + (inlineCodes.length - 1) + '_\uF003';
+      });
+
+      // 2. Pre-extract display math: \[ ... \] and \\[ ... \\]
+      src = src.replace(/(?:\\{1,4}\[)([\s\S]*?)(?:\\{1,4}\])/g, function(_, expr) {
+        let clean = expr;
+        if (/^\s*>/m.test(clean)) clean = clean.replace(/^\s*>\s?/gm, '');
+        displayMathBlocks.push(clean.trim());
+        return '\uF001DM_' + (displayMathBlocks.length - 1) + '_\uF001';
+      });
+
+      // 3. Pre-extract $$ ... $$ and $$$$ ... $$$$
+      src = src.replace(/\${2,4}([\s\S]+?)\${2,4}/g, function(_, expr) {
+        let clean = expr;
+        if (/^\s*>/m.test(clean)) clean = clean.replace(/^\s*>\s?/gm, '');
+        displayMathBlocks.push(clean.trim());
+        return '\uF001DM_' + (displayMathBlocks.length - 1) + '_\uF001';
+      });
+
+      // 4. Restore inline code and code blocks
+      src = src.replace(/\uF003INLINECODE_(\d+)_\uF003/g, function(m, idx) {
+        return '`' + inlineCodes[+idx] + '`';
+      });
+      src = src.replace(/\uF002CODEBLOCK_(\d+)_\uF002/g, function(m, idx) {
+        return codeBlocks[+idx] || m;
+      });
+    }
+
     const lines = src.split(/\r?\n/);
     const out = [];
     let i = 0;
     const isSep = l => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l) && l.indexOf('-') >= 0;
     const splitRow = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
     const isBlockStart = l =>
-      /^\s*```/.test(l) || /^\s*\${2,4}/.test(l) || /^\s*\\\[/.test(l) ||
+      /^\s*```/.test(l) || /^\s*\uF001DM_\d+_\uF001\s*$/.test(l) ||
       /^#{1,6}\s+/.test(l) || /^\s*>/.test(l) ||
       /^\s*[-*+]\s+/.test(l) || /^\s*\d+[.)]\s+/.test(l) ||
       /^\s*([-*_])(\s*\1){2,}\s*$/.test(l);
@@ -3934,6 +3982,14 @@
       const line = lines[i];
 
       if (/^\s*$/.test(line)) { i++; continue; }
+
+      // Standalone display math block
+      let dmMatch = line.match(/^\s*\uF001DM_(\d+)_\uF001\s*$/);
+      if (dmMatch) {
+        out.push(renderMathBlock(displayMathBlocks[+dmMatch[1]]));
+        i++;
+        continue;
+      }
 
       // Fenced code block (closed or still streaming, top-level or indented)
       let m = line.match(/^(\s*)```([^\s`]*).*$/);
@@ -3951,72 +4007,11 @@
         continue;
       }
 
-      // Block math: $$ ... $$ or $$$$ ... $$$$
-      let standaloneMath = line.match(/^\s*\${2,4}(.+?)\${2,4}\s*$/);
-      if (standaloneMath) {
-        out.push(renderMathBlock(standaloneMath[1].trim()));
-        i++;
-        continue;
-      }
-      let mathBlockStart = line.match(/^\s*\${2,4}\s*(.*)$/);
-      if (mathBlockStart) {
-        const buf = [];
-        const firstLine = mathBlockStart[1].trim();
-        if (firstLine) {
-          if (/\${2,4}$/.test(firstLine)) {
-            const stripped = firstLine.replace(/^\${2,4}/, '').replace(/\${2,4}$/, '').trim();
-            out.push(renderMathBlock(stripped));
-            i++;
-            continue;
-          }
-          buf.push(firstLine);
-        }
-        i++;
-        while (i < lines.length && !/^\s*\${2,4}\s*$/.test(lines[i])) {
-          if (/\${2,4}\s*$/.test(lines[i])) {
-            const lineContent = lines[i].replace(/\${2,4}\s*$/, '').trim();
-            if (lineContent) buf.push(lineContent);
-            i++;
-            break;
-          }
-          buf.push(lines[i]);
-          i++;
-        }
-        if (i < lines.length && /^\s*\${2,4}\s*$/.test(lines[i])) { i++; }
-        out.push(renderMathBlock(buf.join('\n').trim()));
-        continue;
-      }
-
-      // Block math: \[ ... \]
-      let bslashMatch = line.match(/^\s*\\\[(.*)$/);
-      if (bslashMatch) {
-        const rest = bslashMatch[1].trim();
-        if (rest.endsWith('\\]')) {
-          out.push(renderMathBlock(rest.slice(0, -2).trim()));
-          i++;
-          continue;
-        }
-        const buf = [];
-        if (rest) buf.push(rest);
-        i++;
-        while (i < lines.length && !lines[i].includes('\\]')) {
-          buf.push(lines[i]);
-          i++;
-        }
-        if (i < lines.length && lines[i].includes('\\]')) {
-          const parts = lines[i].split('\\]');
-          if (parts[0].trim()) buf.push(parts[0].trim());
-          i++;
-        }
-        out.push(renderMathBlock(buf.join('\n')));
-        continue;
-      }
-
       // Heading
       m = line.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
       if (m) {
         const lv = m[1].length;
-        out.push('<h' + lv + ' class="md-h">' + mdInline(m[2]) + '</h' + lv + '>');
+        out.push('<h' + lv + ' class="md-h">' + mdInline(m[2], displayMathBlocks) + '</h' + lv + '>');
         i++; continue;
       }
 
@@ -4031,11 +4026,11 @@
         const rows = [];
         while (i < lines.length && lines[i].indexOf('|') >= 0 && !/^\s*$/.test(lines[i])) { rows.push(splitRow(lines[i])); i++; }
         let t = '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
-        head.forEach((h, k) => { t += '<th style="text-align:' + (aligns[k] || 'left') + '">' + mdInline(h) + '</th>'; });
+        head.forEach((h, k) => { t += '<th style="text-align:' + (aligns[k] || 'left') + '">' + mdInline(h, displayMathBlocks) + '</th>'; });
         t += '</tr></thead><tbody>';
         rows.forEach(r => {
           t += '<tr>';
-          head.forEach((_, k) => { t += '<td style="text-align:' + (aligns[k] || 'left') + '">' + mdInline(r[k] || '') + '</td>'; });
+          head.forEach((_, k) => { t += '<td style="text-align:' + (aligns[k] || 'left') + '">' + mdInline(r[k] || '', displayMathBlocks) + '</td>'; });
           t += '</tr>';
         });
         t += '</tbody></table></div>';
@@ -4047,7 +4042,7 @@
       if (/^\s*>/.test(line)) {
         const buf = [];
         while (i < lines.length && /^\s*>/.test(lines[i])) { buf.push(lines[i].replace(/^\s*>\s?/, '')); i++; }
-        out.push('<blockquote class="md-quote">' + renderMarkdownToHtml(buf.join('\n')) + '</blockquote>');
+        out.push('<blockquote class="md-quote">' + renderMarkdownToHtml(buf.join('\n'), displayMathBlocks) + '</blockquote>');
         continue;
       }
 
@@ -4081,7 +4076,7 @@
             }
             // 3. Continuation line (indented text) belongs to previous item
             if (/^\s{2,}\S/.test(lines[i]) && stack.length) {
-              html += '<br>' + mdInline(lines[i].trim());
+              html += '<br>' + mdInline(lines[i].trim(), displayMathBlocks);
               i++;
               continue;
             }
@@ -4101,7 +4096,7 @@
           let body = lm[3];
           const task = body.match(/^\[([ xX])\]\s+(.*)$/);
           if (task) body = (task[1] === ' ' ? '☐ ' : '☑ ') + task[2];
-          html += '<li>' + mdInline(body);
+          html += '<li>' + mdInline(body, displayMathBlocks);
           i++;
         }
         while (stack.length) html += '</li></' + stack.pop().type + '>';
@@ -4116,7 +4111,7 @@
              !(lines[i].indexOf('|') >= 0 && i + 1 < lines.length && isSep(lines[i + 1]))) {
         buf.push(lines[i]); i++;
       }
-      out.push('<p class="md-p">' + buf.map(mdInline).join('<br>') + '</p>');
+      out.push('<p class="md-p">' + buf.map(l => mdInline(l, displayMathBlocks)).join('<br>') + '</p>');
     }
     return out.join('');
   }

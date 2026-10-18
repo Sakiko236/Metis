@@ -41,8 +41,8 @@
     --text-primary: #F3F4F6;
     --text-secondary: #9CA3AF;
     --text-muted: #6B7280;
-    --accent-emerald: #10B981;
-    --accent-emerald-dim: rgba(16, 185, 129, 0.14);
+    --accent-emerald: #0EA5E9;
+    --accent-emerald-dim: rgba(14, 165, 233, 0.15);
     --accent-indigo: #6366F1;
     --accent-indigo-dim: rgba(99, 102, 241, 0.15);
     --accent-amber: #F59E0B;
@@ -73,8 +73,8 @@
     --text-primary: #0F172A;
     --text-secondary: #475569;
     --text-muted: #94A3B8;
-    --accent-emerald: #059669;
-    --accent-emerald-dim: rgba(5, 150, 105, 0.1);
+    --accent-emerald: #0284C7;
+    --accent-emerald-dim: rgba(2, 132, 199, 0.12);
     --accent-indigo: #4F46E5;
     --accent-indigo-dim: rgba(79, 70, 229, 0.1);
     --accent-amber: #D97706;
@@ -1938,11 +1938,14 @@
   <div class="titlebar-drag-area" id="titlebarDragArea">
     <div class="titlebar-brand">
       <div class="titlebar-logo-icon">
-        <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="7" fill="var(--accent-emerald)" fill-opacity="0.16"/>
-          <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" stroke="var(--accent-emerald)" stroke-opacity="0.32"/>
-          <text x="15" y="23" font-family="'Times New Roman', Georgia, serif" font-size="21" font-weight="900" font-style="italic" fill="var(--accent-emerald)" text-anchor="middle">M</text>
-          <circle cx="22" cy="8" r="2.2" fill="#06B6D4"/>
+        <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+          <rect width="100" height="100" rx="22" fill="#080D1A"/>
+          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
+          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
+          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
+          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
         </svg>
       </div>
       <span class="titlebar-app-name">Metis</span>
@@ -1977,12 +1980,15 @@
     <div class="brand-header">
       <div class="brand-left">
         <div class="brand-logo">
-          <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="7" fill="var(--accent-emerald)" fill-opacity="0.18"/>
-            <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" stroke="var(--accent-emerald)" stroke-opacity="0.35"/>
-            <text x="15" y="23" font-family="'Times New Roman', Georgia, serif" font-size="21" font-weight="900" font-style="italic" fill="var(--accent-emerald)" text-anchor="middle">M</text>
-            <circle cx="22" cy="8" r="2.2" fill="#06B6D4"/>
-          </svg>
+          <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
+          <rect width="100" height="100" rx="22" fill="#080D1A"/>
+          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
+          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
+          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
+          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
+        </svg>
         </div>
         <div>
           <div class="brand-title">Metis</div>
@@ -2480,12 +2486,15 @@
       container.innerHTML = `
         <div class="empty-hero" style="margin: 100px auto 20px auto; text-align: center; display: flex; flex-direction: column; align-items: center;">
           <div style="margin-bottom: 14px;">
-            <svg width="52" height="52" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="8" fill="var(--accent-emerald)" fill-opacity="0.14"/>
-              <rect x="0.5" y="0.5" width="31" height="31" rx="7.5" stroke="var(--accent-emerald)" stroke-opacity="0.3"/>
-              <text x="15" y="23" font-family="'Times New Roman', Georgia, serif" font-size="21" font-weight="900" font-style="italic" fill="var(--accent-emerald)" text-anchor="middle">M</text>
-              <circle cx="22" cy="8" r="2.2" fill="#06B6D4"/>
-            </svg>
+            <svg width="56" height="56" viewBox="0 0 100 100" fill="none">
+          <rect width="100" height="100" rx="22" fill="#080D1A"/>
+          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
+          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
+          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
+          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
+        </svg>
           </div>
           <div style="font-size: 22px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: 6px;">Metis</div>
           <p style="color: var(--text-muted); font-size: 13px; margin: 0;">File-Centric Mini Agent · Zero Blast Radius</p>
@@ -2554,12 +2563,15 @@
           <div class="msg-assistant">
             <div class="msg-assistant-header">
               <div class="assistant-badge">
-                <svg width="15" height="15" viewBox="0 0 32 32" fill="none">
-                  <rect width="32" height="32" rx="7" fill="var(--accent-emerald)" fill-opacity="0.18"/>
-                  <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" stroke="var(--accent-emerald)" stroke-opacity="0.35"/>
-                  <text x="15" y="23" font-family="'Times New Roman', Georgia, serif" font-size="21" font-weight="900" font-style="italic" fill="var(--accent-emerald)" text-anchor="middle">M</text>
-                  <circle cx="22" cy="8" r="2.2" fill="#06B6D4"/>
-                </svg>
+                <svg width="15" height="15" viewBox="0 0 100 100" fill="none">
+          <rect width="100" height="100" rx="22" fill="#080D1A"/>
+          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
+          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
+          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
+          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
+        </svg>
                 <span>Metis · ${escapeHtml(ev.VendorName || '')}</span>
               </div>
               <div class="msg-header-right">

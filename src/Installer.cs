@@ -75,8 +75,8 @@ namespace MetisSetup
 
             Border badge = new Border
             {
-                Background = BrushHex("#064E3B"),
-                BorderBrush = BrushHex("#10B981"),
+                Background = BrushHex("#082F49"),
+                BorderBrush = BrushHex("#0EA5E9"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(8, 2, 8, 2),
@@ -86,7 +86,7 @@ namespace MetisSetup
             badge.Child = new TextBlock
             {
                 Text = "SETUP v1.0.0",
-                Foreground = BrushHex("#34D399"),
+                Foreground = BrushHex("#38BDF8"),
                 FontWeight = FontWeights.Bold,
                 FontSize = 11
             };
@@ -186,7 +186,7 @@ namespace MetisSetup
                 Maximum = 100,
                 Value = 0,
                 Background = BrushHex("#141720"),
-                Foreground = BrushHex("#10B981"),
+                Foreground = BrushHex("#0EA5E9"),
                 BorderThickness = new Thickness(0),
                 Margin = new Thickness(0, 12, 0, 8)
             };
@@ -252,7 +252,7 @@ namespace MetisSetup
                 Content = "Install",
                 Width = 136,
                 Height = 32,
-                Background = BrushHex("#10B981"),
+                Background = BrushHex("#0EA5E9"),
                 Foreground = Brushes.White,
                 FontWeight = FontWeights.Bold,
                 BorderThickness = new Thickness(0),

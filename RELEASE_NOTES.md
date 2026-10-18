@@ -7,7 +7,7 @@
    - **零端口冲突双向管道通信 (`METIS_IPC`)**：采用基于 `stdin/stdout` 的异步双向 JSON 流管道通信，避免本地端口占用与防火墙弹窗，且当主窗口关闭或异常退出时 Python 进程自动零残留退出。
    - **独立打包免环境依赖**：通过 `scripts/build_sidecar.py` 与 PyInstaller 将 Python 引擎编译为独立原生二进制 `metis-engine` 并随 Tauri 安装包自动分发，终端用户无需安装任何 Python 环境。
 2. **Gemini 2.5 思考预算与流式思考规范支持 (Gemini Thinking Budget & SSE Streaming)**
-   - 完整支持 `thinkingConfig.thinkingBudget` 四档调节（`off=0`、`low=2048`、`medium=8192`、`high=24576`），流式解析 `thought: true` 分块并实时激活前端呼吸动效。
+   - 完整支持 `thinkingConfig.thinkingBudget` 三档调节（`low=2048`、`medium=8192`、`high=24576`），流式解析 `thought: true` 分块并实时激活前端呼吸动效。
 
 #### 🐛 问题修复 (Bug Fixes)
 1. **Ollama 厂商枚举序列化与探测按钮修复 (VendorType Serialization Fix)**

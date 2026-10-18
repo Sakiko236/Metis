@@ -185,7 +185,8 @@ class SidecarEngine:
             self.broadcast_full_state()
 
         elif action == "setThinkingIntensity":
-            intensity = str(data.get("intensity", "medium"))
+            raw_intensity = str(data.get("intensity", "medium")).lower()
+            intensity = raw_intensity if raw_intensity in ("low", "medium", "high") else "medium"
             self.config.thinking_intensity = intensity
             ConfigManager.save(self.config)
             self.broadcast_full_state()
@@ -754,20 +755,26 @@ async def run_self_test() -> int:
     search_res = await WebSearchRunner.search("python", 2)
     print(f"[PASS] Web Search Engine Verified (Found {len(search_res)} results)", flush=True)
 
-    # 8. Session Title Extraction, Tag Stripping & Gemini Thinking Config verification
+    # 8. Session Title Extraction, Tag Stripping & Gemini Thinking Config verification (low, medium, high)
     sample_reply = "<think>Thinking deeply...</think>\n<metis_title>Python Sidecar Architecture</metis_title>\nReady to assist!"
     extracted_title = MultiVendorClient.extract_session_title(sample_reply)
     display_text = MultiVendorClient.format_display_text(sample_reply)
-    gen_cfg, supports = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "high")
+    gen_cfg_high, supports = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "high")
+    gen_cfg_med, _ = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "medium")
+    gen_cfg_low, _ = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "low")
+    gen_cfg_off_fallback, _ = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "off")
     if (
         extracted_title != "Python Sidecar Architecture"
         or display_text != "Ready to assist!"
         or not supports
-        or gen_cfg.get("thinkingConfig", {}).get("thinkingBudget") != 24576
+        or gen_cfg_high.get("thinkingConfig", {}).get("thinkingBudget") != 24576
+        or gen_cfg_med.get("thinkingConfig", {}).get("thinkingBudget") != 8192
+        or gen_cfg_low.get("thinkingConfig", {}).get("thinkingBudget") != 2048
+        or gen_cfg_off_fallback.get("thinkingConfig", {}).get("thinkingBudget") != 8192
     ):
         print("FAIL: LLM title/thinking verification failed.", file=sys.stderr, flush=True)
         return 7
-    print(f"[PASS] Session Title & Gemini Thinking Budget Verified: {extracted_title!r}", flush=True)
+    print(f"[PASS] Session Title & 3-Tier Gemini Thinking Budget (low:2048, med:8192, high:24576) Verified: {extracted_title!r}", flush=True)
 
     # 9. Gemini & Claude Conversation Sanitization (Prevent trailing model turns)
     raw_hist = [

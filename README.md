@@ -88,7 +88,7 @@ flowchart TD
 * Built-in file snapshots with one-click historical version rollback.
 
 ### 2. 🧠 Gemini 2.5 Thinking Budget & Extended Reasoning
-* Comprehensive support for Google Gemini 2.5 Thinking configurations (`thinkingBudget`: `off` = 0, `low` = 2048, `medium` = 8192, `high` = 24576).
+* Comprehensive support for Google Gemini 2.5 Thinking configurations (`thinkingBudget`: `low` = 2048, `medium` = 8192, `high` = 24576).
 * Real-time streaming parser extracts `thought` parts dynamically, rendering breathing animation placeholders without polluting generated code.
 * Automatic fallback protection for legacy models without thinking support.
 

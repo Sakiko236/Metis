@@ -103,7 +103,11 @@ class AppConfig:
         self.max_verify_loops = max_verify_loops
         self.command_timeout_seconds = command_timeout_seconds
         self.theme = theme
-        self.thinking_intensity = thinking_intensity
+        self.thinking_intensity = (
+            thinking_intensity.lower()
+            if thinking_intensity and thinking_intensity.lower() in ("low", "medium", "high")
+            else "medium"
+        )
         self.vendors = vendors if vendors is not None else []
 
     def to_dict(self) -> Dict[str, Any]:
@@ -120,12 +124,14 @@ class AppConfig:
     def from_dict(cls, data: Dict[str, Any]) -> "AppConfig":
         raw_vendors = data.get("Vendors", data.get("vendors", []))
         vendors = [VendorProfile.from_dict(v) for v in raw_vendors if isinstance(v, dict)]
+        raw_thinking = str(data.get("ThinkingIntensity", data.get("thinking_intensity", "medium"))).lower()
+        thinking_intensity = raw_thinking if raw_thinking in ("low", "medium", "high") else "medium"
         return cls(
             active_vendor_id=str(data.get("ActiveVendorId", data.get("active_vendor_id", "deepseek"))),
             max_verify_loops=int(data.get("MaxVerifyLoops", data.get("max_verify_loops", 8))),
             command_timeout_seconds=int(data.get("CommandTimeoutSeconds", data.get("command_timeout_seconds", 60))),
             theme=str(data.get("Theme", data.get("theme", "dark"))),
-            thinking_intensity=str(data.get("ThinkingIntensity", data.get("thinking_intensity", "medium"))),
+            thinking_intensity=thinking_intensity,
             vendors=vendors,
         )
 

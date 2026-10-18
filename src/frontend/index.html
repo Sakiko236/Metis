@@ -2182,7 +2182,6 @@
               </div>
               <div class="thinking-slider-track" id="thinkingSliderTrack">
                 <div class="thinking-slider-glider" id="thinkingGlider"></div>
-                <button type="button" class="thinking-seg-btn" data-val="off" onclick="setThinkingIntensity('off')">Off</button>
                 <button type="button" class="thinking-seg-btn" data-val="low" onclick="setThinkingIntensity('low')">Low</button>
                 <button type="button" class="thinking-seg-btn active" data-val="medium" onclick="setThinkingIntensity('medium')">Med</button>
                 <button type="button" class="thinking-seg-btn" data-val="high" onclick="setThinkingIntensity('high')">High</button>
@@ -2333,7 +2332,9 @@
       }
 
       if (appState.config && appState.config.ThinkingIntensity) {
-        currentThinkingIntensity = appState.config.ThinkingIntensity;
+        let val = appState.config.ThinkingIntensity;
+        if (val === 'off') val = 'medium';
+        currentThinkingIntensity = val;
         updateThinkingGlider(currentThinkingIntensity);
       }
 
@@ -2908,7 +2909,7 @@
   let currentThinkingIntensity = 'medium';
 
   function updateThinkingGlider(val) {
-    if (!val) val = 'medium';
+    if (!val || val === 'off') val = 'medium';
     currentThinkingIntensity = val;
     const track = document.getElementById('thinkingSliderTrack');
     const glider = document.getElementById('thinkingGlider');
@@ -2933,9 +2934,7 @@
         glider.style.width = btnRect.width + 'px';
         glider.style.transform = 'translateX(' + leftOffset + 'px)';
       }
-      if (currentThinkingIntensity === 'off') {
-        glider.style.background = 'var(--text-muted)';
-      } else if (currentThinkingIntensity === 'high') {
+      if (currentThinkingIntensity === 'high') {
         glider.style.background = '#8B5CF6';
       } else if (currentThinkingIntensity === 'low') {
         glider.style.background = '#0EA5E9';
@@ -2946,7 +2945,7 @@
   }
 
   function setThinkingIntensity(val) {
-    if (!val) val = 'medium';
+    if (!val || val === 'off') val = 'medium';
     currentThinkingIntensity = val;
     updateThinkingGlider(val);
     try {
@@ -4142,7 +4141,8 @@
     setupWindowResizeHandles();
     try {
       const saved = localStorage.getItem('metis_thinking_intensity') || localStorage.getItem('pinpoint_thinking_intensity');
-      if (saved) currentThinkingIntensity = saved;
+      if (saved && saved !== 'off') currentThinkingIntensity = saved;
+      else currentThinkingIntensity = 'medium';
     } catch(e) {}
     setTimeout(() => updateThinkingGlider(currentThinkingIntensity), 60);
     hostPost({ action: 'uiReady' });

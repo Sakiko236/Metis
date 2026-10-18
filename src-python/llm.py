@@ -290,9 +290,9 @@ class MultiVendorClient:
 
         intensity = (thinking_intensity or "medium").lower()
         budget_tokens = {
-            "high": 16000,
             "low": 2048,
-            "off": 0,
+            "medium": 6000,
+            "high": 16000,
         }.get(intensity, 6000)
 
         payload = {
@@ -378,8 +378,8 @@ class MultiVendorClient:
     def build_gemini_generation_config(clean_model: str, thinking_intensity: str) -> Tuple[dict, bool]:
         intensity = (thinking_intensity or "medium").lower()
         budget_tokens = {
-            "off": 0,
             "low": 2048,
+            "medium": 8192,
             "high": 24576,
         }.get(intensity, 8192)
 

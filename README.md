@@ -6,8 +6,8 @@
   <h3> Metis Agent </h3>
   <p><b>File-Centric Mini Coding Agent with Zero Blast Radius</b></p>
 
-  [![Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?logo=windows&logoColor=white)](https://microsoft.com)
-  [![Framework](https://img.shields.io/badge/.NET-Framework%204.8%20%2B%20WebView2-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
+  [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)](https://github.com/Sakiko236/Metis)
+  [![Framework](https://img.shields.io/badge/Tauri-2.0%20%2B%20Rust-orange?logo=tauri&logoColor=white)](https://tauri.app)
   [![License](https://img.shields.io/badge/License-MIT-emerald)](LICENSE)
 </div>
 
@@ -67,15 +67,19 @@ In an era where AI coding assistants promise "autonomous full-stack repository g
 
 ---
 
-## 🖥️ Quick Start
+## 🖥️ Quick Start & Downloads
 
-### Option A: Portable Standalone (No Installation Required)
-Double-click **`Metis.exe`** directly from the root directory. Zero footprint, instant launch.
+Download the appropriate release package for your operating system from the [Releases](https://github.com/Sakiko236/Metis/releases) page:
 
-### Option B: Windows Setup Wizard
-Run **`Metis-Setup.exe`**:
-* Installs cleanly to `%LOCALAPPDATA%\Programs\Metis`;
-* Creates desktop and Start Menu shortcuts with full uninstaller support.
+* **🪟 Windows**:
+  * **Installer**: `Metis_<version>_x64-setup.exe` (NSIS installer with desktop & Start Menu shortcuts)
+  * **MSI Package**: `Metis_<version>_x64_en-US.msi`
+* **🍎 macOS**:
+  * **Apple Silicon (M1/M2/M3/M4)**: `Metis_<version>_aarch64.dmg`
+  * **Intel Mac**: `Metis_<version>_x64.dmg`
+* **🐧 Linux**:
+  * **Debian / Ubuntu**: `metis_<version>_amd64.deb`
+  * **Universal Linux**: `metis_<version>_amd64.AppImage`
 
 ---
 
@@ -84,7 +88,7 @@ Run **`Metis-Setup.exe`**:
 1. **Configure Your API Key**:
    * Click **⚙️ Settings** in the bottom-left corner;
    * Select your preferred LLM provider (e.g., DeepSeek, OpenAI, Claude, or Gemini), enter your `Base URL`, `API Key`, and `Model Name`;
-   * Click "Save Settings" (persisted securely in local `%APPDATA%\Metis\config.json`, never uploaded to third parties).
+   * Settings automatically save immediately as you type or change selections (persisted locally on your system, never uploaded to third parties).
 
 2. **Select Target Files**:
    * In the workspace panel, click "Add File" or "Upload Folder" to scope down the exact files requiring modification.
@@ -98,20 +102,30 @@ Run **`Metis-Setup.exe`**:
 
 ## 🔨 Building from Source
 
-Metis is implemented in pure native C# (.NET Framework 4.8 + WebView2) with zero heavy package manager dependencies. It compiles instantly using the Windows built-in C# compiler:
+Metis is built with **Tauri 2.0** (Rust backend + Web frontend):
 
-```cmd
-# Clone or navigate to the repository
-cd metis
+```bash
+# Clone the repository
+git clone https://github.com/Sakiko236/Metis.git
+cd Metis
 
-# Run the build script (produces Metis.exe and Metis-Setup.exe)
-build.bat
+# Install frontend & CLI dependencies
+npm install
+
+# Run in development mode
+npm run tauri dev
+
+# Build production bundle for your platform
+npm run tauri build
 ```
 
 > **Prerequisites**:
-> * Windows 10 / Windows 11 (x64)
-> * .NET Framework 4.8 (pre-installed on Windows 10/11)
-> * Microsoft Edge WebView2 Runtime (pre-installed on Windows 11, or installed via Microsoft Edge)
+> * [Rust](https://rustup.rs/) (1.78+)
+> * [Node.js](https://nodejs.org/) (LTS)
+> * Platform webview:
+>   * Windows: Microsoft Edge WebView2 (built-in on Windows 10/11)
+>   * macOS: WebKit (built-in)
+>   * Linux: `libwebkit2gtk-4.1-dev` (install via `apt-get install -y libwebkit2gtk-4.1-dev build-essential`)
 
 ---
 

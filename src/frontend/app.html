@@ -2021,7 +2021,7 @@
           <div class="brand-sub">File-Centric Mini Agent</div>
         </div>
       </div>
-      <span class="version-pill">v1.1.0</span>
+      <span class="version-pill">v1.2.0</span>
     </div>
 
     <div class="sidebar-actions">
@@ -2229,9 +2229,19 @@
   let showApiKeyPlain = false;
 
   function hostPost(payload) {
-    if (window.chrome && window.chrome.webview) {
+    if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+      window.__TAURI__.core.invoke('host_post', { payload: JSON.stringify(payload) }).catch(console.error);
+    } else if (window.chrome && window.chrome.webview) {
       window.chrome.webview.postMessage(JSON.stringify(payload));
     }
+  }
+
+  // Receive state updates from Tauri 2.0 Host
+  if (window.__TAURI__ && window.__TAURI__.event) {
+    window.__TAURI__.event.listen('host_message', (event) => {
+      const msg = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
+      handleHostMessage(msg);
+    });
   }
 
   // Receive state updates from C# Host
@@ -2241,6 +2251,13 @@
       handleHostMessage(msg);
     });
   }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      hostPost({ action: 'uiReady' });
+    }, 80);
+  });
+
 
   function handleHostMessage(msg) {
     if (!msg || !msg.type) return;

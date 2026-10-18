@@ -20,6 +20,10 @@ surgical_sessions.json
 *.token
 
 # Build Artifacts & Executables
+target/
+src-tauri/target/
+node_modules/
+dist/
 *.exe
 *.pdb
 *.obj

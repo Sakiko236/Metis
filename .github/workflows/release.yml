@@ -10,43 +10,76 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: windows-latest
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-13'
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-22.04'
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
 
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build Metis Binaries
-        shell: cmd
-        run: |
-          build.bat
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: Metis ${{ github.ref_name }}
-          files: |
-            Metis.exe
-            Metis-Setup.exe
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          body: |
-            ### 🎯 Metis ${{ github.ref_name }} Release
+          node-version: lts/*
 
-            Welcome to the initial official release of **Metis** — the laser-focused, file-centric micro-agent designed for surgical code modifications with zero blast radius.
+      - name: Install Frontend & Tauri CLI Dependencies
+        run: npm install
 
-            #### ✨ Key Highlights
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || '' }}
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install System Dependencies (Linux only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Build and Publish Tauri Application
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: './src-tauri'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Metis ${{ github.ref_name }}'
+          releaseBody: |
+            ### 🎯 Metis ${{ github.ref_name }} Multi-Platform Release (Tauri 2.0)
+
+            Welcome to the official cross-platform release of **Metis** — the laser-focused, file-centric micro-agent designed for surgical code modifications with zero blast radius, powered by **Tauri 2.0**!
+
+            #### 📦 Supported Platforms
+            * **Windows**: `.msi` (Windows Installer) and `.exe` (NSIS setup installer)
+            * **macOS**: `.dmg` (Apple Silicon & Intel)
+            * **Linux**: `.deb` (Debian/Ubuntu) and `.AppImage` (Universal Linux)
+
+            #### ✨ Key Features
             * **Laser-Focused File Whitelist**: Metis strictly scopes its context to files explicitly provided by you, preventing token dilution and hallucinations.
             * **Zero Blast Radius**: Creating new files and deleting existing files are strictly prohibited. Edits are performed in-place using exact Search/Replace blocks.
+            * **Cross-Platform Autonomous Verification**: Built-in native terminal executor supporting Windows CMD, macOS Zsh/Bash, and Linux shells.
             * **Autonomous Live Web Search**: Query public technical documentation and troubleshooting guides in real time via `<metis_search>`.
-            * **Native Multimodal Support**: Drag and drop PDF specification documents and screenshot images directly for multimodal understanding.
-            * **Multi-Vendor LLM Connectivity**: Native streaming support for DeepSeek, OpenAI, Anthropic Claude, Google Gemini, Kimi/Moonshot, Zhipu GLM, and local Ollama models.
-            * **Zero-Dependency Native Windows App**: Built with pure .NET Framework 4.8 and WebView2.
-
-            ---
-
-            #### 📦 Downloads
-            * **Portable Executable**: Download **`Metis.exe`** and run directly with zero installation.
-            * **Windows Installer**: Download **`Metis-Setup.exe`** for automated installation to `%LOCALAPPDATA%\Programs\Metis` with Desktop and Start Menu shortcuts.
+            * **Multi-Vendor LLM Connectivity**: Native streaming support for DeepSeek, OpenAI, Anthropic Claude, Google Gemini, Ollama, and custom OpenAI-compatible endpoints.
+            * **Native Multi-Platform UI**: Ultra-responsive sky-blue interface powered by Tauri 2.0, Rust, and modern web standards.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

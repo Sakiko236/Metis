@@ -227,6 +227,12 @@ pub struct SessionStoreData {
     pub sessions: Vec<ChatSession>,
 }
 
+impl ChatSession {
+    pub fn is_empty(&self) -> bool {
+        self.ui_events.is_empty() && self.api_history.is_empty()
+    }
+}
+
 impl Default for SessionStoreData {
     fn default() -> Self {
         let first = ChatSession::default();
@@ -245,6 +251,42 @@ impl SessionStoreData {
     pub fn get_active_session_mut(&mut self) -> Option<&mut ChatSession> {
         let aid = self.active_session_id.clone();
         self.sessions.iter_mut().find(|s| s.id == aid)
+    }
+
+    pub fn find_empty_session(&self) -> Option<&ChatSession> {
+        self.sessions.iter().find(|s| s.is_empty())
+    }
+
+    pub fn prune_redundant_empty_sessions(&mut self) {
+        let mut preserved_empty_id: Option<String> = None;
+        let active_id = self.active_session_id.clone();
+
+        if self.sessions.iter().any(|s| s.id == active_id && s.is_empty()) {
+            preserved_empty_id = Some(active_id);
+        }
+
+        self.sessions.retain(|s| {
+            if s.is_empty() {
+                if let Some(ref pid) = preserved_empty_id {
+                    s.id == *pid
+                } else {
+                    preserved_empty_id = Some(s.id.clone());
+                    true
+                }
+            } else {
+                true
+            }
+        });
+
+        if !self.sessions.iter().any(|s| s.id == self.active_session_id) {
+            if let Some(first) = self.sessions.first() {
+                self.active_session_id = first.id.clone();
+            } else {
+                let fresh = ChatSession::default();
+                self.active_session_id = fresh.id.clone();
+                self.sessions.push(fresh);
+            }
+        }
     }
 }
 

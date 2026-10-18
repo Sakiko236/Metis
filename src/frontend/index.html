@@ -2021,7 +2021,7 @@
           <div class="brand-sub">File-Centric Mini Agent</div>
         </div>
       </div>
-      <span class="version-pill">v1.2.0</span>
+      <span class="version-pill">v1.2.1</span>
     </div>
 
     <div class="sidebar-actions">
@@ -2367,10 +2367,27 @@
   function renderSessionList() {
     const container = document.getElementById('sessionListContainer');
     const query = (document.getElementById('sessionSearchInput').value || '').trim().toLowerCase();
-    const list = (appState.sessions || []).filter(s => !query || (s.Title || '').toLowerCase().includes(query));
+    
+    // Only display non-empty historical sessions in sidebar
+    const historySessions = (appState.sessions || []).filter(s => !isSessionEmpty(s));
+    const list = historySessions.filter(s => !query || (s.Title || '').toLowerCase().includes(query));
 
-    document.getElementById('sessionCountBadge').textContent = String(appState.sessions ? appState.sessions.length : 0);
+    document.getElementById('sessionCountBadge').textContent = String(historySessions.length);
     container.innerHTML = '';
+
+    if (list.length === 0) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.style.padding = '24px 16px';
+      emptyDiv.style.textAlign = 'center';
+      emptyDiv.style.fontSize = '12px';
+      emptyDiv.style.color = 'var(--text-muted)';
+      emptyDiv.style.lineHeight = '1.6';
+      emptyDiv.innerHTML = query 
+        ? 'No sessions found matching your search.'
+        : '<div style="opacity:0.6;margin-bottom:4px;">No past sessions</div><div>Chat history will appear here.</div>';
+      container.appendChild(emptyDiv);
+      return;
+    }
 
     list.forEach(s => {
       const div = document.createElement('div');
@@ -2757,8 +2774,26 @@
     }
   }
 
+  function isSessionEmpty(s) {
+    if (!s) return true;
+    const msgCount = (s.UiEvents || []).length;
+    const historyCount = (s.ApiHistory || []).length;
+    return msgCount === 0 && historyCount === 0;
+  }
+
   // Session Actions
   function createNewSession() {
+    const current = getActiveSession();
+    if (current && isSessionEmpty(current)) {
+      showToast('Already in an empty session.');
+      return;
+    }
+    const existingEmpty = (appState.sessions || []).find(s => isSessionEmpty(s));
+    if (existingEmpty) {
+      hostPost({ action: 'selectSession', sessionId: existingEmpty.Id });
+      showToast('Switched to empty session.');
+      return;
+    }
     hostPost({ action: 'createSession' });
   }
 

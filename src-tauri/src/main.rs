@@ -21,7 +21,7 @@ async fn main() {
 }
 
 async fn run_headless_self_test() -> i32 {
-    println!("=== Metis v1.2.0 Tauri 2.0 Headless End-to-End Self-Test ===");
+    println!("=== Metis v1.2.1 Tauri 2.0 Headless End-to-End Self-Test ===");
 
     // 1. Config Persistence
     let cfg = ConfigManager::load_or_create_default();

@@ -33,7 +33,9 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let config = ConfigManager::load_or_create_default();
-        let session_store = SessionManager::load_or_create_default();
+        let mut session_store = SessionManager::load_or_create_default();
+        session_store.prune_redundant_empty_sessions();
+        let _ = SessionManager::save(&session_store);
         let mut whitelist = WhitelistManager::new();
 
         if let Some(active) = session_store
@@ -117,12 +119,33 @@ pub mod commands {
         }
         "createSession" => {
             let mut store = state.session_store.lock().await;
-            let mut ns = ChatSession::default();
-            ns.title = format!("Session {}", store.sessions.len() + 1);
-            store.active_session_id = ns.id.clone();
-            store.sessions.insert(0, ns);
-            drop(store);
-            broadcast_full_state(&app, &state, Some("New session created."), None).await;
+            store.prune_redundant_empty_sessions();
+
+            if let Some(existing_empty) = store.find_empty_session().cloned() {
+                let is_already_active = store.active_session_id == existing_empty.id;
+                store.active_session_id = existing_empty.id.clone();
+                let mut wl = state.whitelist.lock().await;
+                wl.bind_session_list(existing_empty.whitelist.clone(), existing_empty.allowed_directories.clone());
+                drop(wl);
+                drop(store);
+                let msg = if is_already_active {
+                    "Already in an empty session."
+                } else {
+                    "Switched to empty session."
+                };
+                broadcast_full_state(&app, &state, Some(msg), None).await;
+            } else {
+                let mut ns = ChatSession::default();
+                let content_count = store.sessions.iter().filter(|s| !s.is_empty()).count();
+                ns.title = format!("Session {}", content_count + 1);
+                store.active_session_id = ns.id.clone();
+                store.sessions.insert(0, ns);
+                let mut wl = state.whitelist.lock().await;
+                wl.clear();
+                drop(wl);
+                drop(store);
+                broadcast_full_state(&app, &state, Some("New session created."), None).await;
+            }
         }
         "selectSession" => {
             if let Some(sid) = data.get("sessionId").and_then(|v| v.as_str()) {
@@ -158,6 +181,11 @@ pub mod commands {
             }
             if store.active_session_id == sid {
                 store.active_session_id = store.sessions[0].id.clone();
+            }
+            store.prune_redundant_empty_sessions();
+            if let Some(active) = store.get_active_session() {
+                let mut wl = state.whitelist.lock().await;
+                wl.bind_session_list(active.whitelist.clone(), active.allowed_directories.clone());
             }
             drop(store);
             broadcast_full_state(&app, &state, Some("Session deleted."), None).await;
@@ -635,6 +663,16 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
         .manage(app_state)
+        .setup(|app| {
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let icon_bytes = include_bytes!("../icons/icon.png");
+                if let Ok(icon) = tauri::image::Image::from_bytes(icon_bytes) {
+                    let _ = window.set_icon(icon);
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![commands::host_post])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

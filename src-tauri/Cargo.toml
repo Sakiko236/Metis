@@ -1,6 +1,6 @@
 [package]
 name = "metis"
-version = "1.2.0"
+version = "1.2.1"
 description = "Metis - The Laser-Focused File-Centric Micro-Agent"
 authors = ["Metis Developers"]
 license = "MIT"
@@ -18,7 +18,7 @@ tauri-build = { version = "2.7.3" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
-tauri = { version = "2.12.4" }
+tauri = { version = "2.12.4", features = ["image-ico", "image-png"] }
 tauri-plugin-log = "2"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }

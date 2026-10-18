@@ -319,7 +319,20 @@
   [data-theme="light"] .modal-footer {
     background: #F8FAFC;
   }
-  [data-theme="light"] .settings-rail {
+  [data-theme="light"] .settings-rail-section-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 8px 10px 4px 10px;
+    margin-top: 6px;
+  }
+  .settings-rail-section-title:first-child {
+    margin-top: 0;
+  }
+
+  .settings-rail {
     background: #F1F5F9;
   }
   [data-theme="light"] .msg-body .md-h {
@@ -400,13 +413,13 @@
     width: 30px;
     height: 30px;
     border-radius: 8px;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(99, 102, 241, 0.22));
-    border: 1px solid rgba(16, 185, 129, 0.45);
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.22), rgba(99, 102, 241, 0.22));
+    border: 1px solid rgba(14, 165, 233, 0.45);
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--accent-emerald);
-    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.15);
+    box-shadow: 0 2px 10px rgba(14, 165, 233, 0.2);
   }
 
   .brand-title {
@@ -427,8 +440,8 @@
     padding: 2px 7px;
     border-radius: 999px;
     background: var(--accent-emerald-dim);
-    color: #34D399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #38BDF8;
+    border: 1px solid rgba(14, 165, 233, 0.35);
   }
 
   .sidebar-actions {
@@ -442,7 +455,7 @@
     width: 100%;
     padding: 9px 12px;
     border-radius: 8px;
-    background: linear-gradient(180deg, #10B981 0%, #059669 100%);
+    background: linear-gradient(180deg, #0EA5E9 0%, #0284C7 100%);
     color: #FFFFFF;
     font-weight: 600;
     font-size: 13px;
@@ -453,7 +466,7 @@
     justify-content: center;
     gap: 8px;
     transition: all 0.15s ease;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
   }
   .btn-new-session:hover {
     filter: brightness(1.08);
@@ -717,18 +730,18 @@
   }
   .btn-secondary.emerald {
     background: var(--accent-emerald-dim);
-    border-color: rgba(16, 185, 129, 0.35);
-    color: #34D399;
+    border-color: rgba(14, 165, 233, 0.35);
+    color: #38BDF8;
   }
   .btn-secondary.emerald:hover {
-    background: rgba(16, 185, 129, 0.22);
+    background: rgba(14, 165, 233, 0.22);
   }
 
   .btn-primary, .btn-send {
     padding: 6px 14px;
     border-radius: 7px;
-    background: var(--accent-emerald, #10B981);
-    border: 1px solid #059669;
+    background: var(--accent-emerald, #0EA5E9);
+    border: 1px solid #0284C7;
     color: #FFFFFF;
     font-size: 12px;
     font-weight: 600;
@@ -744,9 +757,9 @@
     outline: none;
   }
   .btn-primary:hover, .btn-send:hover {
-    background: #059669;
-    border-color: #047857;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+    background: #0284C7;
+    border-color: #0369A1;
+    box-shadow: 0 2px 6px rgba(14, 165, 233, 0.35);
   }
   .btn-primary:active, .btn-send:active {
     transform: translateY(1px);
@@ -850,7 +863,7 @@
   }
   .file-chip.modified .file-chip-status {
     background: var(--accent-emerald-dim);
-    color: #34D399;
+    color: #38BDF8;
   }
 
   .file-chip-actions {
@@ -1010,7 +1023,7 @@
     gap: 8px;
     font-size: 12px;
     font-weight: 600;
-    color: #34D399;
+    color: #38BDF8;
   }
   .round-pill {
     font-size: 11px;
@@ -1290,9 +1303,9 @@
     justify-content: space-between;
     padding: 10px 14px;
     border-radius: 9px;
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    color: #6EE7B7;
+    background: rgba(14, 165, 233, 0.08);
+    border: 1px solid rgba(14, 165, 233, 0.35);
+    color: #38BDF8;
   }
   .event-file-left {
     display: flex;
@@ -1384,7 +1397,7 @@
   }
   .terminal-status.pass {
     background: var(--accent-emerald-dim);
-    color: #34D399;
+    color: #38BDF8;
   }
   .terminal-status.fail {
     background: var(--accent-red-dim);
@@ -1425,9 +1438,9 @@
   .event-success-banner {
     padding: 11px 15px;
     border-radius: 9px;
-    background: linear-gradient(90deg, rgba(16, 185, 129, 0.16), rgba(5, 150, 105, 0.06));
-    border: 1px solid rgba(16, 185, 129, 0.45);
-    color: #A7F3D0;
+    background: linear-gradient(90deg, rgba(14, 165, 233, 0.16), rgba(2, 132, 199, 0.06));
+    border: 1px solid rgba(14, 165, 233, 0.45);
+    color: #BAE6FD;
     font-weight: 600;
     font-size: 13px;
     display: flex;
@@ -1456,7 +1469,7 @@
   }
   .composer-box:focus-within {
     border-color: var(--accent-emerald);
-    box-shadow: 0 4px 24px rgba(16, 185, 129, 0.12);
+    box-shadow: 0 4px 24px rgba(14, 165, 233, 0.15);
   }
 
   .composer-textarea {
@@ -1652,10 +1665,10 @@
     align-items: center;
     justify-content: center;
     transition: all 0.15s ease;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
   }
   .btn-send-round:hover:not(:disabled) {
-    background: #059669;
+    background: #0284C7;
     transform: scale(1.04);
   }
   .btn-send-round:disabled {
@@ -1712,6 +1725,19 @@
     flex: 1;
     display: flex;
     min-height: 0;
+  }
+
+  .settings-rail-section-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 8px 10px 4px 10px;
+    margin-top: 6px;
+  }
+  .settings-rail-section-title:first-child {
+    margin-top: 0;
   }
 
   .settings-rail {
@@ -1803,8 +1829,8 @@
   }
   .preset-chip:hover, .preset-chip.active {
     background: var(--accent-emerald-dim);
-    border-color: rgba(16, 185, 129, 0.4);
-    color: #34D399;
+    border-color: rgba(14, 165, 233, 0.4);
+    color: #38BDF8;
   }
 
   .modal-footer {
@@ -1822,7 +1848,7 @@
     position: fixed;
     inset: 12px;
     border-radius: 16px;
-    background: rgba(16, 185, 129, 0.14);
+    background: rgba(14, 165, 233, 0.14);
     border: 2px dashed var(--accent-emerald);
     backdrop-filter: blur(4px);
     display: none;
@@ -1842,9 +1868,9 @@
     right: 24px;
     padding: 10px 16px;
     border-radius: 8px;
-    background: #065F46;
-    border: 1px solid #10B981;
-    color: #ECFDF5;
+    background: #075985;
+    border: 1px solid #0EA5E9;
+    color: #F0F9FF;
     font-size: 12.5px;
     font-weight: 500;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
@@ -1995,7 +2021,7 @@
           <div class="brand-sub">File-Centric Mini Agent</div>
         </div>
       </div>
-      <span class="version-pill">v1.0.0</span>
+      <span class="version-pill">v1.1.0</span>
     </div>
 
     <div class="sidebar-actions">
@@ -2127,7 +2153,7 @@
 <!-- Full-Window Drag Overlay -->
 <div class="drag-overlay" id="dragOverlay">
   <div style="background:var(--bg-sidebar);padding:18px 28px;border-radius:12px;border:1px solid var(--accent-emerald);text-align:center;box-shadow:0 16px 40px rgba(0,0,0,0.6);">
-    <div style="font-size:15px;font-weight:600;color:#34D399;">Drop files or folders to add to whitelist</div>
+    <div style="font-size:15px;font-weight:600;color:#38BDF8;">Drop files or folders to add to whitelist</div>
   </div>
 </div>
 
@@ -2148,12 +2174,15 @@
     </div>
 
     <div class="modal-footer">
-      <div style="font-size:11.5px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:12px;" id="configPathHint">
-        Local storage: %APPDATA%\Metis\config.json
+      <div style="display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--text-muted);min-width:0;flex:1;">
+        <span id="configPathHint" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Local storage: %APPDATA%\Metis\config.json</span>
+        <span id="autoSaveIndicator" style="display:inline-flex;align-items:center;gap:4px;color:#38BDF8;font-weight:600;opacity:0;transition:opacity 0.2s ease;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Saved
+        </span>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">
-        <button class="btn-secondary" onclick="closeSettingsModal()">Cancel</button>
-        <button class="btn-primary" onclick="saveSettingsToHost()">Save Settings</button>
+        <button class="btn-primary" onclick="closeSettingsModal()">Done</button>
       </div>
     </div>
   </div>
@@ -2277,8 +2306,9 @@
       if (appState.config) {
         const v = appState.config.Vendors.find(x => x.Id === 'ollama');
         if (v && msg.models && msg.models.length > 0) {
-          v.PresetModels = msg.models;
+          v.PresetModels = msg.models.slice(0, 4);
           v.SelectedModel = msg.models[0];
+          saveSettingsSilent();
           renderSettingsPane();
         }
       }
@@ -2433,7 +2463,7 @@
       const safePath = escapeJsStr(f.FullPath);
       return `
         <div class="file-chip${modClass}" style="${chipStyle}" title="${escapeHtml(f.FullPath)}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isPdf ? '#FBBF24' : (isImage ? '#38BDF8' : (f.EditCount > 0 ? '#34D399' : '#9CA3AF'))}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isPdf ? '#FBBF24' : (isImage ? '#38BDF8' : (f.EditCount > 0 ? '#38BDF8' : '#9CA3AF'))}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <div>
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="file-chip-name">${iconPrefix}${escapeHtml(displayName)}</span>
@@ -2497,7 +2527,7 @@
         </svg>
           </div>
           <div style="font-size: 22px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: 6px;">Metis</div>
-          <p style="color: var(--text-muted); font-size: 13px; margin: 0;">File-Centric Mini Agent · Zero Blast Radius</p>
+          <p style="color: var(--text-muted); font-size: 13px; margin: 0;">How can I help you today?</p>
         </div>
       `;
       return;
@@ -2692,8 +2722,8 @@
       if (pauseBtnIcon) pauseBtnIcon.textContent = isPaused ? '▶' : '⏸';
       pauseBtn.title = isPaused ? 'Resume' : 'Pause';
       if (isPaused) {
-        pauseBtn.style.borderColor = 'rgba(52, 211, 153, 0.5)';
-        pauseBtn.style.color = '#34D399';
+        pauseBtn.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+        pauseBtn.style.color = '#38BDF8';
       } else {
         pauseBtn.style.borderColor = 'rgba(251, 191, 36, 0.4)';
         pauseBtn.style.color = '#FBBF24';
@@ -2812,7 +2842,7 @@
       } else if (currentThinkingIntensity === 'high') {
         glider.style.background = '#8B5CF6';
       } else if (currentThinkingIntensity === 'low') {
-        glider.style.background = '#10B981';
+        glider.style.background = '#0EA5E9';
       } else {
         glider.style.background = 'var(--accent-color, #3B82F6)';
       }
@@ -2836,14 +2866,20 @@
   // Settings Modal
   function openSettingsModal() {
     if (!appState.config) return;
-    editingVendorId = appState.config.ActiveVendorId;
-    document.getElementById('configPathHint').textContent = 'Local storage path: ' + appState.configFilePath;
+    if (!editingVendorId) {
+      editingVendorId = appState.config.ActiveVendorId || (appState.config.Vendors && appState.config.Vendors[0] ? appState.config.Vendors[0].Id : 'appearance');
+    }
+    const hint = document.getElementById('configPathHint');
+    if (hint) {
+      hint.textContent = 'Local storage path: ' + (appState.configFilePath || '%APPDATA%\\Metis\\config.json');
+    }
     renderSettingsRail();
     renderSettingsPane();
     document.getElementById('settingsModal').classList.add('open');
   }
 
   function closeSettingsModal() {
+    saveSettingsSilent();
     document.getElementById('settingsModal').classList.remove('open');
   }
 
@@ -2851,63 +2887,203 @@
     const rail = document.getElementById('settingsVendorRail');
     if (!appState.config || !appState.config.Vendors) return;
 
-    rail.innerHTML = appState.config.Vendors.map(v => {
+    let html = `<div class="settings-rail-section-title">AI Providers</div>`;
+
+    html += appState.config.Vendors.map(v => {
       const isSelected = v.Id === editingVendorId;
       const isActive = v.Id === appState.config.ActiveVendorId;
       const hasKey = (v.Type === 4 || (v.ApiKey && v.ApiKey.trim().length > 0));
       return `
         <div class="vendor-tab${isSelected ? ' selected' : ''}" onclick="selectEditingVendor('${v.Id}')">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-            <span style="width:7px;height:7px;border-radius:50%;background:${hasKey ? '#10B981' : '#6B7280'};"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:${hasKey ? '#0EA5E9' : '#6B7280'};flex-shrink:0;"></span>
             <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(v.DisplayName)}</span>
           </div>
-          ${isActive ? '<span style="font-size:10px;color:#34D399;background:rgba(16,185,129,0.15);padding:1px 5px;border-radius:4px;">Active</span>' : ''}
+          ${isActive ? '<span style="font-size:10px;color:#38BDF8;background:rgba(14,165,233,0.15);padding:1px 5px;border-radius:4px;flex-shrink:0;">Active</span>' : ''}
         </div>
       `;
     }).join('');
+
+    html += `<div class="settings-rail-section-title">Application</div>`;
+
+    const isAppearanceSelected = (editingVendorId === 'appearance');
+    html += `
+      <div class="vendor-tab${isAppearanceSelected ? ' selected' : ''}" onclick="selectEditingVendor('appearance')">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20v-20z"/></svg>
+          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Appearance & Display</span>
+        </div>
+      </div>
+    `;
+
+    rail.innerHTML = html;
   }
 
   function selectEditingVendor(id) {
-    syncCurrentVendorPaneInputs();
+    syncCurrentInputs();
     editingVendorId = id;
     renderSettingsRail();
     renderSettingsPane();
   }
 
-  function syncCurrentVendorPaneInputs() {
-    if (!appState.config || !editingVendorId) return;
-    const v = appState.config.Vendors.find(x => x.Id === editingVendorId);
+  function ensureVendorModelRemembered(v, modelName) {
     if (!v) return;
-    const keyEl = document.getElementById('settingApiKeyInput');
-    const urlEl = document.getElementById('settingBaseUrlInput');
-    const modEl = document.getElementById('settingModelInput');
-    const timeoutEl = document.getElementById('settingTimeoutInput');
+    const m = (modelName || '').trim();
+    if (!m) return;
+    if (!Array.isArray(v.PresetModels)) v.PresetModels = [];
+    v.PresetModels = v.PresetModels.filter(x => x && x.toLowerCase() !== m.toLowerCase());
+    v.PresetModels.unshift(m);
+    if (v.PresetModels.length > 4) {
+      v.PresetModels = v.PresetModels.slice(0, 4);
+    }
+  }
 
-    if (keyEl) v.ApiKey = keyEl.value;
-    if (urlEl) v.BaseUrl = urlEl.value.trim();
-    if (modEl) v.SelectedModel = modEl.value.trim();
-    if (timeoutEl) appState.config.CommandTimeoutSeconds = parseInt(timeoutEl.value, 10) || 60;
+  function syncCurrentInputs() {
+    if (!appState.config) return;
+    if (editingVendorId && editingVendorId !== 'appearance') {
+      const v = appState.config.Vendors ? appState.config.Vendors.find(x => x.Id === editingVendorId) : null;
+      if (v) {
+        const keyEl = document.getElementById('settingApiKeyInput');
+        const urlEl = document.getElementById('settingBaseUrlInput');
+        const modEl = document.getElementById('settingModelInput');
+
+        if (keyEl) v.ApiKey = keyEl.value;
+        if (urlEl) v.BaseUrl = urlEl.value.trim();
+        if (modEl) {
+          const mVal = modEl.value.trim();
+          v.SelectedModel = mVal;
+          if (mVal) {
+            ensureVendorModelRemembered(v, mVal);
+          }
+        }
+      }
+    } else if (editingVendorId === 'appearance') {
+      const timeoutEl = document.getElementById('settingTimeoutInput');
+      if (timeoutEl) {
+        const val = parseInt(timeoutEl.value, 10);
+        if (!isNaN(val) && val >= 5) {
+          appState.config.CommandTimeoutSeconds = val;
+        }
+      }
+    }
+  }
+
+  let autoSaveDebounceTimer = null;
+  function triggerAutoSave() {
+    clearTimeout(autoSaveDebounceTimer);
+    autoSaveDebounceTimer = setTimeout(() => {
+      saveSettingsSilent();
+    }, 300);
+  }
+
+  function saveSettingsSilent() {
+    clearTimeout(autoSaveDebounceTimer);
+    syncCurrentInputs();
+    if (!appState.config) return;
+    hostPost({ action: 'saveConfig', config: appState.config });
+    showAutoSaveIndicator();
+  }
+
+  let autoSaveFadeTimer = null;
+  function showAutoSaveIndicator() {
+    const el = document.getElementById('autoSaveIndicator');
+    if (!el) return;
+    el.style.opacity = '1';
+    clearTimeout(autoSaveFadeTimer);
+    autoSaveFadeTimer = setTimeout(() => {
+      el.style.opacity = '0';
+    }, 1800);
   }
 
   function renderSettingsPane() {
     const pane = document.getElementById('settingsVendorPane');
-    const v = appState.config.Vendors.find(x => x.Id === editingVendorId);
-    if (!v) return;
+    if (!pane || !appState.config) return;
 
-    const isActive = (appState.config.ActiveVendorId === v.Id);
-    const presetsHtml = (v.PresetModels || []).map(m => {
-      const act = m === v.SelectedModel ? ' active' : '';
-      return `<span class="preset-chip${act}" onclick="pickPresetModel('${escapeJsStr(m)}')">${escapeHtml(m)}</span>`;
-    }).join('');
+    if (editingVendorId === 'appearance') {
+      renderAppearancePane(pane);
+      return;
+    }
 
+    const v = (appState.config.Vendors || []).find(x => x.Id === editingVendorId);
+    if (!v) {
+      if (appState.config.Vendors && appState.config.Vendors.length > 0) {
+        editingVendorId = appState.config.Vendors[0].Id;
+        renderSettingsPane();
+      }
+      return;
+    }
+
+    renderVendorPane(pane, v);
+  }
+
+  function renderAppearancePane(pane) {
     const currentTheme = (appState.config && appState.config.Theme ? appState.config.Theme : 'dark').toLowerCase() === 'light' ? 'light' : 'dark';
     const currentFontSize = getAppFontSize();
+    const timeoutVal = appState.config.CommandTimeoutSeconds || 60;
+
+    pane.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);">Appearance & Display</div>
+          <div style="font-size:12px;color:var(--text-secondary);">Manage application visual styling, font scaling, and execution timeouts</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label"><span>Interface Theme</span></div>
+        <div class="theme-toggle-group">
+          <button type="button" class="theme-opt-btn ${currentTheme === 'dark' ? 'active' : ''}" onclick="setAppTheme('dark')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <span>Dark</span>
+          </button>
+          <button type="button" class="theme-opt-btn ${currentTheme === 'light' ? 'active' : ''}" onclick="setAppTheme('light')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <span>Light</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label"><span>Chat & Code Font Size</span></div>
+        <div class="theme-toggle-group">
+          <button type="button" class="theme-opt-btn ${currentFontSize === 'small' ? 'active' : ''}" onclick="setAppFontSize('small')">
+            <span>Small (12.5px)</span>
+          </button>
+          <button type="button" class="theme-opt-btn ${currentFontSize === 'normal' ? 'active' : ''}" onclick="setAppFontSize('normal')">
+            <span>Default (13.5px)</span>
+          </button>
+          <button type="button" class="theme-opt-btn ${currentFontSize === 'large' ? 'active' : ''}" onclick="setAppFontSize('large')">
+            <span>Large (15px)</span>
+          </button>
+          <button type="button" class="theme-opt-btn ${currentFontSize === 'xlarge' ? 'active' : ''}" onclick="setAppFontSize('xlarge')">
+            <span>Extra Large (16.5px)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label"><span>Command Execution Timeout</span></div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="number" id="settingTimeoutInput" class="form-input selectable" style="max-width:130px;" min="5" max="600" value="${timeoutVal}" oninput="syncCurrentInputs(); triggerAutoSave();" onchange="saveSettingsSilent();" />
+          <span style="font-size:12px;color:var(--text-secondary);">seconds (range: 5 - 600)</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderVendorPane(pane, v) {
+    const isActive = (appState.config.ActiveVendorId === v.Id);
+    const rememberedModels = (v.PresetModels || []).slice(0, 4);
+    const presetsHtml = rememberedModels.map(m => {
+      const act = (m.toLowerCase() === (v.SelectedModel || '').toLowerCase()) ? ' active' : '';
+      return `<span class="preset-chip${act}" onclick="pickPresetModel('${escapeJsStr(m)}')">${escapeHtml(m)}</span>`;
+    }).join('');
 
     pane.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">
         <div>
           <div style="font-size:15px;font-weight:700;color:var(--text-primary);">${escapeHtml(v.DisplayName)}</div>
-          <div style="font-size:12px;color:var(--text-secondary);">Configure API Key, Endpoint, and default reasoning model</div>
+          <div style="font-size:12px;color:var(--text-secondary);">Configure API Key, Endpoint, and model</div>
         </div>
         <button class="btn-secondary ${isActive ? 'emerald' : ''}" onclick="setAsActiveVendor('${v.Id}')">
           ${isActive ? '✓ Active Provider' : 'Set as Active Provider'}
@@ -2927,7 +3103,9 @@
           class="form-input selectable"
           placeholder="${v.Type === 4 ? 'Ollama local models do not require an API key' : 'Enter API Key'}"
           value="${escapeHtml(v.ApiKey || '')}"
-          oninput="syncCurrentVendorPaneInputs(); renderSettingsRail();"
+          oninput="syncCurrentInputs(); renderSettingsRail(); triggerAutoSave();"
+          onchange="saveSettingsSilent();"
+          onblur="saveSettingsSilent();"
         />
       </div>
 
@@ -2940,7 +3118,9 @@
           id="settingBaseUrlInput"
           class="form-input selectable"
           value="${escapeHtml(v.BaseUrl || '')}"
-          oninput="syncCurrentVendorPaneInputs()"
+          oninput="syncCurrentInputs(); triggerAutoSave();"
+          onchange="saveSettingsSilent();"
+          onblur="saveSettingsSilent();"
         />
       </div>
 
@@ -2953,47 +3133,16 @@
           type="text"
           id="settingModelInput"
           class="form-input selectable"
+          placeholder="e.g. gpt-4o, claude-3-7-sonnet, gemini-2.5-flash..."
           value="${escapeHtml(v.SelectedModel || '')}"
-          oninput="syncCurrentVendorPaneInputs()"
+          oninput="onModelInputChanged()"
+          onchange="onModelInputCommitted()"
+          onblur="onModelInputCommitted()"
         />
-        <div class="preset-chips">${presetsHtml}</div>
-      </div>
-
-      <div style="border-top:1px solid var(--border-subtle);padding-top:14px;display:flex;gap:18px;flex-wrap:wrap;">
-        <div class="form-group" style="flex:1;min-width:190px;">
-          <div class="form-label"><span>Appearance</span></div>
-          <div class="theme-toggle-group">
-            <button type="button" class="theme-opt-btn ${currentTheme === 'dark' ? 'active' : ''}" onclick="setAppTheme('dark')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              <span>Dark</span>
-            </button>
-            <button type="button" class="theme-opt-btn ${currentTheme === 'light' ? 'active' : ''}" onclick="setAppTheme('light')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              <span>Light</span>
-            </button>
-          </div>
+        <div class="preset-chips" id="rememberedChipsContainer">
+          ${presetsHtml}
         </div>
-        <div class="form-group" style="flex:1.4;min-width:270px;">
-          <div class="form-label"><span>Font Size</span></div>
-          <div class="theme-toggle-group">
-            <button type="button" class="theme-opt-btn ${currentFontSize === 'small' ? 'active' : ''}" onclick="setAppFontSize('small')">
-              <span>Small (12.5px)</span>
-            </button>
-            <button type="button" class="theme-opt-btn ${currentFontSize === 'normal' ? 'active' : ''}" onclick="setAppFontSize('normal')">
-              <span>Default (13.5px)</span>
-            </button>
-            <button type="button" class="theme-opt-btn ${currentFontSize === 'large' ? 'active' : ''}" onclick="setAppFontSize('large')">
-              <span>Large (15px)</span>
-            </button>
-            <button type="button" class="theme-opt-btn ${currentFontSize === 'xlarge' ? 'active' : ''}" onclick="setAppFontSize('xlarge')">
-              <span>Extra Large (16.5px)</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group" style="flex:1;min-width:160px;">
-          <div class="form-label"><span>Command Timeout (seconds)</span></div>
-          <input type="number" id="settingTimeoutInput" class="form-input selectable" min="5" max="600" value="${appState.config.CommandTimeoutSeconds || 60}" oninput="syncCurrentVendorPaneInputs()" />
-        </div>
+        ${rememberedModels.length === 0 ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Entered models will be automatically remembered here (up to 4).</div>' : ''}
       </div>
     `;
   }
@@ -3016,9 +3165,10 @@
   function setAppFontSize(sizeKey) {
     if (!FONT_SIZES[sizeKey]) sizeKey = 'normal';
     try {
-      localStorage.setItem('metis_font_size', sizeKey); localStorage.setItem('pinpoint_font_size', sizeKey);
+      localStorage.setItem('metis_font_size', sizeKey);
     } catch(e) {}
     applyAppFontSize(sizeKey);
+    saveSettingsSilent();
     renderSettingsPane();
   }
 
@@ -3048,6 +3198,7 @@
     appState.config.Theme = theme;
     applyTheme(theme);
     hostPost({ action: 'setTheme', theme: theme });
+    saveSettingsSilent();
     renderSettingsPane();
   }
 
@@ -3098,33 +3249,47 @@
   }
 
   function setAsActiveVendor(id) {
-    syncCurrentVendorPaneInputs();
+    syncCurrentInputs();
     appState.config.ActiveVendorId = id;
     renderSettingsRail();
     renderSettingsPane();
+    saveSettingsSilent();
   }
 
   function pickPresetModel(m) {
     const modEl = document.getElementById('settingModelInput');
     if (modEl) modEl.value = m;
-    syncCurrentVendorPaneInputs();
+    if (!editingVendorId || editingVendorId === 'appearance') return;
+    const v = appState.config.Vendors.find(x => x.Id === editingVendorId);
+    if (!v) return;
+    v.SelectedModel = m;
+    ensureVendorModelRemembered(v, m);
     renderSettingsPane();
+    saveSettingsSilent();
+  }
+
+  function onModelInputChanged() {
+    syncCurrentInputs();
+    triggerAutoSave();
+  }
+
+  function onModelInputCommitted() {
+    const modEl = document.getElementById('settingModelInput');
+    if (!modEl || !editingVendorId || editingVendorId === 'appearance') return;
+    const v = appState.config.Vendors.find(x => x.Id === editingVendorId);
+    if (!v) return;
+    const val = modEl.value.trim();
+    if (val) {
+      ensureVendorModelRemembered(v, val);
+      renderSettingsPane();
+    }
+    saveSettingsSilent();
   }
 
   function toggleApiKeyMask() {
-    syncCurrentVendorPaneInputs();
+    syncCurrentInputs();
     showApiKeyPlain = !showApiKeyPlain;
     renderSettingsPane();
-  }
-
-  function saveSettingsToHost() {
-    syncCurrentVendorPaneInputs();
-    // Also set currently viewed vendor as active so user doesn't forget
-    if (editingVendorId) {
-      appState.config.ActiveVendorId = editingVendorId;
-    }
-    hostPost({ action: 'saveConfig', config: appState.config });
-    closeSettingsModal();
   }
 
   // Inspector Modal

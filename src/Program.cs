@@ -10,8 +10,8 @@ using System.Windows;
 [assembly: AssemblyTitle("Metis")]
 [assembly: AssemblyDescription("Laser-focused micro-editing coding agent with zero blast radius")]
 [assembly: AssemblyProduct("Metis")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace Metis
 {
@@ -106,7 +106,7 @@ namespace Metis
 
         private static async Task<int> RunHeadlessSelfTest()
         {
-            Console.WriteLine("=== Metis v1.0.0 Headless End-to-End Self-Test ===");
+            Console.WriteLine("=== Metis v1.1.0 Headless End-to-End Self-Test ===");
 
             // 1. Verify Config & Persistent Session Store
             AppConfig cfg = ConfigManager.LoadOrCreateDefault();

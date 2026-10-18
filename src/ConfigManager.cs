@@ -137,21 +137,19 @@ namespace Metis
                         if (curV.DisplayName == "Ollama (本地模型)") curV.DisplayName = "Ollama (Local Models)";
                         if (curV.DisplayName == "自定义 (OpenAI 兼容)") curV.DisplayName = "Custom (OpenAI-Compatible)";
 
-                        if (curV.PresetModels == null || curV.PresetModels.Count == 0)
+                        if (curV.PresetModels == null)
                         {
-                            curV.PresetModels = new List<string>(defV.PresetModels);
+                            curV.PresetModels = new List<string>();
                         }
-                        else
+                        // Ensure active selected model is remembered
+                        if (!string.IsNullOrWhiteSpace(curV.SelectedModel) && !curV.PresetModels.Contains(curV.SelectedModel))
                         {
-                            List<string> merged = new List<string>(defV.PresetModels);
-                            foreach (string existing in curV.PresetModels)
-                            {
-                                if (!merged.Contains(existing))
-                                {
-                                    merged.Add(existing);
-                                }
-                            }
-                            curV.PresetModels = merged;
+                            curV.PresetModels.Insert(0, curV.SelectedModel);
+                        }
+                        // Limit remembered models to maximum 4
+                        if (curV.PresetModels.Count > 4)
+                        {
+                            curV.PresetModels = curV.PresetModels.GetRange(0, 4);
                         }
 
                         // Upgrade outdated selected models
@@ -200,7 +198,7 @@ namespace Metis
             gemini.Type = VendorType.Gemini;
             gemini.BaseUrl = "https://generativelanguage.googleapis.com/v1beta";
             gemini.SelectedModel = "gemini-3.8-flash";
-            gemini.PresetModels = new List<string> { "gemini-3.8-flash", "gemini-4-argon", "gemini-3.8-pro", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.0-flash" };
+            gemini.PresetModels = new List<string> { gemini.SelectedModel };
             cfg.Vendors.Add(gemini);
 
             VendorProfile openai = new VendorProfile();
@@ -209,7 +207,7 @@ namespace Metis
             openai.Type = VendorType.OpenAI;
             openai.BaseUrl = "https://api.openai.com/v1";
             openai.SelectedModel = "gpt-6.1-sol";
-            openai.PresetModels = new List<string> { "gpt-6.1-sol", "gpt-6-astra", "o4-mini", "o3-mini", "gpt-4o", "gpt-4o-mini" };
+            openai.PresetModels = new List<string> { openai.SelectedModel };
             cfg.Vendors.Add(openai);
 
             VendorProfile claude = new VendorProfile();
@@ -218,7 +216,7 @@ namespace Metis
             claude.Type = VendorType.Claude;
             claude.BaseUrl = "https://api.anthropic.com/v1";
             claude.SelectedModel = "claude-sonnet-5-5";
-            claude.PresetModels = new List<string> { "claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-fable-5-1", "claude-3-7-sonnet-latest" };
+            claude.PresetModels = new List<string> { claude.SelectedModel };
             cfg.Vendors.Add(claude);
 
             VendorProfile deepseek = new VendorProfile();
@@ -227,7 +225,7 @@ namespace Metis
             deepseek.Type = VendorType.DeepSeek;
             deepseek.BaseUrl = "https://api.deepseek.com/v1";
             deepseek.SelectedModel = "deepseek-flash";
-            deepseek.PresetModels = new List<string> { "deepseek-flash", "deepseek-v4-pro", "deepseek-reasoner", "deepseek-chat" };
+            deepseek.PresetModels = new List<string> { deepseek.SelectedModel };
             cfg.Vendors.Add(deepseek);
 
             VendorProfile ollama = new VendorProfile();
@@ -236,7 +234,7 @@ namespace Metis
             ollama.Type = VendorType.Ollama;
             ollama.BaseUrl = "http://localhost:11434/v1";
             ollama.SelectedModel = "qwen3-coder:30b";
-            ollama.PresetModels = new List<string> { "qwen3-coder:30b", "qwen2.5-coder:7b", "deepseek-r1:7b", "llama3.3:70b", "llama3.1:8b", "devstral:24b" };
+            ollama.PresetModels = new List<string> { ollama.SelectedModel };
             cfg.Vendors.Add(ollama);
 
             VendorProfile custom = new VendorProfile();
@@ -245,7 +243,7 @@ namespace Metis
             custom.Type = VendorType.CustomOpenAI;
             custom.BaseUrl = "https://api.openai.com/v1";
             custom.SelectedModel = "deepseek-flash";
-            custom.PresetModels = new List<string> { "deepseek-flash", "gpt-6.1-sol", "claude-sonnet-5-5", "qwen3.6:27b", "gpt-4o-mini" };
+            custom.PresetModels = new List<string> { custom.SelectedModel };
             cfg.Vendors.Add(custom);
 
             return cfg;

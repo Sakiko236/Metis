@@ -12,10 +12,10 @@ using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
 [assembly: AssemblyTitle("Metis Setup")]
-[assembly: AssemblyDescription("Metis v1.0.0 Windows Installer")]
+[assembly: AssemblyDescription("Metis v1.1.0 Windows Installer")]
 [assembly: AssemblyProduct("Metis")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace MetisSetup
 {
@@ -43,7 +43,7 @@ namespace MetisSetup
 
         public InstallerWindow()
         {
-            Title = "Metis v1.0.0 Setup Wizard";
+            Title = "Metis v1.1.0 Setup Wizard";
             try
             {
                 using (Stream iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Metis.ico"))
@@ -98,7 +98,7 @@ namespace MetisSetup
             };
             badge.Child = new TextBlock
             {
-                Text = "SETUP v1.0.0",
+                Text = "SETUP v1.1.0",
                 Foreground = BrushHex("#38BDF8"),
                 FontWeight = FontWeights.Bold,
                 FontSize = 11
@@ -217,7 +217,7 @@ namespace MetisSetup
                 FontFamily = new FontFamily("Consolas, monospace"),
                 FontSize = 11.5,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Text = "Ready. Click 'Install' to deploy Metis v1.0.0 to your system..."
+                Text = "Ready. Click 'Install' to deploy Metis v1.1.0 to your system..."
             };
             body.Children.Add(_logBox);
 
@@ -532,7 +532,7 @@ def test_exact_expiration_boundary():
                     if (key != null)
                     {
                         key.SetValue("DisplayName", "Metis");
-                        key.SetValue("DisplayVersion", "1.0.0");
+                        key.SetValue("DisplayVersion", "1.1.0");
                         key.SetValue("Publisher", "Metis Team");
                         key.SetValue("DisplayIcon", installedExePath);
                         key.SetValue("InstallLocation", targetDir);

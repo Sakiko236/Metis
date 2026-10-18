@@ -93,8 +93,11 @@ flowchart TD
 * Automatic fallback protection for legacy models without thinking support.
 
 ### 3. 🌐 Native Vendor API Search Grounding
-* Direct integration with official vendor search specifications (Google Search Grounding `google_search` for Gemini, server-side Web Search for Claude).
-* The model assesses whether external technical documentation or references are required dynamically, performing search grounding via the API without forced or redundant queries.
+* Direct integration with official vendor search specifications:
+  - **Google Gemini**: Google Search Grounding (`google_search`).
+  - **Anthropic Claude**: Server-side Web Search tool (`web_search_20250101`).
+  - **DeepSeek**: Native Function Calling for live search powered by DeepSeek's official Web Search API (`/v1/tools/search`).
+* Models dynamically evaluate whether external technical documentation or references are required, performing search grounding via official API endpoints without forced or redundant queries.
 
 ### 4. 🛡️ Strict Prohibition on File Creation & Deletion
 * Enforced across the prompt protocol, the Python whitelist guardrails, and the terminal runner.

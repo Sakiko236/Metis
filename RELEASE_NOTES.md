@@ -9,7 +9,7 @@
 2. **Gemini 2.5 思考预算与流式思考规范支持 (Gemini Thinking Budget & SSE Streaming)**
    - 完整支持 `thinkingConfig.thinkingBudget` 三档调节（`low=2048`、`medium=8192`、`high=24576`），流式解析 `thought: true` 分块并实时激活前端呼吸动效。
 3. **厂商原生 API 搜索规范集成 (Native Vendor API Search Grounding)**
-   - 取消内置 DuckDuckGo 爬虫，全面切换为调用模型厂商原生搜索规范（如 Gemini `google_search` Grounding、Claude `web_search`）。模型在需要最新文档或技术规格时自主执行联网检索，允许 API 搜索但不强制。
+   - 取消内置 DuckDuckGo 爬虫，全面切换为调用模型厂商原生搜索规范（包括 Gemini `google_search` Grounding、Claude `web_search`、以及 DeepSeek 官方搜索接口 `POST /v1/tools/search` 的原生工具调用）。模型在需要最新文档或技术规格时自主执行联网检索，允许 API 搜索但不强制。
 
 #### 🐛 问题修复 (Bug Fixes)
 1. **Ollama 厂商枚举序列化与探测按钮修复 (VendorType Serialization Fix)**

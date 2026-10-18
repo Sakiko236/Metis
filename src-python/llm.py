@@ -1,6 +1,5 @@
 from __future__ import annotations
 import asyncio
-import copy
 import json
 import re
 import ssl
@@ -126,31 +125,6 @@ class MultiVendorClient:
         return [
             {
                 "type": "web_search",
-            }
-        ]
-
-    @staticmethod
-    def build_chat_completions_search_tools() -> List[dict]:
-        """
-        Legacy function calling schema for Chat Completions fallback.
-        """
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "description": "Search the live web for technical documentation, framework references, latest releases, or external troubleshooting information using DeepSeek Search.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "Search keywords or question",
-                            }
-                        },
-                        "required": ["query"],
-                    },
-                },
             }
         ]
 
@@ -381,36 +355,6 @@ class MultiVendorClient:
         except Exception as e:
             return False, f"Responses API stream read error: {e}"
 
-    @staticmethod
-    def call_deepseek_search_api(api_key: str, query: str, count: int = 5) -> List[dict]:
-        """
-        DeepSeek Official Web Search API:
-        POST https://api.deepseek.com/v1/tools/search
-        """
-        if not api_key:
-            return []
-        url = "https://api.deepseek.com/v1/tools/search"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key.strip()}",
-            "User-Agent": "Metis-Agent/1.3",
-        }
-        payload = {
-            "query": query,
-            "count": min(max(1, count), 10),
-            "need_content": False,
-        }
-        data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
-        ctx = ssl.create_default_context()
-        try:
-            with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
-                data = json.loads(resp.read().decode("utf-8", errors="replace"))
-                results = data.get("results")
-                return results if isinstance(results, list) else []
-        except Exception:
-            return []
-
     @classmethod
     def _call_chat_completions_fallback_sync(
         cls,
@@ -431,16 +375,12 @@ class MultiVendorClient:
                 }
             )
 
-        is_deepseek = vendor.vendor_type == VendorType.DeepSeek or "deepseek" in base_url.lower()
-
         payload: dict = {
             "model": vendor.selected_model,
             "messages": messages,
             "stream": True,
             "temperature": 0.2,
         }
-        if is_deepseek and vendor.api_key and vendor.api_key.strip():
-            payload["tools"] = cls.build_chat_completions_search_tools()
 
         headers = {
             "Content-Type": "application/json",
@@ -452,45 +392,13 @@ class MultiVendorClient:
 
         ctx = ssl.create_default_context()
 
-        def open_stream(req_payload: dict):
-            data_bytes = json.dumps(req_payload).encode("utf-8")
-            req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
-            return urllib.request.urlopen(req, timeout=180, context=ctx)
-
-        resp = None
         try:
-            resp = open_stream(payload)
-        except urllib.error.HTTPError as he:
-            body = ""
-            try:
-                body = he.read().decode("utf-8", errors="replace")
-            except Exception:
-                pass
-            body_lower = body.lower()
-            if "tools" in payload and any(term in body_lower for term in ("tool", "tools", "not supported", "unknown")):
-                payload.pop("tools", None)
-                try:
-                    resp = open_stream(payload)
-                except urllib.error.HTTPError as he2:
-                    body2 = ""
-                    try:
-                        body2 = he2.read().decode("utf-8", errors="replace")
-                    except Exception:
-                        pass
-                    return False, f"LLM Provider Error (HTTP {he2.code}): {body2}"
-                except Exception as e2:
-                    return False, f"HTTP request error on retry: {e2}"
-            else:
-                return False, f"LLM Provider Error (HTTP {he.code}): {body}"
-        except Exception as e:
-            return False, f"HTTP request error: {e}"
+            data_bytes = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=180, context=ctx) as stream_resp:
+                output_parts: List[str] = []
+                is_in_reasoning = False
 
-        def read_stream_response(stream_resp) -> Tuple[List[str], dict]:
-            output_parts: List[str] = []
-            tool_calls: dict = {}
-            is_in_reasoning = False
-
-            with stream_resp:
                 for raw_line in stream_resp:
                     line = raw_line.decode("utf-8", errors="replace").strip()
                     if not line.startswith("data:"):
@@ -511,7 +419,7 @@ class MultiVendorClient:
                         continue
 
                     content = delta.get("content")
-                    reasoning = delta.get("reasoning_content")
+                    reasoning = delta.get("reasoning_content") or delta.get("reasoning")
                     if isinstance(content, str) and content:
                         if is_in_reasoning:
                             is_in_reasoning = False
@@ -527,87 +435,18 @@ class MultiVendorClient:
                         output_parts.append(reasoning)
                         on_chunk(reasoning)
 
-                    tc_deltas = delta.get("tool_calls")
-                    if isinstance(tc_deltas, list):
-                        for tc in tc_deltas:
-                            idx = tc.get("index", 0)
-                            if idx not in tool_calls:
-                                tool_calls[idx] = {
-                                    "id": tc.get("id") or "",
-                                    "name": (tc.get("function") or {}).get("name") or "",
-                                    "arguments": (tc.get("function") or {}).get("arguments") or "",
-                                }
-                            else:
-                                if tc.get("id"):
-                                    tool_calls[idx]["id"] += tc["id"]
-                                fn = tc.get("function") or {}
-                                if fn.get("name"):
-                                    tool_calls[idx]["name"] += fn["name"]
-                                if fn.get("arguments"):
-                                    tool_calls[idx]["arguments"] += fn["arguments"]
-
                 if is_in_reasoning:
                     output_parts.append("</think>\n")
                     on_chunk("</think>\n")
 
-            return output_parts, tool_calls
-
-        try:
-            full_output, tool_calls_acc = read_stream_response(resp)
-
-            if tool_calls_acc and any(tc.get("name") == "web_search" for tc in tool_calls_acc.values()):
-                tc_item = next(tc for tc in tool_calls_acc.values() if tc.get("name") == "web_search")
-                raw_args = tc_item.get("arguments", "{}")
-                search_query = ""
-                try:
-                    search_query = json.loads(raw_args).get("query", "")
-                except Exception:
-                    search_query = ""
-
-                if search_query:
-                    on_chunk(f"🔍 Searching via DeepSeek Search for `{search_query}`...\n\n")
-                    results = cls.call_deepseek_search_api(vendor.api_key, search_query, count=5)
-                    lines = [f"[DeepSeek Official Web Search Results for '{search_query}']:\n"]
-                    if results:
-                        for r in results:
-                            t = r.get("title", "")
-                            u = r.get("url", "")
-                            s = r.get("summary") or r.get("snippet") or ""
-                            lines.append(f"- **{t}** ({u})\n  {s}\n")
-                    else:
-                        lines.append("No search results returned by DeepSeek Search API.\n")
-                    tool_content = "\n".join(lines)
-
-                    call_id = tc_item.get("id") or "call_deepseek_search_1"
-                    messages.append({
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "id": call_id,
-                                "type": "function",
-                                "function": {
-                                    "name": "web_search",
-                                    "arguments": raw_args,
-                                }
-                            }
-                        ]
-                    })
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": call_id,
-                        "content": tool_content,
-                    })
-
-                    followup_payload = copy.deepcopy(payload)
-                    followup_payload["messages"] = messages
-                    followup_payload.pop("tools", None)
-
-                    followup_resp = open_stream(followup_payload)
-                    followup_output, _ = read_stream_response(followup_resp)
-                    return True, "".join(full_output + followup_output)
-
-            return True, "".join(full_output)
+                return True, "".join(output_parts)
+        except urllib.error.HTTPError as he:
+            body = ""
+            try:
+                body = he.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            return False, f"LLM Provider Error (HTTP {he.code}): {body}"
         except Exception as e:
             return False, f"Stream read error: {e}"
 

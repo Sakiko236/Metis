@@ -75,7 +75,7 @@ flowchart TD
   - Manages frameless window controls (minimize, maximize/restore, drag, close), system tray, and native OS file/directory pickers.
   - Acts as a resilient supervisor: launches the Python Sidecar with standard I/O pipes (no open TCP ports, no firewall popups) and automatically terminates child processes on exit to guarantee **zero zombie processes**.
 * **Core Business Engine (`src-python/`)**:
-  - Implements the complete autonomous agent loop, multi-vendor streaming LLM client, surgical Search/Replace engine, terminal command execution, and DuckDuckGo web search.
+  - Implements the complete autonomous agent loop, multi-vendor streaming LLM client, surgical Search/Replace engine, terminal command execution, and vendor API web search grounding.
   - Freezes into a standalone native binary (`metis-engine`) using PyInstaller, bundled directly inside Tauri installers so **end users do not need Python installed**.
 
 ---
@@ -225,7 +225,6 @@ cargo run --manifest-path src-tauri/Cargo.toml -- --self-test
 │   ├── llm.py                  # Multi-vendor streaming client (Gemini, Claude, OpenAI, DeepSeek)
 │   ├── models.py               # Data domain models & PascalCase serialization schemas
 │   ├── requirements.txt        # Python build dependencies (PyInstaller)
-│   ├── search.py               # Autonomous DuckDuckGo live web search scraper
 │   ├── session.py              # Cross-platform chat session store
 │   ├── shell.py                # Silent cross-platform terminal command runner
 │   └── whitelist.py            # Zero-blast-radius file guardrails & surgical editor

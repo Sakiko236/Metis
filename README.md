@@ -129,25 +129,31 @@ npm run tauri build
 ```text
 ├── assets/
 │   ├── metis-icon.png          # High-resolution application logo
-│   ├── pic1.png                # Main workspace interface preview
-│   └── pic2.png                # Conversational micro-editing preview
+│   └── firstpage.png           # Main workspace interface preview
 ├── src/
-│   ├── Metis.ico               # Multi-resolution Windows application icon
-│   ├── Models.cs               # Domain models (Sessions, Config, Whitelist, Event stream)
-│   ├── ConfigManager.cs        # Local persistent configuration and smooth migration
-│   ├── WhitelistManager.cs     # File whitelist, Search/Replace engine, and system prompt generator
-│   ├── VerificationRunner.cs   # Safe terminal process runner and destruction blocker
-│   ├── WebSearchRunner.cs      # Live autonomous web search engine
-│   ├── MultiVendorClient.cs    # Multi-vendor streaming LLM client with backoff retry
-│   ├── MediaAttachmentHelper.cs# Base64 multimodal pipeline (PDF & image parsing)
-│   ├── MainWindow.cs           # Native WPF + WebView2 dual-binding host window
-│   ├── Program.cs              # Entry point and headless automated verification test suite
-│   ├── Installer.cs            # Standalone lightweight Windows installer wizard
 │   └── frontend/
-│       └── app.html            # Modern responsive UI (Dark/Light themes, syntax highlighting, KaTeX)
-├── lib/
-│   └── webview2/               # Embedded WebView2 runtime binaries
-├── build.bat                   # One-click standalone compilation script
+│       └── index.html          # Modern responsive UI (Sky Blue theme, KaTeX, syntax highlighting)
+├── src-tauri/
+│   ├── Cargo.toml              # Rust crate manifest & dependencies
+│   ├── tauri.conf.json         # Tauri 2.0 application & multiplatform bundle configuration
+│   ├── build.rs                # Universal cross-platform build script
+│   ├── icons/                  # Multi-resolution application icons (ICO, ICNS, PNG)
+│   ├── capabilities/           # Tauri 2.0 application security capabilities
+│   └── src/
+│       ├── main.rs             # CLI headless verification runner & desktop launcher
+│       ├── lib.rs              # Tauri coordinator, AppState, host IPC dispatcher
+│       ├── models.rs           # Core domain models & serialization schemas
+│       ├── config.rs           # Cross-platform persistent configuration & model memory
+│       ├── session.rs          # Cross-platform chat session store
+│       ├── whitelist.rs        # Zero-blast-radius file guardrails & Search/Replace engine
+│       ├── llm.rs              # Multi-vendor streaming LLM client
+│       ├── search.rs           # DuckDuckGo autonomous live web search scraper
+│       ├── shell.rs            # Cross-platform safe terminal execution runner
+│       └── agent.rs            # Autonomous cycle controller & snapshot builder
+├── demo_workspace/             # Sample workspace files for quick testing
+├── .github/workflows/
+│   └── release.yml             # Automated multi-platform CI/CD release workflow
+├── package.json                # Project root manifest & Tauri CLI scripts
 ├── .gitignore                  # Git ignore rules
 └── README.md                   # Project documentation and architectural guide
 ```

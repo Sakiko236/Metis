@@ -49,8 +49,3 @@ __pycache__/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-
-# Explicitly Keep Required Native Dependencies
-!lib/
-!lib/webview2/
-!lib/webview2/*.dll

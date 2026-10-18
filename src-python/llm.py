@@ -211,8 +211,11 @@ class MultiVendorClient:
                 )
 
             body_lower = body.lower()
-            # If tools / web_search not supported by model or endpoint, retry without tools
-            if "tools" in payload and any(term in body_lower for term in ("tool", "tools", "web_search", "not supported", "unknown")):
+            # If tools / web_search not supported by model or endpoint, or rate limited/unsupported (429/400/403/404), retry without tools
+            if "tools" in payload and (
+                he.code in (400, 403, 404, 429)
+                or any(term in body_lower for term in ("tool", "tools", "web_search", "not supported", "unknown", "unsupported", "quota", "exhausted"))
+            ):
                 payload.pop("tools", None)
                 try:
                     resp = open_responses_stream(payload)
@@ -592,32 +595,34 @@ class MultiVendorClient:
             return urllib.request.urlopen(req, timeout=180, context=ctx)
 
         resp = None
-        try:
-            resp = open_claude_stream(payload)
-        except urllib.error.HTTPError as he:
-            body = ""
+        max_attempts = 2
+        last_error = ""
+
+        for attempt in range(max_attempts):
             try:
-                body = he.read().decode("utf-8", errors="replace")
-            except Exception:
-                pass
-            body_lower = body.lower()
-            if "tools" in payload and any(term in body_lower for term in ("tool", "web_search", "unknown", "invalid")):
-                payload.pop("tools", None)
+                resp = open_claude_stream(payload)
+                break
+            except urllib.error.HTTPError as he:
+                body = ""
                 try:
-                    resp = open_claude_stream(payload)
-                except urllib.error.HTTPError as he2:
-                    body2 = ""
-                    try:
-                        body2 = he2.read().decode("utf-8", errors="replace")
-                    except Exception:
-                        pass
-                    return False, f"Claude API Error (HTTP {he2.code}): {body2}"
-                except Exception as e2:
-                    return False, f"HTTP request error on retry: {e2}"
-            else:
-                return False, f"Claude API Error (HTTP {he.code}): {body}"
-        except Exception as e:
-            return False, f"HTTP request error: {e}"
+                    body = he.read().decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                body_lower = body.lower()
+                last_error = f"Claude API Error (HTTP {he.code}): {body}"
+
+                if "tools" in payload and (
+                    he.code in (400, 403, 404, 429)
+                    or any(term in body_lower for term in ("tool", "web_search", "unknown", "invalid", "unsupported", "quota", "exhausted"))
+                ):
+                    payload.pop("tools", None)
+                    continue
+
+                return False, last_error
+            except Exception as e:
+                return False, f"HTTP request error: {e}"
+        else:
+            return False, last_error
 
         try:
             with resp:
@@ -745,53 +750,43 @@ class MultiVendorClient:
             return urllib.request.urlopen(req, timeout=180, context=ctx)
 
         resp = None
-        try:
-            resp = open_gemini_stream(payload)
-        except urllib.error.HTTPError as he:
-            body = ""
-            try:
-                body = he.read().decode("utf-8", errors="replace")
-            except Exception:
-                pass
-            body_lower = body.lower()
-            needs_retry = False
-            if "tools" in payload and any(term in body_lower for term in ("tools", "google_search", "googlesearch", "grounding")):
-                payload.pop("tools", None)
-                needs_retry = True
-            if supports_thinking and any(term in body_lower for term in ("thinkingconfig", "thinkingbudget", "not supported")):
-                payload["generationConfig"] = {"temperature": 0.2}
-                needs_retry = True
+        max_attempts = 3
+        last_error = ""
 
-            if needs_retry:
+        for attempt in range(max_attempts):
+            try:
+                resp = open_gemini_stream(payload)
+                break
+            except urllib.error.HTTPError as he:
+                body = ""
                 try:
-                    resp = open_gemini_stream(payload)
-                except urllib.error.HTTPError as he2:
-                    body2 = ""
-                    try:
-                        body2 = he2.read().decode("utf-8", errors="replace")
-                    except Exception:
-                        pass
-                    if "tools" in payload:
-                        payload.pop("tools", None)
-                        try:
-                            resp = open_gemini_stream(payload)
-                        except urllib.error.HTTPError as he3:
-                            body3 = ""
-                            try:
-                                body3 = he3.read().decode("utf-8", errors="replace")
-                            except Exception:
-                                pass
-                            return False, f"Gemini API Error (HTTP {he3.code}): {body3}"
-                        except Exception as e3:
-                            return False, f"HTTP request error: {e3}"
-                    else:
-                        return False, f"Gemini API Error (HTTP {he2.code}): {body2}"
-                except Exception as e2:
-                    return False, f"HTTP request error on retry: {e2}"
-            else:
-                return False, f"Gemini API Error (HTTP {he.code}): {body}"
-        except Exception as e:
-            return False, f"HTTP request error: {e}"
+                    body = he.read().decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                body_lower = body.lower()
+                last_error = f"Gemini API Error (HTTP {he.code}): {body}"
+
+                # Step 1: If tools (google_search) caused 429 (quota / free tier limit), 400, 403, 404, or grounding error, drop tools
+                if "tools" in payload and (
+                    he.code in (429, 400, 403, 404)
+                    or any(term in body_lower for term in ("tools", "google_search", "googlesearch", "grounding", "quota", "exhausted", "resource_exhausted", "rate", "unsupported", "permission"))
+                ):
+                    payload.pop("tools", None)
+                    continue
+
+                # Step 2: If thinkingConfig not supported (400, 404), drop thinkingConfig
+                if supports_thinking and "thinkingConfig" in payload.get("generationConfig", {}) and (
+                    he.code in (400, 404)
+                    or any(term in body_lower for term in ("thinkingconfig", "thinkingbudget", "not supported", "unknown field", "unrecognized"))
+                ):
+                    payload["generationConfig"] = {"temperature": 0.2}
+                    continue
+
+                return False, last_error
+            except Exception as e:
+                return False, f"HTTP request error: {e}"
+        else:
+            return False, last_error
 
         try:
             with resp:

@@ -7,6 +7,8 @@ import sys
 import tempfile
 import threading
 import uuid
+import unittest.mock
+import urllib.error
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -35,6 +37,8 @@ from models import (
     SurgicalActionType,
     SurgicalFileEdit,
     UiStreamEvent,
+    VendorProfile,
+    VendorType,
 )
 from session import SessionManager
 from shell import ShellRunner
@@ -796,6 +800,55 @@ async def run_self_test() -> int:
         print("FAIL: Consecutive turns merging or leading turn stripping failed in prepare_gemini_contents.", file=sys.stderr, flush=True)
         return 9
     print("[PASS] Gemini & Claude Chat History Sanitization Verified (Trailing Model Turn Prevented)", flush=True)
+
+    # 10. Gemini 429 Quota Exhaustion / Free Tier Search Grounding Downgrade Verification
+    gemini_429_calls = []
+    def mock_gemini_429_open(req, *args, **kwargs):
+        payload_data = json.loads(req.data.decode("utf-8"))
+        gemini_429_calls.append("tools" in payload_data)
+        if len(gemini_429_calls) == 1:
+            err = urllib.error.HTTPError(
+                url="https://generativelanguage.googleapis.com",
+                code=429,
+                msg="Too Many Requests",
+                hdrs={},
+                fp=None,
+            )
+            err.read = lambda: json.dumps({
+                "error": {
+                    "code": 429,
+                    "message": "Resource has been exhausted (e.g. check quota).",
+                    "status": "RESOURCE_EXHAUSTED"
+                }
+            }).encode("utf-8")
+            raise err
+        else:
+            mock_resp = unittest.mock.MagicMock()
+            mock_resp.__enter__.return_value = mock_resp
+            mock_resp.__exit__.return_value = None
+            sse_data = b'data: {"candidates": [{"content": {"parts": [{"text": "OK"}]}}]}\n\n'
+            mock_resp.__iter__.return_value = iter([sse_data])
+            return mock_resp
+
+    with unittest.mock.patch("urllib.request.urlopen", side_effect=mock_gemini_429_open):
+        ok_429, res_429 = MultiVendorClient._call_gemini_sync(
+            vendor=VendorProfile(
+                id="gemini",
+                display_name="Google Gemini",
+                vendor_type=VendorType.Gemini,
+                api_key="test_key",
+                selected_model="gemini-2.5-flash",
+            ),
+            base_url="https://generativelanguage.googleapis.com/v1beta",
+            system_prompt="system",
+            history=[ChatHistoryItem(role="user", content="Test 429")],
+            thinking_intensity="low",
+            on_chunk=lambda c: None,
+        )
+    if not ok_429 or gemini_429_calls != [True, False]:
+        print("FAIL: Gemini 429 search grounding downgrade verification failed.", file=sys.stderr, flush=True)
+        return 10
+    print("[PASS] Gemini 429 Free Tier Search Grounding Downgrade & Tool Fallback Verified", flush=True)
 
     print("=== All Metis v1.4.0 Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
     return 0

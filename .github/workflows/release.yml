@@ -22,7 +22,7 @@ jobs:
           - platform: 'ubuntu-22.04'
             args: ''
           - platform: 'windows-latest'
-            args: ''
+            args: '--bundles nsis'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -67,8 +67,8 @@ jobs:
             Welcome to the official cross-platform release of **Metis** — the laser-focused, file-centric micro-agent designed for surgical code modifications with zero blast radius, powered by **Tauri 2.0**!
 
             #### 📦 Supported Platforms
-            * **Windows**: `.msi` (Windows Installer) and `.exe` (NSIS setup installer)
-            * **macOS**: `.dmg` (Apple Silicon M1/M2/M3/M4)
+            * **Windows**: `Metis_<version>_x64-setup.exe` (NSIS setup installer)
+            * **macOS**: `Metis_<version>_aarch64.dmg` (Apple Silicon M1/M2/M3/M4)
             * **Linux**: `.deb` (Debian/Ubuntu) and `.AppImage` (Universal Linux)
 
             #### ✨ Key Features

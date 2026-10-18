@@ -73,7 +73,6 @@ Download the appropriate release package for your operating system from the [Rel
 
 * **🪟 Windows**:
   * **Installer**: `Metis_<version>_x64-setup.exe` (NSIS installer with desktop & Start Menu shortcuts)
-  * **MSI Package**: `Metis_<version>_x64_en-US.msi`
 * **🍎 macOS**:
   * **Apple Silicon (M1/M2/M3/M4)**: `Metis_<version>_aarch64.dmg`
 * **🐧 Linux**:

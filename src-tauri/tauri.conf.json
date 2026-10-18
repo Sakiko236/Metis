@@ -28,7 +28,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis",
+      "deb",
+      "appimage",
+      "dmg"
+    ],
     "shortDescription": "The Laser-Focused File-Centric Micro-Agent",
     "longDescription": "Metis is a laser-focused, file-centric micro-agent designed for surgical code modifications with zero blast radius.",
     "category": "DeveloperTool",

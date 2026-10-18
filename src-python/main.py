@@ -112,7 +112,7 @@ class SidecarEngine:
                 {
                     "type": "pong",
                     "engine": "python-sidecar",
-                    "version": "1.4.0",
+                    "version": "1.4.1",
                 }
             )
             return
@@ -648,7 +648,7 @@ class SidecarEngine:
 
 
 async def run_self_test() -> int:
-    print("=== Metis v1.4.0 (Tauri + Python Sidecar) Headless End-to-End Self-Test ===", flush=True)
+    print("=== Metis v1.4.1 (Tauri + Python Sidecar) Headless End-to-End Self-Test ===", flush=True)
 
     # 1. Config Persistence
     cfg = ConfigManager.load_or_create_default()
@@ -718,8 +718,8 @@ async def run_self_test() -> int:
     print(f"[PASS] Empty File Population Verified: {msg_emp}", flush=True)
 
     # 6. ShellRunner execution verification
-    exec_res = await ShellRunner.run_command("echo Metis v1.4.0 Python Sidecar Self-Test OK", str(temp_dir), 10)
-    if not exec_res.succeeded() or "Metis v1.4.0 Python Sidecar" not in exec_res.combined_output():
+    exec_res = await ShellRunner.run_command("echo Metis v1.4.1 Python Sidecar Self-Test OK", str(temp_dir), 10)
+    if not exec_res.succeeded() or "Metis v1.4.1 Python Sidecar" not in exec_res.combined_output():
         print(f"FAIL: Shell execution failed: {exec_res.combined_output()}", file=sys.stderr, flush=True)
         return 6
     print(f"[PASS] Terminal Execution Verified (Exit 0): {exec_res.combined_output().strip()}", flush=True)
@@ -850,7 +850,7 @@ async def run_self_test() -> int:
         return 10
     print("[PASS] Gemini 429 Free Tier Search Grounding Downgrade & Tool Fallback Verified", flush=True)
 
-    print("=== All Metis v1.4.0 Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
+    print("=== All Metis v1.4.1 Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
     return 0
 
 

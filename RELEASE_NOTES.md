@@ -1,28 +1,19 @@
-### 🎯 Metis v1.4.0 更新日志 (Release Notes)
+### 🎯 Metis v1.4.1 更新日志 (Release Notes)
 
-#### 🚀 新增功能与架构重构 (New Features & Architecture)
-1. **OpenAI 与 DeepSeek 全面迁移现代 Responses API 协议与原生搜索 (Modern Responses API & Native Search Grounding)**
-   - **统一直连 Responses 规范 (`POST /v1/responses`)**：将 OpenAI、DeepSeek 及兼容厂商全面迁移至现代 Responses 协议，直接接收并解析语义级 SSE 流式事件（`response.output_text.delta`、`response.reasoning_text.delta` 与 `web_search_call` 等），在模型服务端原生执行集群联网检索（`tools: [{"type": "web_search"}]`），允许 API 搜索但不强制，并对未实现 Responses 接口的旧版中转网关保持无缝兼容与自动回退。
-   - **厂商原生搜索全矩阵支持**：结合 Gemini `google_search` Grounding、Claude `web_search_20250101` 与 OpenAI / DeepSeek Responses 原生 web_search，模型根据对话需要自主联网检索，彻底摆脱外部冗余爬虫。
-2. **全新 Tauri 2.0 外壳 + Python Sidecar 混合架构 (Tauri + Python Sidecar Engine)**
-   - **极简 Rust 原生宿主 (`src-tauri/`)**：Rust 专注于桌面窗口管理、无边框控制、原生文件/文件夹选择对话框与子进程生命周期守护。
-   - **纯 Python 业务与智能体引擎 (`src-python/`)**：将大模型流式交互（Gemini / Claude / OpenAI / DeepSeek / Ollama）、白名单安全校验、Search/Replace 原地修改引擎、命令行验证、配置与会话管理全面重构为模块化 Python 架构（`models.py`、`config.py`、`session.py`、`whitelist.py`、`agent.py`、`llm.py`、`shell.py`、`main.py`）。
-   - **零端口冲突双向管道通信 (`METIS_IPC`)**：采用基于 `stdin/stdout` 的异步双向 JSON 流管道通信，避免本地端口占用与防火墙弹窗，且当主窗口关闭或异常退出时 Python 进程自动零残留退出。
-   - **独立打包免环境依赖**：通过 `scripts/build_sidecar.py` 与 PyInstaller 将 Python 引擎编译为独立原生二进制 `metis-engine` 并随 Tauri 安装包自动分发，终端用户无需安装任何 Python 环境。
-3. **Gemini 2.5 思考预算与流式思考规范支持 (Gemini Thinking Budget & SSE Streaming)**
-   - 完整支持 `thinkingConfig.thinkingBudget` 三档调节（`low=2048`、`medium=8192`、`high=24576`），流式解析 `thought: true` 分块并实时激活前端呼吸动效。
+#### 🚀 核心优化与 Bug 修复 (Improvements & Bug Fixes)
+1. **全面修复 LaTeX `\[ \]` 与 `\\[ \\]` 数学公式渲染 (Markdown LaTeX Rendering Fix)**
+   - **块级展示公式前置安全提取**：引入 Pre-extraction 解析机制，在 Markdown 文本进入段落与行切分前提取全部跨行、单行 `\[ ... \]` / `\\[ ... \\]` 与 `$$ ... $$` 公式为安全占位符，彻底修复多行公式因逐行调用 `mdInline` 丢失匹配导致的未渲染问题。
+   - **转义反斜杠与全场景排版兼容**：正则全面覆盖 `\{1,4}\[` / `\{1,4}\]` 与 `\{1,4}\(` / `\{1,4}\)`，彻底消除大模型输出 JSON 转义引起的定界符残留在 HTML 和 KaTeX 中引发的语法错误。
+   - **段落、多行列表与表格全覆盖**：无论是独立成块的公式卡片、段落内部文字包裹、多行列表延续项（continuation line）还是表格单元格内部，数学公式均能完整、居中并高亮渲染，且绝不破坏代码块与行内代码。
 
-#### 🐛 代码优化与问题修复 (Bug Fixes & Refactoring)
-1. **彻底清理过时二次搜索调用与无用依赖**
-   - 移除已废弃的外部搜索接口与客户端多轮 tool_call 冗余逻辑，精简回退补全路径。
-2. **Ollama 厂商枚举序列化与探测按钮修复 (VendorType Serialization Fix)**
-   - 修复了厂商 `Type` 枚举序列化格式不一致导致设置面板中 Ollama 免 Key 状态识别及“Probe Local Ollama Models”按钮不显示的问题。
-3. **Windows 中文环境下 UTF-8 标准流编码修复 (Windows UTF-8 Stream Fix)**
-   - 强制锁定 Python Sidecar 标准输入输出流为 `UTF-8` 编码，彻底消除在 Windows GBK 控制台代码页下输出特殊符号时的编码异常。
-4. **空文件初始化写入、全宽自适应对话框与无冗余完成横幅**
-   - 完整继承并验证 0 字节空文件首次写入填充、聊天与输入框横向无上限自适应拉伸、以及去除多余完成横幅特性。
+2. **Gemini 免费层搜索配额超限 429 自动无感降级 (Gemini 429 Free Tier Search Grounding Downgrade)**
+   - **智能识别配额限制并重试**：针对 Google AI Studio 免费层 key 不包含 Google Search Grounding 配额导致直接报错 `429 RESOURCE_EXHAUSTED` 的情况，服务端在遭遇 429 / 400 / 403 时自动摘除 `tools: [{"google_search": {}}]` 并立即无缝回退至纯文本推理，消除用户对话中断。
+   - **全厂商对齐降级机制**：同步为 Claude 与 OpenAI / DeepSeek Responses API 加入 429 速率/配额超限时的工具降级重试逻辑，确保任意模型在检索受限时依然可用。
+
+3. **端到端测试套件扩充**
+   - 新增第 10 项端到端自测用例：自动化验证 Gemini 429 搜索工具自动移除与降级回退机制。
 
 #### 📦 安装包分发 (Supported Packages)
-- **Windows**: `Metis_1.4.0_x64-setup.exe` (NSIS 便携式安装包，内置 Python Sidecar 引擎，支持完整卸载)
-- **macOS**: `Metis_1.4.0_aarch64.dmg` (Apple Silicon 芯片专用便携镜像，M1/M2/M3/M4)
-- **Linux**: `metis_1.4.0_amd64.deb` (Debian / Ubuntu) 与 `Metis_1.4.0_amd64.AppImage` (通用便携镜像)
+- **Windows**: `Metis_1.4.1_x64-setup.exe` (NSIS 便携式安装包，内置 Python Sidecar 引擎，支持完整卸载)
+- **macOS**: `Metis_1.4.1_aarch64.dmg` (Apple Silicon 芯片专用便携镜像，M1/M2/M3/M4)
+- **Linux**: `metis_1.4.1_amd64.deb` (Debian / Ubuntu) 与 `Metis_1.4.1_amd64.AppImage` (通用便携镜像)

@@ -1,4 +1,4 @@
-# Metis Python Sidecar Engine (v1.4.0)
+# Metis Python Sidecar Engine (v1.4.1)
 # Core runtime uses Python 3.10+ standard library (asyncio, urllib, ssl, json, subprocess, re)
 # for zero external runtime C-extension dependencies and minimal binary size.
 # PyInstaller is used to freeze the sidecar into a standalone executable for Tauri bundling.

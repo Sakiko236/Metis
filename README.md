@@ -4,7 +4,7 @@
   <img src="assets/metis-icon.png" width="108" height="108" alt="Metis Logo" />
   <br/>
   <h3> Metis Agent </h3>
-  <p><b>Laser-Focused, File-Centric Micro Coding Agent with Zero Blast Radius</b></p>
+  <p><b>File-Centric Micro Coding Agent</b></p>
 
   [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)](https://github.com/Sakiko236/Metis)
   [![Architecture](https://img.shields.io/badge/Architecture-Tauri%202.0%20%2B%20Python%20Sidecar-blue?logo=tauri&logoColor=white)](https://tauri.app)
@@ -38,48 +38,6 @@ In an era where AI coding assistants promise "autonomous full-stack repository g
 
 ---
 
-## 🏗️ Architecture: Tauri 2.0 + Python Sidecar
-
-Metis combines the best of both desktop performance and AI ecosystem agility through a decoupled **Tauri 2.0 Host + Python Sidecar Engine** architecture:
-
-```mermaid
-flowchart TD
-    subgraph Frontend["Frontend UI (HTML5 / CSS3 / Vanilla JS)"]
-        UI["Chat & Workspace Interface (index.html)"]
-    end
-
-    subgraph Tauri_Host["Desktop Host (Tauri 2.0 / Rust)"]
-        Window["Frameless Window Controls & Tray"]
-        Dialogs["Native OS File / Folder Dialogs (rfd)"]
-        Supervisor["Sidecar Process Lifecycle Supervisor\n(Auto-launches & kills child process, zero zombies)"]
-    end
-
-    subgraph Py_Sidecar["Business & AI Engine (Python 3.10+)"]
-        IPC["Asynchronous JSON-Lines Pipe (METIS_IPC)"]
-        Agent["Autonomous Agent Loop & Thinking Parser"]
-        LLM["Multi-Vendor Client (Gemini 2.5, Claude, OpenAI, DeepSeek, Ollama)"]
-        Tools["Surgical In-Place Editor | Shell Runner | Web Search"]
-        Storage["Cross-Platform Config & Session Persistence"]
-    end
-
-    Window -->|Render Native Shell| UI
-    UI <-->|Tauri IPC Invoke / Events| Tauri_Host
-    Supervisor -->|Standard I/O Pipes (stdin / stdout)| IPC
-    IPC <--> Agent
-    Agent --> LLM
-    Agent --> Tools
-    Agent --> Storage
-```
-
-* **Desktop Host (Rust / Tauri 2.0)**:
-  - Manages frameless window controls (minimize, maximize/restore, drag, close), system tray, and native OS file/directory pickers.
-  - Acts as a resilient supervisor: launches the Python Sidecar with standard I/O pipes (no open TCP ports, no firewall popups) and automatically terminates child processes on exit to guarantee **zero zombie processes**.
-* **Core Business Engine (`src-python/`)**:
-  - Implements the complete autonomous agent loop, multi-vendor streaming LLM client, surgical Search/Replace engine, terminal command execution, and vendor API web search grounding.
-  - Freezes into a standalone native binary (`metis-engine`) using PyInstaller, bundled directly inside Tauri installers so **end users do not need Python installed**.
-
----
-
 ## ✨ Key Features
 
 ### 1. 📂 Explicit Whitelist & In-Place Surgical Editing
@@ -87,35 +45,19 @@ flowchart TD
 * **Zero Blast Radius**: Modifies existing whitelisted files in-place using precise 3-tier Search/Replace blocks (exact, normalized CRLF/LF, line-by-line whitespace-trimmed), with automatic support for populating empty 0-byte files.
 * Built-in file snapshots with one-click historical version rollback.
 
-### 2. 🧠 Gemini 2.5 Thinking Budget & Extended Reasoning
-* Comprehensive support for Google Gemini 2.5 Thinking configurations (`thinkingBudget`: `low` = 2048, `medium` = 8192, `high` = 24576).
+### 2. 🧠 Thinking Budget & Extended Reasoning
+* Comprehensive support for Thinking configurations (`thinkingBudget`: `low` = 2048, `medium` = 8192, `high` = 24576).
 * Real-time streaming parser extracts `thought` parts dynamically, rendering breathing animation placeholders without polluting generated code.
 * Automatic fallback protection for legacy models without thinking support.
 
-### 3. 🌐 Responses API & Native Vendor Search Grounding
-* Direct migration to modern **Responses API** (`/v1/responses`) and official vendor search specifications:
-  - **OpenAI & DeepSeek**: Unified Responses API (`POST /v1/responses`) with native server-side live web search (`tools: [{"type": "web_search"}]`), semantic event streaming (`response.output_text.delta`, `response.reasoning_text.delta`), and automatic fallback to `/chat/completions` for legacy proxies.
-  - **Google Gemini**: Google Search Grounding (`google_search`).
-  - **Anthropic Claude**: Server-side Web Search tool (`web_search_20250101`).
-* Models dynamically evaluate whether external technical documentation or references are required, performing search grounding via official API endpoints without forced or redundant queries.
-
-### 4. 🛡️ Strict Prohibition on File Creation & Deletion
+### 3. 🛡️ Strict Prohibition on File Creation & Deletion
 * Enforced across the prompt protocol, the Python whitelist guardrails, and the terminal runner.
 * Any command attempting to delete files (`rm`, `del`, `Remove-Item`) or create unauthorized scripts is intercepted and blocked immediately.
 
-### 5. 🎨 Responsive Minimalist UI & Dark/Light Themes
+### 4. 🎨 Responsive Minimalist UI & Dark/Light Themes
 * Distraction-free modern interface with mist-dissolving text animations, uncapped full-width responsive dialog bubbles and composer, and KaTeX mathematical typesetting.
 * Seamless switching between **Dark Mode** and **Light Mode**.
 * System default browser integration for all external links.
-
-### 6. 🔌 Multi-Vendor Direct API Connectivity
-* Native zero-proxy support for:
-  - **Google Gemini** (`gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-1.5-pro`)
-  - **DeepSeek** (`deepseek-chat`, `deepseek-reasoner`)
-  - **OpenAI** (`gpt-4o`, `gpt-4o-mini`, `o3-mini`, `gpt-4.5-preview`)
-  - **Anthropic Claude** (`claude-3-7-sonnet`, `claude-3-5-sonnet`, `claude-3-5-haiku`)
-  - **Local Ollama** models with one-click model probing
-  - **Custom OpenAI-compatible** endpoints
 
 ---
 
@@ -147,62 +89,6 @@ Download the appropriate release package for your operating system from the [Rel
    * Enter your prompt in the chat composer, for example:
      > *"Add token expiration retry handling to auth.py, update the test suite in test_auth.py, and run python -m unittest to verify."*
    * Metis will reason, propose surgical Search/Replace edits, and invoke the terminal to run tests until validation succeeds.
-
----
-
-## 🔨 Building from Source
-
-### Prerequisites
-* [Node.js](https://nodejs.org/) (LTS)
-* [Rust](https://rustup.rs/) (Stable toolchain)
-* [Python](https://python.org/) (3.10+)
-* Platform Webview:
-  * Windows: Microsoft Edge WebView2 (built-in on Windows 10/11)
-  * macOS: WebKit (built-in)
-  * Linux: `libwebkit2gtk-4.1-dev` (`sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential`)
-
-### Development Mode
-
-In development mode, Tauri automatically resolves and runs `src-python/main.py` directly, allowing instant hot-reloading when editing Python code without needing to recompile:
-
-```bash
-# Clone the repository
-git clone https://github.com/Sakiko236/Metis.git
-cd Metis
-
-# Install frontend dependencies
-npm install
-
-# Install Python sidecar requirements
-python -m pip install -r src-python/requirements.txt
-
-# Run the application in development mode
-npm run tauri dev
-```
-
-### Production Packaging
-
-To compile the Python engine into a standalone binary and bundle it into native installers:
-
-```bash
-# 1. Package the Python Sidecar into src-tauri/bin/
-python scripts/build_sidecar.py
-
-# 2. Build the production Tauri installer
-npm run tauri build
-```
-
-### Headless Verification
-
-You can run automated self-test suites to verify all features end-to-end:
-
-```bash
-# Test the Python Sidecar engine directly:
-python src-python/main.py --self-test
-
-# Test the Tauri Host <-> Python Sidecar IPC bridge end-to-end:
-cargo run --manifest-path src-tauri/Cargo.toml -- --self-test
-```
 
 ---
 

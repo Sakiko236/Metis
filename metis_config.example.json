@@ -1,7 +1,8 @@
 {
   "ActiveVendorId": "deepseek",
-  "MaxVerifyLoops": 5,
+  "MaxVerifyLoops": 8,
   "CommandTimeoutSeconds": 60,
+  "ThinkingIntensity": "medium",
   "Vendors": [
     {
       "Id": "deepseek",

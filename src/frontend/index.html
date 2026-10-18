@@ -2283,7 +2283,7 @@
     activeWorkspaceDir: '',
     isBusy: false,
     statusText: 'Ready',
-    configFilePath: '%APPDATA%\\Pinpoint\\config.json'
+    configFilePath: '%APPDATA%\\Metis\\config.json'
   };
 
   let editingVendorId = null;
@@ -2292,23 +2292,13 @@
   function hostPost(payload) {
     if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
       window.__TAURI__.core.invoke('host_post', { payload: JSON.stringify(payload) }).catch(console.error);
-    } else if (window.chrome && window.chrome.webview) {
-      window.chrome.webview.postMessage(JSON.stringify(payload));
     }
   }
 
-  // Receive state updates from Tauri 2.0 Host
+  // Receive state updates from Tauri Host
   if (window.__TAURI__ && window.__TAURI__.event) {
     window.__TAURI__.event.listen('host_message', (event) => {
       const msg = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
-      handleHostMessage(msg);
-    });
-  }
-
-  // Receive state updates from C# Host
-  if (window.chrome && window.chrome.webview) {
-    window.chrome.webview.addEventListener('message', (event) => {
-      const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
       handleHostMessage(msg);
     });
   }
@@ -3466,14 +3456,6 @@
     e.preventDefault();
     dragDepth = 0;
     document.getElementById('dragOverlay').classList.remove('visible');
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      if (window.chrome && window.chrome.webview && window.chrome.webview.postMessageWithAdditionalObjects) {
-        window.chrome.webview.postMessageWithAdditionalObjects(
-          JSON.stringify({ action: 'dropFiles' }),
-          Array.from(e.dataTransfer.files)
-        );
-      }
-    }
   });
 
   function showToast(text) {

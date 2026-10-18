@@ -1,4 +1,16 @@
 fn main() {
+    // Ensure `bin/metis-engine-<target>` exists for `tauri_build` during dev `cargo check`/`cargo run`.
+    // In production release builds, `scripts/build_sidecar.py` overwrites this with the real PyInstaller binary.
+    if let Ok(target) = std::env::var("TARGET") {
+        let bin_dir = std::path::Path::new("bin");
+        let _ = std::fs::create_dir_all(bin_dir);
+        let ext = if target.contains("windows") { ".exe" } else { "" };
+        let sidecar_path = bin_dir.join(format!("metis-engine-{}{}", target, ext));
+        if !sidecar_path.exists() {
+            let _ = std::fs::write(&sidecar_path, b"");
+        }
+    }
+
     let mut attrs = tauri_build::Attributes::new();
     #[cfg(windows)]
     {

@@ -1,17 +1,12 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use metis_lib::config::ConfigManager;
-use metis_lib::models::{SurgicalActionType, SurgicalFileEdit};
-use metis_lib::search::WebSearchRunner;
-use metis_lib::session::SessionManager;
-use metis_lib::shell::ShellRunner;
-use metis_lib::whitelist::WhitelistManager;
-use std::env;
+use metis_lib::SidecarBridge;
+use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--self-test") {
         let code = run_headless_self_test().await;
         std::process::exit(code);
@@ -21,133 +16,110 @@ async fn main() {
 }
 
 async fn run_headless_self_test() -> i32 {
-    println!("=== Metis v1.2.3 Tauri 2.0 Headless End-to-End Self-Test ===");
+    println!("=== Metis v1.3.0 (Tauri 2.0 Host + Python Sidecar) End-to-End Self-Test ===");
 
-    // 1. Config Persistence
-    let cfg = ConfigManager::load_or_create_default();
-    let _ = ConfigManager::save(&cfg);
-    let cfg_path = ConfigManager::get_config_path();
-    if !cfg_path.exists() {
-        eprintln!("FAIL: Config file was not persisted.");
-        return 1;
-    }
-    println!("[PASS] Local Config Persisted: {}", cfg_path.display());
-
-    // 2. Session Persistence
-    let store = SessionManager::load_or_create_default();
-    let _ = SessionManager::save(&store);
-    let sess_path = SessionManager::get_sessions_file_path();
-    if !sess_path.exists() {
-        eprintln!("FAIL: Sessions file was not persisted.");
-        return 2;
-    }
-    println!("[PASS] Local Sessions Persisted: {}", sess_path.display());
-
-    // 3. Whitelist strict security check: Creation prohibited
-    let mut wl = WhitelistManager::new();
-    let edit_fake = SurgicalFileEdit {
-        action_type: SurgicalActionType::WriteFull,
-        target_file: "sub/auto_created_script.py".to_string(),
-        new_content: "print('bad')".to_string(),
-        search_block: String::new(),
-        replace_block: String::new(),
-    };
-
-    match wl.apply_edit_in_place(&edit_fake) {
-        Ok(_) => {
-            eprintln!("FAIL: Unwhitelisted file creation was allowed!");
-            return 3;
-        }
-        Err(err) => {
-            if !err.contains("[Security Block - File Creation Prohibited]") {
-                eprintln!("FAIL: Did not output expected security block message: {}", err);
-                return 4;
-            }
-            println!("[PASS] Strict Block on New File Creation Verified: {}", err);
-        }
-    }
-
-    // 4. In-Place Search/Replace Block verification
-    let temp_dir = std::env::temp_dir().join("metis_selftest");
-    let _ = std::fs::create_dir_all(&temp_dir);
-    let test_file = temp_dir.join("calc.py");
-    let original_code = "def calc(a, b):\n    return a + b\n";
-    let _ = std::fs::write(&test_file, original_code);
-
-    wl.add_file(&test_file.to_string_lossy());
-
-    let edit_replace = SurgicalFileEdit {
-        action_type: SurgicalActionType::SearchReplace,
-        target_file: "calc.py".to_string(),
-        new_content: String::new(),
-        search_block: "    return a + b".to_string(),
-        replace_block: "    return a * b".to_string(),
-    };
-
-    match wl.apply_edit_in_place(&edit_replace) {
-        Ok((msg, _)) => {
-            let updated = std::fs::read_to_string(&test_file).unwrap_or_default();
-            if !updated.contains("return a * b") {
-                eprintln!("FAIL: File content was not updated with replacement.");
-                return 5;
-            }
-            println!("[PASS] Search/Replace Block Engine & In-Place Edits Verified: {}", msg);
-        }
+    // 1. Run Python Sidecar internal self-test suite
+    let (program, args) = match SidecarBridge::resolve_sidecar_command(&["--self-test"]) {
+        Ok(res) => res,
         Err(e) => {
-            eprintln!("FAIL: In-place edit failed: {}", e);
-            return 6;
+            eprintln!("FAIL: Could not resolve Python sidecar: {}", e);
+            return 1;
         }
+    };
+
+    println!("[INFO] Resolved Sidecar Command: {} {:?}", program, args);
+
+    let mut cmd = SidecarBridge::build_tokio_command(&program, &args);
+    let output = match cmd.output().await {
+        Ok(out) => out,
+        Err(e) => {
+            eprintln!("FAIL: Failed to execute Python sidecar self-test: {}", e);
+            return 2;
+        }
+    };
+
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+    let stderr_str = String::from_utf8_lossy(&output.stderr);
+    for line in stdout_str.lines() {
+        println!("  {}", line);
+    }
+    if !output.status.success() {
+        eprintln!("FAIL: Python sidecar self-test exited with status {:?}:\n{}", output.status.code(), stderr_str);
+        return 3;
     }
 
-    // 5. ShellRunner execution verification
-    let exec_res = ShellRunner::run_command("echo Metis Tauri 2.0 Self-Test OK", &temp_dir.to_string_lossy(), 10).await;
-    if !exec_res.succeeded() || !exec_res.combined_output().contains("Metis Tauri 2.0") {
-        eprintln!("FAIL: Shell execution failed: {:?}", exec_res);
+    // 2. Verify live bidirectional Rust <-> Python Sidecar IPC pipe (ping -> pong & uiReady -> fullState)
+    let (ipc_prog, ipc_args) = match SidecarBridge::resolve_sidecar_command(&[]) {
+        Ok(res) => res,
+        Err(e) => {
+            eprintln!("FAIL: Could not resolve Python sidecar for IPC test: {}", e);
+            return 4;
+        }
+    };
+
+    let mut ipc_cmd = SidecarBridge::build_tokio_command(&ipc_prog, &ipc_args);
+    let mut child = match ipc_cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("FAIL: Could not spawn Python sidecar for IPC test: {}", e);
+            return 5;
+        }
+    };
+
+    let mut stdin = child.stdin.take().expect("stdin piped");
+    let stdout = child.stdout.take().expect("stdout piped");
+    let mut reader = BufReader::new(stdout).lines();
+
+    let send_res = stdin
+        .write_all(b"{\"action\":\"ping\"}\n{\"action\":\"uiReady\"}\n")
+        .await;
+    if let Err(e) = send_res {
+        eprintln!("FAIL: Failed writing to sidecar stdin: {}", e);
+        let _ = child.kill().await;
+        return 6;
+    }
+    let _ = stdin.flush().await;
+
+    let mut got_pong = false;
+    let mut got_full_state = false;
+
+    let check_loop = async {
+        while let Ok(Some(line)) = reader.next_line().await {
+            if let Some(json_str) = line.trim().strip_prefix("METIS_IPC:") {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(json_str) {
+                    match val.get("type").and_then(|t| t.as_str()) {
+                        Some("pong") => {
+                            got_pong = true;
+                        }
+                        Some("fullState") => {
+                            got_full_state = true;
+                        }
+                        _ => {}
+                    }
+                    if got_pong && got_full_state {
+                        break;
+                    }
+                }
+            }
+        }
+    };
+
+    let _ = tokio::time::timeout(Duration::from_secs(10), check_loop).await;
+
+    // Close stdin to verify graceful sidecar auto-exit
+    drop(stdin);
+    let _ = tokio::time::timeout(Duration::from_secs(3), child.wait()).await;
+    let _ = child.kill().await;
+
+    if !got_pong || !got_full_state {
+        eprintln!(
+            "FAIL: Bidirectional IPC test failed (got_pong={}, got_full_state={})",
+            got_pong, got_full_state
+        );
         return 7;
     }
-    println!("[PASS] Terminal Execution Verified (Exit 0): {}", exec_res.combined_output().trim());
 
-    // 6. WebSearchRunner verification
-    let search_res = WebSearchRunner::search("rust lang", 2).await;
-    println!("[PASS] Web Search Engine Verified (Found {} results)", search_res.len());
-
-    // 7. Session Title Extraction & Tag Stripping verification
-    let sample_reply = "<think>Thinking deeply...</think>\n<metis_title>7-Zip CLI Extraction Guide</metis_title>\nHere is the command:";
-    let extracted_title = metis_lib::llm::MultiVendorClient::extract_session_title(sample_reply);
-    let display_text = metis_lib::llm::MultiVendorClient::format_display_text(sample_reply);
-    if extracted_title.as_deref() != Some("7-Zip CLI Extraction Guide") || display_text != "Here is the command:" {
-        eprintln!("FAIL: Session title extraction or tag stripping failed: {:?} / {:?}", extracted_title, display_text);
-        return 8;
-    }
-    println!("[PASS] Session Title Auto-Extraction & Tag Stripping Verified: {:?}", extracted_title.unwrap());
-
-    // 8. Empty File Population Verification
-    let empty_file = temp_dir.join("new_empty.txt");
-    let _ = std::fs::write(&empty_file, "");
-    wl.add_file(&empty_file.to_string_lossy());
-
-    let edit_empty_sr = SurgicalFileEdit {
-        action_type: SurgicalActionType::SearchReplace,
-        target_file: "new_empty.txt".to_string(),
-        new_content: String::new(),
-        search_block: String::new(),
-        replace_block: "Hello from empty file initial content!".to_string(),
-    };
-    match wl.apply_edit_in_place(&edit_empty_sr) {
-        Ok((msg, _)) => {
-            let content = std::fs::read_to_string(&empty_file).unwrap_or_default();
-            if content != "Hello from empty file initial content!" {
-                eprintln!("FAIL: Empty file content was not populated correctly: {}", content);
-                return 9;
-            }
-            println!("[PASS] Empty File Population Verified: {}", msg);
-        }
-        Err(e) => {
-            eprintln!("FAIL: Populating empty file failed: {}", e);
-            return 10;
-        }
-    }
-
-    println!("=== All Metis Tauri 2.0 Self-Test Suites Passed Successfully! ===");
+    println!("[PASS] Rust <-> Python Sidecar Bidirectional Pipe IPC (`ping` -> `pong`, `uiReady` -> `fullState`) Verified!");
+    println!("=== All Metis v1.3.0 Tauri + Python Sidecar Self-Tests Passed! ===");
     0
 }

@@ -22,6 +22,7 @@ surgical_sessions.json
 # Build Artifacts & Executables
 target/
 src-tauri/target/
+src-tauri/bin/
 node_modules/
 dist/
 *.exe

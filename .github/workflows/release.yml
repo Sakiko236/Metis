@@ -18,10 +18,13 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
+            target: 'aarch64-apple-darwin'
             args: '--target aarch64-apple-darwin'
           - platform: 'ubuntu-22.04'
+            target: 'x86_64-unknown-linux-gnu'
             args: ''
           - platform: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
             args: '--bundles nsis'
 
     runs-on: ${{ matrix.platform }}
@@ -33,6 +36,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python Sidecar Build Dependencies
+        run: python -m pip install --upgrade pip -r src-python/requirements.txt
 
       - name: Install Frontend & Tauri CLI Dependencies
         run: npm install
@@ -52,6 +63,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Build Python Sidecar Executable
+        run: python scripts/build_sidecar.py --target ${{ matrix.target }}
+
+      - name: Verify Python Sidecar Self-Test
+        run: python src-python/main.py --self-test
 
       - name: Prepare Release Notes
         id: release_notes
@@ -82,4 +99,3 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-

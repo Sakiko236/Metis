@@ -34,7 +34,7 @@ In an era where AI coding assistants promise "autonomous full-stack repository g
 **Metis is built on the philosophy of "Laser Focus, Zero Blast Radius":**
 * **Laser Focus**: Only files or directories you explicitly drag in or select are admitted into the prompt context. No uninvited background file crawling.
 * **Zero Blast Radius**: **Creating new files is strictly forbidden. Deleting existing files is strictly forbidden.** Metis operates exclusively by surgically modifying existing whitelisted files in-place using exact Search/Replace blocks or initial population.
-* **Autonomous Live Web Search**: Metis autonomously queries public technical documentation, API specifications, and troubleshooting guides in real time via DuckDuckGo.
+* **Native Vendor API Search Grounding**: Metis integrates with official provider search specifications (e.g. Google Search Grounding for Gemini, Web Search for Claude) dynamically without forcing search when existing knowledge suffices.
 
 ---
 
@@ -92,9 +92,9 @@ flowchart TD
 * Real-time streaming parser extracts `thought` parts dynamically, rendering breathing animation placeholders without polluting generated code.
 * Automatic fallback protection for legacy models without thinking support.
 
-### 3. 🌐 Autonomous Live Web Search
-* When modern API documentation, framework specifications, or troubleshooting guides are required, Metis emits `<metis_search>` tags to query DuckDuckGo automatically.
-* Search results are seamlessly fed back into the reasoning context and rendered as rich cards in the UI.
+### 3. 🌐 Native Vendor API Search Grounding
+* Direct integration with official vendor search specifications (Google Search Grounding `google_search` for Gemini, server-side Web Search for Claude).
+* The model assesses whether external technical documentation or references are required dynamically, performing search grounding via the API without forced or redundant queries.
 
 ### 4. 🛡️ Strict Prohibition on File Creation & Deletion
 * Enforced across the prompt protocol, the Python whitelist guardrails, and the terminal runner.

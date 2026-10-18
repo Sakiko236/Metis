@@ -79,7 +79,6 @@ def main() -> int:
         "--hidden-import=agent",
         "--hidden-import=llm",
         "--hidden-import=shell",
-        "--hidden-import=search",
         "--distpath",
         str(bin_dir),
         "--workpath",

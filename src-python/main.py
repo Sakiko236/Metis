@@ -36,7 +36,6 @@ from models import (
     SurgicalFileEdit,
     UiStreamEvent,
 )
-from search import WebSearchRunner
 from session import SessionManager
 from shell import ShellRunner
 from whitelist import WhitelistManager
@@ -548,37 +547,7 @@ class SidecarEngine:
             had_actions = False
             any_edit_failed = False
 
-            # 1. Process Web Searches
-            for query in parsed.search_queries:
-                had_actions = True
-                self.status_text = f"Searching web for '{query}'..."
-                emit_host_message(
-                    {
-                        "type": "busyStatus",
-                        "isBusy": True,
-                        "statusText": self.status_text,
-                    }
-                )
-                results = await WebSearchRunner.search(query, 5)
-                formatted_md = WebSearchRunner.format_markdown(query, results)
-
-                active = self.session_store.get_active_session()
-                if active is not None:
-                    ev = UiStreamEvent(
-                        event_type="search_result",
-                        content=formatted_md,
-                        search_query=query,
-                        search_results=results,
-                    )
-                    active.ui_events.append(ev)
-                    active.api_history.append(
-                        ChatHistoryItem(
-                            role="user",
-                            content=f"[Web Search Results for '{query}']:\n{formatted_md}",
-                        )
-                    )
-
-            # 2. Process File Edits
+            # 1. Process File Edits
             for edit in parsed.file_edits:
                 had_actions = True
                 ok_edit, msg_or_err, wf = self.whitelist.apply_edit_in_place(edit)
@@ -614,7 +583,7 @@ class SidecarEngine:
                             )
                         )
 
-            # 3. Process Terminal Commands
+            # 2. Process Terminal Commands
             for cmd in parsed.terminal_commands:
                 had_actions = True
                 self.status_text = f"Running `{cmd}`..."
@@ -655,7 +624,7 @@ class SidecarEngine:
             self.broadcast_full_state()
 
             needs_followup_round = bool(
-                parsed.terminal_commands or parsed.search_queries or any_edit_failed
+                parsed.terminal_commands or any_edit_failed
             )
             if not needs_followup_round:
                 break
@@ -751,9 +720,18 @@ async def run_self_test() -> int:
         return 6
     print(f"[PASS] Terminal Execution Verified (Exit 0): {exec_res.combined_output().strip()}", flush=True)
 
-    # 7. WebSearchRunner verification
-    search_res = await WebSearchRunner.search("python", 2)
-    print(f"[PASS] Web Search Engine Verified (Found {len(search_res)} results)", flush=True)
+    # 7. Vendor API Web Search Grounding Tool Specification Verification
+    gemini_tools = MultiVendorClient.build_gemini_tools()
+    claude_tools = MultiVendorClient.build_claude_tools()
+    if (
+        not gemini_tools
+        or "google_search" not in gemini_tools[0]
+        or not claude_tools
+        or claude_tools[0].get("type") != "web_search_20250101"
+    ):
+        print("FAIL: Vendor API search tool specification verification failed.", file=sys.stderr, flush=True)
+        return 7
+    print(f"[PASS] Vendor API Search Grounding Specifications Verified (Gemini: {gemini_tools}, Claude: {claude_tools})", flush=True)
 
     # 8. Session Title Extraction, Tag Stripping & Gemini Thinking Config verification (low, medium, high)
     sample_reply = "<think>Thinking deeply...</think>\n<metis_title>Python Sidecar Architecture</metis_title>\nReady to assist!"

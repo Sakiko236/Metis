@@ -43,10 +43,7 @@ class AgentLoop:
             "<metis_cmd>\n"
             "your command here\n"
             "</metis_cmd>\n"
-            "4. To search online documentation or technical references, emit:\n"
-            "<metis_search>\n"
-            "search keywords\n"
-            "</metis_search>\n"
+            "4. You have access to native web search grounding provided by the API when technical documentation, framework specifications, or troubleshooting guides are needed. Use web search as appropriate, but do not force it when existing knowledge suffices.\n"
             "5. Keep changes focused and verified. When verification passes, summarize concisely."
         )
 

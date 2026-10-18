@@ -3790,10 +3790,8 @@
       const lang = /^[a-z0-9_-]+$/i.test(ext) ? ext : '';
       return '\n**Write file `' + f + '`:**\n```' + lang + '\n' + code.trim() + '\n```\n';
     });
-    // Format search tags
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)?_?search\b[^>]*>([\s\S]*?)<\/(?:metis|pinpoint|surgical)?_?search>/gi, function(_, q) {
-      return '\n🌐 **Web Search**: `' + q.trim() + '`\n';
-    });
+    // Strip search tags
+    raw = raw.replace(/<(?:metis|pinpoint|surgical)?_?search\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)?_?search>/gi, '');
     raw = raw.replace(/<\/?(?:metis_cmd|pinpoint_cmd|surgical_cmd|verify_cmd|metis_search|pinpoint_search|surgical_search|search)>/gi, '');
 
     return renderMarkdownToHtml(raw.trim());

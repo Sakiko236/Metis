@@ -3,11 +3,13 @@
 #### 🚀 新增功能与架构重构 (New Features & Architecture)
 1. **全新 Tauri 2.0 外壳 + Python Sidecar 混合架构 (Tauri + Python Sidecar Engine)**
    - **极简 Rust 原生宿主 (`src-tauri/`)**：Rust 专注于桌面窗口管理、无边框控制、原生文件/文件夹选择对话框与子进程生命周期守护。
-   - **纯 Python 业务与智能体引擎 (`src-python/`)**：将大模型流式交互（Gemini / Claude / OpenAI / DeepSeek / Ollama）、白名单安全校验、Search/Replace 原地修改引擎、命令行验证、自主网页搜索、配置与会话管理全面重构为模块化 Python 架构（`models.py`、`config.py`、`session.py`、`whitelist.py`、`agent.py`、`llm.py`、`shell.py`、`search.py`、`main.py`）。
+   - **纯 Python 业务与智能体引擎 (`src-python/`)**：将大模型流式交互（Gemini / Claude / OpenAI / DeepSeek / Ollama）、白名单安全校验、Search/Replace 原地修改引擎、命令行验证、配置与会话管理全面重构为模块化 Python 架构（`models.py`、`config.py`、`session.py`、`whitelist.py`、`agent.py`、`llm.py`、`shell.py`、`main.py`）。
    - **零端口冲突双向管道通信 (`METIS_IPC`)**：采用基于 `stdin/stdout` 的异步双向 JSON 流管道通信，避免本地端口占用与防火墙弹窗，且当主窗口关闭或异常退出时 Python 进程自动零残留退出。
    - **独立打包免环境依赖**：通过 `scripts/build_sidecar.py` 与 PyInstaller 将 Python 引擎编译为独立原生二进制 `metis-engine` 并随 Tauri 安装包自动分发，终端用户无需安装任何 Python 环境。
 2. **Gemini 2.5 思考预算与流式思考规范支持 (Gemini Thinking Budget & SSE Streaming)**
    - 完整支持 `thinkingConfig.thinkingBudget` 三档调节（`low=2048`、`medium=8192`、`high=24576`），流式解析 `thought: true` 分块并实时激活前端呼吸动效。
+3. **厂商原生 API 搜索规范集成 (Native Vendor API Search Grounding)**
+   - 取消内置 DuckDuckGo 爬虫，全面切换为调用模型厂商原生搜索规范（如 Gemini `google_search` Grounding、Claude `web_search`）。模型在需要最新文档或技术规格时自主执行联网检索，允许 API 搜索但不强制。
 
 #### 🐛 问题修复 (Bug Fixes)
 1. **Ollama 厂商枚举序列化与探测按钮修复 (VendorType Serialization Fix)**

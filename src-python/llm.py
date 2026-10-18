@@ -274,6 +274,19 @@ class MultiVendorClient:
 
         return raw_turns
 
+    @staticmethod
+    def build_claude_tools() -> List[dict]:
+        """
+        Claude native server-side Web Search specification:
+        Allows Claude to perform live web research dynamically when needed without forcing it.
+        """
+        return [
+            {
+                "type": "web_search_20250101",
+                "name": "web_search",
+            }
+        ]
+
     @classmethod
     def _call_claude_sync(
         cls,
@@ -301,6 +314,7 @@ class MultiVendorClient:
             "system": system_prompt,
             "messages": messages,
             "stream": True,
+            "tools": cls.build_claude_tools(),
         }
         if budget_tokens > 0 and "3-7" in vendor.selected_model:
             payload["max_tokens"] = max(8192, budget_tokens + 4096)
@@ -317,12 +331,43 @@ class MultiVendorClient:
             "User-Agent": "Metis-Agent/1.3",
         }
 
-        data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
         ctx = ssl.create_default_context()
 
+        def open_claude_stream(req_payload: dict):
+            data_bytes = json.dumps(req_payload).encode("utf-8")
+            req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
+            return urllib.request.urlopen(req, timeout=180, context=ctx)
+
+        resp = None
         try:
-            with urllib.request.urlopen(req, timeout=180, context=ctx) as resp:
+            resp = open_claude_stream(payload)
+        except urllib.error.HTTPError as he:
+            body = ""
+            try:
+                body = he.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            body_lower = body.lower()
+            if "tools" in payload and any(term in body_lower for term in ("tool", "web_search", "unknown", "invalid")):
+                payload.pop("tools", None)
+                try:
+                    resp = open_claude_stream(payload)
+                except urllib.error.HTTPError as he2:
+                    body2 = ""
+                    try:
+                        body2 = he2.read().decode("utf-8", errors="replace")
+                    except Exception:
+                        pass
+                    return False, f"Claude API Error (HTTP {he2.code}): {body2}"
+                except Exception as e2:
+                    return False, f"HTTP request error on retry: {e2}"
+            else:
+                return False, f"Claude API Error (HTTP {he.code}): {body}"
+        except Exception as e:
+            return False, f"HTTP request error: {e}"
+
+        try:
+            with resp:
                 full_output: List[str] = []
                 is_in_thought = False
 
@@ -389,6 +434,18 @@ class MultiVendorClient:
             gen_config["thinkingConfig"] = {"thinkingBudget": budget_tokens}
         return gen_config, supports_thinking
 
+    @staticmethod
+    def build_gemini_tools() -> List[dict]:
+        """
+        Gemini native Google Search Grounding tool specification:
+        Allows Gemini to dynamically assess whether search is required without forcing it.
+        """
+        return [
+            {
+                "google_search": {}
+            }
+        ]
+
     @classmethod
     def _call_gemini_sync(
         cls,
@@ -416,6 +473,7 @@ class MultiVendorClient:
             "contents": contents,
             "systemInstruction": {"parts": [{"text": system_prompt}]},
             "generationConfig": gen_config,
+            "tools": cls.build_gemini_tools(),
         }
 
         headers = {
@@ -442,10 +500,16 @@ class MultiVendorClient:
                 body = he.read().decode("utf-8", errors="replace")
             except Exception:
                 pass
-            if supports_thinking and (
-                "thinkingConfig" in body or "thinkingBudget" in body or "not supported" in body
-            ):
+            body_lower = body.lower()
+            needs_retry = False
+            if "tools" in payload and any(term in body_lower for term in ("tools", "google_search", "googlesearch", "grounding")):
+                payload.pop("tools", None)
+                needs_retry = True
+            if supports_thinking and any(term in body_lower for term in ("thinkingconfig", "thinkingbudget", "not supported")):
                 payload["generationConfig"] = {"temperature": 0.2}
+                needs_retry = True
+
+            if needs_retry:
                 try:
                     resp = open_gemini_stream(payload)
                 except urllib.error.HTTPError as he2:
@@ -454,7 +518,21 @@ class MultiVendorClient:
                         body2 = he2.read().decode("utf-8", errors="replace")
                     except Exception:
                         pass
-                    return False, f"Gemini API Error (HTTP {he2.code}): {body2}"
+                    if "tools" in payload:
+                        payload.pop("tools", None)
+                        try:
+                            resp = open_gemini_stream(payload)
+                        except urllib.error.HTTPError as he3:
+                            body3 = ""
+                            try:
+                                body3 = he3.read().decode("utf-8", errors="replace")
+                            except Exception:
+                                pass
+                            return False, f"Gemini API Error (HTTP {he3.code}): {body3}"
+                        except Exception as e3:
+                            return False, f"HTTP request error: {e3}"
+                    else:
+                        return False, f"Gemini API Error (HTTP {he2.code}): {body2}"
                 except Exception as e2:
                     return False, f"HTTP request error on retry: {e2}"
             else:
@@ -598,12 +676,6 @@ class MultiVendorClient:
                     if combined not in parsed.terminal_commands:
                         parsed.terminal_commands.append(combined)
 
-        # 5. Parse <metis_search>
-        for cap in SEARCH_TAG_RE.finditer(cleaned):
-            q = (cap.group(1) or "").strip()
-            if q and q not in parsed.search_queries:
-                parsed.search_queries.append(q)
-
         parsed.explanation_text = cls.format_display_text(raw_output)
         return parsed
 
@@ -612,7 +684,8 @@ class MultiVendorClient:
         step1 = THINK_RE.sub("", text)
         step2 = UNCLOSED_THINK_RE.sub("", step1)
         step3 = TITLE_STRIP_RE.sub("", step2)
-        cleaned = UNCLOSED_TITLE_RE.sub("", step3).strip()
+        step4 = UNCLOSED_TITLE_RE.sub("", step3)
+        cleaned = SEARCH_TAG_RE.sub("", step4).strip()
 
         def _fmt_write(m: re.Match) -> str:
             f_name = m.group(1) or ""

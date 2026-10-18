@@ -320,6 +320,32 @@ impl MultiVendorClient {
         Ok(full_output)
     }
 
+    pub fn extract_session_title(raw_output: &str) -> Option<String> {
+        let title_re = Regex::new(r#"(?is)<(?:metis|session)_title\b[^>]*>(.*?)</(?:metis|session)_title>"#).unwrap();
+        if let Some(cap) = title_re.captures(raw_output) {
+            if let Some(m) = cap.get(1) {
+                let cleaned = m
+                    .as_str()
+                    .lines()
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .trim_matches(|c: char| c == '"' || c == '\'' || c == '`' || c == '#' || c == '*')
+                    .trim();
+                if !cleaned.is_empty() {
+                    let chars: Vec<char> = cleaned.chars().collect();
+                    let truncated: String = if chars.len() > 40 {
+                        format!("{}...", chars[..40].iter().collect::<String>())
+                    } else {
+                        cleaned.to_string()
+                    };
+                    return Some(truncated);
+                }
+            }
+        }
+        None
+    }
+
     pub fn parse_agent_output(raw_output: &str, whitelist: &[WhitelistedFile]) -> ParsedAgentResponse {
         let mut parsed = ParsedAgentResponse {
             raw_text: raw_output.to_string(),
@@ -327,7 +353,9 @@ impl MultiVendorClient {
         };
 
         let think_re = Regex::new(r#"(?s)<think\b[^>]*>.*?</think>\s*"#).unwrap();
-        let cleaned = think_re.replace_all(raw_output, "");
+        let title_re = Regex::new(r#"(?is)<(?:metis|session)_title\b[^>]*>.*?</(?:metis|session)_title>\s*"#).unwrap();
+        let cleaned_think = think_re.replace_all(raw_output, "");
+        let cleaned = title_re.replace_all(&cleaned_think, "");
 
         // 1. Parse <metis_replace file="...">
         let replace_re = Regex::new(r#"(?is)<(?:metis|surgical|pinpoint)_replace(?:\s+(?:file|path|name)?\s*=?\s*["']?([^"'>\r\n]+)["']?)?\s*>\r?\n?(.*?)(?:</(?:metis|surgical|pinpoint)_replace>|$)"#).unwrap();
@@ -417,8 +445,15 @@ impl MultiVendorClient {
     }
 
     pub fn format_display_text(text: &str) -> String {
-        let think_re = Regex::new(r#"(?s)<think\b[^>]*>.*?</think>\s*"#).unwrap();
-        let cleaned = think_re.replace_all(text, "").trim().to_string();
+        let think_re = Regex::new(r#"(?is)<think\b[^>]*>.*?</think>\s*"#).unwrap();
+        let unclosed_think_re = Regex::new(r#"(?is)<think\b[^>]*>.*$"#).unwrap();
+        let title_re = Regex::new(r#"(?is)<(?:metis|session)_title\b[^>]*>.*?</(?:metis|session)_title>\s*"#).unwrap();
+        let unclosed_title_re = Regex::new(r#"(?is)<(?:metis|session)_title\b[^>]*>.*$"#).unwrap();
+
+        let step1 = think_re.replace_all(text, "");
+        let step2 = unclosed_think_re.replace_all(&step1, "");
+        let step3 = title_re.replace_all(&step2, "");
+        let cleaned = unclosed_title_re.replace_all(&step3, "").trim().to_string();
 
         let write_re = Regex::new(r#"(?is)<(?:metis|surgical|pinpoint)_write(?:\s+(?:file|path|name)?\s*=?\s*["']?([^"'>\r\n]+)["']?)?\s*>\r?\n?(.*?)(?:</(?:metis|surgical|pinpoint)_write>|$)"#).unwrap();
         let formatted = write_re.replace_all(&cleaned, |caps: &regex::Captures| {
@@ -488,7 +523,7 @@ impl MultiVendorClient {
         }
 
         if whitelist.is_empty() {
-            let msg = "No files are currently attached to this workspace. Please drop files to edit.";
+            let msg = "<metis_title>Workspace File Setup</metis_title>\nNo files are currently attached to this workspace. Please drop files to edit.";
             on_chunk(msg);
             return Ok(msg.to_string());
         }
@@ -501,6 +536,7 @@ impl MultiVendorClient {
         };
 
         let mut resp = String::new();
+        resp.push_str("<metis_title>Fix Token Expiration Bug</metis_title>\n");
 
         if code.contains("is_token_expired") {
             resp.push_str(&format!("Inspected whitelisted file `{}`:\n", target.file_name));

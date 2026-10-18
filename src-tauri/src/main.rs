@@ -21,7 +21,7 @@ async fn main() {
 }
 
 async fn run_headless_self_test() -> i32 {
-    println!("=== Metis v1.2.1 Tauri 2.0 Headless End-to-End Self-Test ===");
+    println!("=== Metis v1.2.2 Tauri 2.0 Headless End-to-End Self-Test ===");
 
     // 1. Config Persistence
     let cfg = ConfigManager::load_or_create_default();
@@ -110,6 +110,16 @@ async fn run_headless_self_test() -> i32 {
     // 6. WebSearchRunner verification
     let search_res = WebSearchRunner::search("rust lang", 2).await;
     println!("[PASS] Web Search Engine Verified (Found {} results)", search_res.len());
+
+    // 7. Session Title Extraction & Tag Stripping verification
+    let sample_reply = "<think>Thinking deeply...</think>\n<metis_title>7-Zip CLI Extraction Guide</metis_title>\nHere is the command:";
+    let extracted_title = metis_lib::llm::MultiVendorClient::extract_session_title(sample_reply);
+    let display_text = metis_lib::llm::MultiVendorClient::format_display_text(sample_reply);
+    if extracted_title.as_deref() != Some("7-Zip CLI Extraction Guide") || display_text != "Here is the command:" {
+        eprintln!("FAIL: Session title extraction or tag stripping failed: {:?} / {:?}", extracted_title, display_text);
+        return 8;
+    }
+    println!("[PASS] Session Title Auto-Extraction & Tag Stripping Verified: {:?}", extracted_title.unwrap());
 
     println!("=== All Metis Tauri 2.0 Self-Test Suites Passed Successfully! ===");
     0

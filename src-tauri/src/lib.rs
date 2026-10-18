@@ -348,6 +348,17 @@ pub mod commands {
                 let _ = open::that(path);
             }
         }
+        "openUrl" => {
+            if let Some(url) = data.get("url").and_then(|v| v.as_str()) {
+                let trimmed = url.trim();
+                if trimmed.starts_with("http://")
+                    || trimmed.starts_with("https://")
+                    || trimmed.starts_with("mailto:")
+                {
+                    let _ = open::that(trimmed);
+                }
+            }
+        }
         "revertFile" => {
             if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
                 let mut wl = state.whitelist.lock().await;
@@ -415,10 +426,17 @@ async fn run_autonomous_loop(app: tauri::AppHandle, state: Arc<AppState>, user_p
         "statusText": "Thinking..."
     }));
 
-    // Record User event
+    // Record User event & check if session title needs summarization on first turn
+    let mut needs_session_title = false;
     {
         let mut store = state.session_store.lock().await;
         if let Some(active) = store.get_active_session_mut() {
+            let is_default_title = active.title == "Default Session"
+                || active.title == "Untitled Session"
+                || active.title.starts_with("Session ");
+            if active.api_history.is_empty() || is_default_title {
+                needs_session_title = true;
+            }
             active.api_history.push(ChatHistoryItem {
                 role: "user".to_string(),
                 content: user_prompt.clone(),
@@ -426,7 +444,6 @@ async fn run_autonomous_loop(app: tauri::AppHandle, state: Arc<AppState>, user_p
             active.ui_events.push(UiStreamEvent::new("user", &user_prompt));
         }
     }
-    broadcast_full_state(&app, &state, None, None).await;
 
     let config = state.config.lock().await.clone();
     let max_rounds = config.max_verify_loops.max(1);
@@ -452,19 +469,24 @@ async fn run_autonomous_loop(app: tauri::AppHandle, state: Arc<AppState>, user_p
             }
         }
 
-        *state.status_text.lock().await = format!("Round {}/{} — Generating...", current_round, max_rounds);
+        let round_status = if current_round == 1 {
+            "Thinking...".to_string()
+        } else {
+            format!("Round {}/{} — Thinking...", current_round, max_rounds)
+        };
+        *state.status_text.lock().await = round_status.clone();
         let _ = app.emit("host_message", serde_json::json!({
             "type": "busyStatus",
             "isBusy": true,
-            "statusText": format!("Round {}/{} — Generating...", current_round, max_rounds)
+            "statusText": round_status
         }));
 
-        // Assistant UI event placeholder
+        // Assistant UI event placeholder with "Thinking..." breathing state
         let assistant_event_id = uuid::Uuid::new_v4().simple().to_string();
         {
             let mut store = state.session_store.lock().await;
             if let Some(active) = store.get_active_session_mut() {
-                let mut ev = UiStreamEvent::new("assistant", "");
+                let mut ev = UiStreamEvent::new("assistant", "Thinking...");
                 ev.id = assistant_event_id.clone();
                 ev.vendor_name = vendor.display_name.clone();
                 ev.model_name = vendor.selected_model.clone();
@@ -473,8 +495,9 @@ async fn run_autonomous_loop(app: tauri::AppHandle, state: Arc<AppState>, user_p
                 active.ui_events.push(ev);
             }
         }
+        broadcast_full_state(&app, &state, None, None).await;
 
-        let history_snapshot = {
+        let mut history_snapshot = {
             let store = state.session_store.lock().await;
             store
                 .get_active_session()
@@ -482,43 +505,162 @@ async fn run_autonomous_loop(app: tauri::AppHandle, state: Arc<AppState>, user_p
                 .unwrap_or_default()
         };
 
+        if needs_session_title && current_round == 1 {
+            if let Some(last_msg) = history_snapshot.last_mut() {
+                if last_msg.role == "user" {
+                    last_msg.content = format!(
+                        "{}\n\n[System Instruction: Since this is the first turn of the session, please summarize a concise session title (2-6 words, in the same language as the user's request) at the very beginning of your reply wrapped in <metis_title>...</metis_title> tags, then provide your normal response.]",
+                        last_msg.content
+                    );
+                }
+            }
+        }
+
         let whitelist_snapshot = state.whitelist.lock().await.get_files().to_vec();
         let files_block = AgentLoop::build_file_snapshot(&whitelist_snapshot);
         let system_prompt = AgentLoop::build_system_prompt();
 
-        let app_stream = app.clone();
-        let ev_id_stream = assistant_event_id.clone();
-        let mut streamed_text = String::new();
+        const RETRY_DELAYS_SECS: [u64; 3] = [2, 4, 8];
+        let mut attempt = 0usize;
 
-        let chat_result = MultiVendorClient::send_chat(
-            &vendor,
-            system_prompt,
-            &files_block,
-            &history_snapshot,
-            &whitelist_snapshot,
-            &config.thinking_intensity,
-            |chunk| {
-                streamed_text.push_str(chunk);
-                let display = MultiVendorClient::format_display_text(&streamed_text);
-                let _ = app_stream.emit("host_message", serde_json::json!({
-                    "type": "streamUpdate",
-                    "eventId": ev_id_stream,
-                    "content": display
-                }));
-            },
-        )
-        .await;
+        let chat_result = loop {
+            let app_stream = app.clone();
+            let ev_id_stream = assistant_event_id.clone();
+            let mut streamed_text = String::new();
+
+            let res = MultiVendorClient::send_chat(
+                &vendor,
+                system_prompt,
+                &files_block,
+                &history_snapshot,
+                &whitelist_snapshot,
+                &config.thinking_intensity,
+                |chunk| {
+                    streamed_text.push_str(chunk);
+                    let display = MultiVendorClient::format_display_text(&streamed_text);
+                    let display_or_thinking = if display.trim().is_empty() {
+                        "Thinking...".to_string()
+                    } else {
+                        display
+                    };
+                    let _ = app_stream.emit("host_message", serde_json::json!({
+                        "type": "streamUpdate",
+                        "eventId": ev_id_stream,
+                        "content": display_or_thinking
+                    }));
+                },
+            )
+            .await;
+
+            match res {
+                Ok(txt) => break Ok(txt),
+                Err(err) => {
+                    let is_retryable = err.contains("503")
+                        || err.contains("502")
+                        || err.contains("504")
+                        || err.contains("429")
+                        || err.contains("500")
+                        || err.to_lowercase().contains("overloaded")
+                        || err.to_lowercase().contains("unavailable")
+                        || err.contains("HTTP request error")
+                        || err.contains("Stream read error");
+
+                    if is_retryable
+                        && attempt < RETRY_DELAYS_SECS.len()
+                        && !state.agent.stop_requested.load(Ordering::SeqCst)
+                    {
+                        let delay_secs = RETRY_DELAYS_SECS[attempt];
+                        attempt += 1;
+
+                        let retry_status = format!(
+                            "API returned 503/busy, retrying in {}s ({}/3)...",
+                            delay_secs, attempt
+                        );
+                        *state.status_text.lock().await = retry_status.clone();
+                        let _ = app.emit("host_message", serde_json::json!({
+                            "type": "busyStatus",
+                            "isBusy": true,
+                            "statusText": retry_status
+                        }));
+                        let _ = app.emit("host_message", serde_json::json!({
+                            "type": "streamUpdate",
+                            "eventId": assistant_event_id,
+                            "content": format!("Thinking... (Retrying in {}s, attempt {}/3)", delay_secs, attempt)
+                        }));
+
+                        let ticks = delay_secs * 5;
+                        for _ in 0..ticks {
+                            if state.agent.stop_requested.load(Ordering::SeqCst) {
+                                break;
+                            }
+                            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                        }
+
+                        if state.agent.stop_requested.load(Ordering::SeqCst) {
+                            break Err(("Session interrupted by user during retry.".to_string(), attempt));
+                        }
+
+                        let retry_gen_status = format!("Retry {}/3 — Thinking...", attempt);
+                        *state.status_text.lock().await = retry_gen_status.clone();
+                        let _ = app.emit("host_message", serde_json::json!({
+                            "type": "busyStatus",
+                            "isBusy": true,
+                            "statusText": retry_gen_status
+                        }));
+                        let _ = app.emit("host_message", serde_json::json!({
+                            "type": "streamUpdate",
+                            "eventId": assistant_event_id,
+                            "content": "Thinking..."
+                        }));
+                        continue;
+                    }
+
+                    break Err((err, attempt));
+                }
+            }
+        };
 
         let raw_response = match chat_result {
             Ok(txt) => txt,
-            Err(err) => {
+            Err((err, retries_used)) => {
                 let mut store = state.session_store.lock().await;
                 if let Some(active) = store.get_active_session_mut() {
-                    active.ui_events.push(UiStreamEvent::new("notice", &format!("⚠️ LLM Error: {}", err)));
+                    active.ui_events.retain(|e| e.id != assistant_event_id);
+                    let msg = if retries_used > 0 {
+                        format!("⚠️ LLM Error (failed after {} retries — 2s/4s/8s): {}", retries_used, err)
+                    } else {
+                        format!("⚠️ LLM Error: {}", err)
+                    };
+                    active.ui_events.push(UiStreamEvent::new("notice", &msg));
                 }
                 break;
             }
         };
+
+        // Extract summarized session title on first turn if present (or fallback to prompt summary)
+        if needs_session_title {
+            let extracted_title = MultiVendorClient::extract_session_title(&raw_response).or_else(|| {
+                let first_line = user_prompt.lines().next().unwrap_or("").trim();
+                if !first_line.is_empty() {
+                    let chars: Vec<char> = first_line.chars().collect();
+                    if chars.len() > 24 {
+                        Some(format!("{}...", chars[..24].iter().collect::<String>()))
+                    } else {
+                        Some(first_line.to_string())
+                    }
+                } else {
+                    None
+                }
+            });
+            if let Some(new_title) = extracted_title {
+                let mut store = state.session_store.lock().await;
+                if let Some(active) = store.get_active_session_mut() {
+                    active.title = new_title;
+                    active.updated_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+                }
+                needs_session_title = false;
+            }
+        }
 
         // Update assistant event final content and api history
         {

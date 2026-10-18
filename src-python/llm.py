@@ -201,6 +201,80 @@ class MultiVendorClient:
             return False, f"HTTP request error: {e}"
 
     @classmethod
+    def prepare_claude_messages(cls, history: List[ChatHistoryItem]) -> List[dict]:
+        """
+        Sanitize and format chat history for Claude API:
+        1. Map 'assistant' -> 'assistant', everything else -> 'user'.
+        2. Merge consecutive turns of the same role.
+        3. Ensure the sequence starts with a 'user' turn.
+        4. Ensure the sequence does not end with an 'assistant' turn (prevents thinking mode prefill errors).
+        """
+        messages: List[dict] = []
+        for item in history:
+            role = "assistant" if item.role == "assistant" else "user"
+            text = (item.content or "").strip()
+            if not text:
+                continue
+
+            if not messages:
+                messages.append({"role": role, "content": text})
+            else:
+                if messages[-1]["role"] == role:
+                    prev_text = messages[-1]["content"]
+                    messages[-1]["content"] = f"{prev_text}\n\n{text}" if prev_text else text
+                else:
+                    messages.append({"role": role, "content": text})
+
+        while messages and messages[0]["role"] == "assistant":
+            messages.pop(0)
+
+        if not messages:
+            messages.append({"role": "user", "content": "Please proceed."})
+
+        if messages[-1]["role"] == "assistant":
+            messages.append({"role": "user", "content": "Please proceed."})
+
+        return messages
+
+    @classmethod
+    def prepare_gemini_contents(cls, history: List[ChatHistoryItem]) -> List[dict]:
+        """
+        Sanitize and format chat history for Gemini API:
+        1. Map 'assistant' -> 'model', everything else -> 'user'.
+        2. Merge consecutive turns of the same role.
+        3. Ensure the sequence starts with a 'user' turn.
+        4. Ensure the sequence does NOT end with a 'model' turn (Gemini strictly rejects
+           requests ending with a model turn with HTTP 400).
+        """
+        raw_turns: List[dict] = []
+        for item in history:
+            role = "model" if item.role == "assistant" else "user"
+            text = (item.content or "").strip()
+            if not text:
+                continue
+
+            if not raw_turns:
+                raw_turns.append({"role": role, "parts": [{"text": text}]})
+            else:
+                if raw_turns[-1]["role"] == role:
+                    prev_text = raw_turns[-1]["parts"][0].get("text", "")
+                    merged_text = f"{prev_text}\n\n{text}" if prev_text else text
+                    raw_turns[-1]["parts"] = [{"text": merged_text}]
+                else:
+                    raw_turns.append({"role": role, "parts": [{"text": text}]})
+
+        while raw_turns and raw_turns[0]["role"] == "model":
+            raw_turns.pop(0)
+
+        if not raw_turns:
+            raw_turns.append({"role": "user", "parts": [{"text": "Please proceed."}]})
+
+        if raw_turns[-1]["role"] == "model":
+            raw_turns.append({"role": "user", "parts": [{"text": "Please proceed."}]})
+
+        return raw_turns
+
+    @classmethod
     def _call_claude_sync(
         cls,
         vendor: VendorProfile,
@@ -212,13 +286,7 @@ class MultiVendorClient:
     ) -> Tuple[bool, str]:
         url = base_url if base_url.endswith("/messages") else f"{base_url}/messages"
 
-        messages = [
-            {
-                "role": "assistant" if item.role == "assistant" else "user",
-                "content": item.content,
-            }
-            for item in history
-        ]
+        messages = cls.prepare_claude_messages(history)
 
         intensity = (thinking_intensity or "medium").lower()
         budget_tokens = {
@@ -340,13 +408,7 @@ class MultiVendorClient:
         else:
             url = f"{base_url}/models/{clean_model}:streamGenerateContent?alt=sse&key={api_key}"
 
-        contents = [
-            {
-                "role": "model" if item.role == "assistant" else "user",
-                "parts": [{"text": item.content}],
-            }
-            for item in history
-        ]
+        contents = cls.prepare_gemini_contents(history)
 
         gen_config, supports_thinking = cls.build_gemini_generation_config(clean_model, thinking_intensity)
 

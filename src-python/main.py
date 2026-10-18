@@ -545,6 +545,7 @@ class SidecarEngine:
 
             parsed = MultiVendorClient.parse_agent_output(raw_response, whitelist_snapshot)
             had_actions = False
+            any_edit_failed = False
 
             # 1. Process Web Searches
             for query in parsed.search_queries:
@@ -591,7 +592,14 @@ class SidecarEngine:
                             edit_count=wf.edit_count,
                         )
                         active.ui_events.append(ev)
+                        active.api_history.append(
+                            ChatHistoryItem(
+                                role="user",
+                                content=f"[File Edit Feedback]:\n{msg_or_err}",
+                            )
+                        )
                     else:
+                        any_edit_failed = True
                         ev_type = (
                             "security_block"
                             if "[Security Block" in msg_or_err
@@ -645,7 +653,10 @@ class SidecarEngine:
 
             self.broadcast_full_state()
 
-            if not had_actions:
+            needs_followup_round = bool(
+                parsed.terminal_commands or parsed.search_queries or any_edit_failed
+            )
+            if not needs_followup_round:
                 break
 
             current_round += 1
@@ -757,6 +768,37 @@ async def run_self_test() -> int:
         print("FAIL: LLM title/thinking verification failed.", file=sys.stderr, flush=True)
         return 7
     print(f"[PASS] Session Title & Gemini Thinking Budget Verified: {extracted_title!r}", flush=True)
+
+    # 9. Gemini & Claude Conversation Sanitization (Prevent trailing model turns)
+    raw_hist = [
+        ChatHistoryItem(role="user", content="Hello"),
+        ChatHistoryItem(role="assistant", content="How can I help?"),
+    ]
+    gemini_turns = MultiVendorClient.prepare_gemini_contents(raw_hist)
+    claude_msgs = MultiVendorClient.prepare_claude_messages(raw_hist)
+    if (
+        not gemini_turns
+        or gemini_turns[-1]["role"] != "user"
+        or not claude_msgs
+        or claude_msgs[-1]["role"] != "user"
+    ):
+        print("FAIL: prepare_gemini_contents / prepare_claude_messages failed to sanitize trailing model turn.", file=sys.stderr, flush=True)
+        return 8
+
+    edge_hist = [
+        ChatHistoryItem(role="assistant", content="leading orphan model turn"),
+        ChatHistoryItem(role="user", content="part 1"),
+        ChatHistoryItem(role="user", content="part 2"),
+    ]
+    edge_gemini = MultiVendorClient.prepare_gemini_contents(edge_hist)
+    if (
+        len(edge_gemini) != 1
+        or edge_gemini[0]["role"] != "user"
+        or "part 1\n\npart 2" not in edge_gemini[0]["parts"][0]["text"]
+    ):
+        print("FAIL: Consecutive turns merging or leading turn stripping failed in prepare_gemini_contents.", file=sys.stderr, flush=True)
+        return 9
+    print("[PASS] Gemini & Claude Chat History Sanitization Verified (Trailing Model Turn Prevented)", flush=True)
 
     print("=== All Metis v1.3.0 Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
     return 0

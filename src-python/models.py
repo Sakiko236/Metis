@@ -351,7 +351,7 @@ class ChatSession:
     def __init__(
         self,
         id: Optional[str] = None,
-        title: str = "Default Session",
+        title: str = "Default Chat",
         created_at: Optional[str] = None,
         updated_at: Optional[str] = None,
         allowed_directories: Optional[List[str]] = None,
@@ -388,7 +388,7 @@ class ChatSession:
     def from_dict(cls, data: Dict[str, Any]) -> "ChatSession":
         return cls(
             id=str(data.get("Id", uuid.uuid4().hex)),
-            title=str(data.get("Title", "Default Session")),
+            title=str(data.get("Title", "Default Chat")),
             created_at=str(data.get("CreatedAt", "")),
             updated_at=str(data.get("UpdatedAt", "")),
             allowed_directories=list(data.get("AllowedDirectories", [])),

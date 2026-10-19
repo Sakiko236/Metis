@@ -112,7 +112,7 @@ class SidecarEngine:
                 {
                     "type": "pong",
                     "engine": "python-sidecar",
-                    "version": "1.4.1",
+                    "version": "1.4.2",
                 }
             )
             return
@@ -135,11 +135,11 @@ class SidecarEngine:
             else:
                 ns = ChatSession()
                 content_count = sum(1 for s in self.session_store.sessions if not s.is_empty())
-                ns.title = f"Session {content_count + 1}"
+                ns.title = f"Chat {content_count + 1}"
                 self.session_store.active_session_id = ns.id
                 self.session_store.sessions.insert(0, ns)
                 self.whitelist.clear()
-                self.broadcast_full_state(toast="New session created.")
+                self.broadcast_full_state(toast="New chat created.")
 
         elif action == "selectSession":
             sid = str(data.get("sessionId", ""))
@@ -159,7 +159,7 @@ class SidecarEngine:
                         s.title = title
                         s.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         break
-                self.broadcast_full_state(toast="Session renamed.")
+                self.broadcast_full_state(toast="Chat renamed.")
 
         elif action == "deleteSession":
             sid = str(data.get("sessionId", ""))
@@ -172,7 +172,7 @@ class SidecarEngine:
             active = self.session_store.get_active_session()
             if active is not None:
                 self.whitelist.bind_session_list(active.whitelist, active.allowed_directories)
-            self.broadcast_full_state(toast="Session deleted.")
+            self.broadcast_full_state(toast="Chat deleted.")
 
         elif action == "saveConfig":
             cfg_val = data.get("config")
@@ -229,7 +229,7 @@ class SidecarEngine:
             path = str(data.get("path", ""))
             if path:
                 self.whitelist.remove_file(path)
-                self.broadcast_full_state(toast="Removed file from session.")
+                self.broadcast_full_state(toast="Removed file from chat.")
 
         elif action == "removeDirectory":
             path = str(data.get("path", ""))
@@ -331,8 +331,9 @@ class SidecarEngine:
         active = self.session_store.get_active_session()
         if active is not None:
             is_default_title = (
-                active.title in ("Default Session", "Untitled Session")
+                active.title in ("Default Session", "Untitled Session", "Default Chat", "Untitled Chat")
                 or active.title.startswith("Session ")
+                or active.title.startswith("Chat ")
             )
             if not active.api_history or is_default_title:
                 needs_session_title = True
@@ -406,7 +407,7 @@ class SidecarEngine:
                 if last_msg.role == "user":
                     last_msg.content = (
                         f"{last_msg.content}\n\n"
-                        "[System Instruction: Since this is the first turn of the session, please summarize a concise session title (2-6 words, in the same language as the user's request) at the very beginning of your reply wrapped in <metis_title>...</metis_title> tags, then provide your normal response.]"
+                        "[System Instruction: Since this is the first turn of the chat, please summarize a concise chat title (2-6 words, in the same language as the user's request) at the very beginning of your reply wrapped in <metis_title>...</metis_title> tags, then provide your normal response.]"
                     )
 
             whitelist_snapshot = list(self.whitelist.get_files())
@@ -489,7 +490,7 @@ class SidecarEngine:
                         await asyncio.sleep(0.2)
 
                     if self.agent.stop_requested:
-                        raw_response_or_err = "Session interrupted by user during retry."
+                        raw_response_or_err = "Chat interrupted by user during retry."
                         break
 
                     retry_gen_status = f"Retry {attempt}/3 — Thinking..."
@@ -648,7 +649,7 @@ class SidecarEngine:
 
 
 async def run_self_test() -> int:
-    print("=== Metis v1.4.1 (Tauri + Python Sidecar) Headless End-to-End Self-Test ===", flush=True)
+    print("=== Metis v1.4.2 (Tauri + Python Sidecar) Headless End-to-End Self-Test ===", flush=True)
 
     # 1. Config Persistence
     cfg = ConfigManager.load_or_create_default()
@@ -718,8 +719,8 @@ async def run_self_test() -> int:
     print(f"[PASS] Empty File Population Verified: {msg_emp}", flush=True)
 
     # 6. ShellRunner execution verification
-    exec_res = await ShellRunner.run_command("echo Metis v1.4.1 Python Sidecar Self-Test OK", str(temp_dir), 10)
-    if not exec_res.succeeded() or "Metis v1.4.1 Python Sidecar" not in exec_res.combined_output():
+    exec_res = await ShellRunner.run_command("echo Metis v1.4.2 Python Sidecar Self-Test OK", str(temp_dir), 10)
+    if not exec_res.succeeded() or "Metis v1.4.2 Python Sidecar" not in exec_res.combined_output():
         print(f"FAIL: Shell execution failed: {exec_res.combined_output()}", file=sys.stderr, flush=True)
         return 6
     print(f"[PASS] Terminal Execution Verified (Exit 0): {exec_res.combined_output().strip()}", flush=True)
@@ -850,7 +851,7 @@ async def run_self_test() -> int:
         return 10
     print("[PASS] Gemini 429 Free Tier Search Grounding Downgrade & Tool Fallback Verified", flush=True)
 
-    print("=== All Metis v1.4.1 Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
+    print("=== All Metis v1.4.2 Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
     return 0
 
 

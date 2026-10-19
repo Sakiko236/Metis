@@ -487,32 +487,54 @@
   }
 
   .sidebar-actions {
-    padding: 12px 12px 8px 12px;
+    padding: 10px 12px 6px 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .btn-new-session {
+  .btn-new-session,
+  .btn-new-chat {
     width: 100%;
-    padding: 9px 12px;
-    border-radius: 8px;
-    background: linear-gradient(180deg, #0EA5E9 0%, #0284C7 100%);
-    color: #FFFFFF;
-    font-weight: 600;
-    font-size: 13px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    background: rgba(14, 165, 233, 0.08);
+    color: #38BDF8;
+    font-weight: 500;
+    font-size: 12px;
+    border: 1px solid rgba(14, 165, 233, 0.22);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     transition: all 0.15s ease;
-    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
   }
-  .btn-new-session:hover {
-    filter: brightness(1.08);
-    transform: translateY(-1px);
+  .btn-new-session:hover,
+  .btn-new-chat:hover {
+    background: rgba(14, 165, 233, 0.16);
+    border-color: rgba(14, 165, 233, 0.45);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.16);
+  }
+  .btn-new-session:active,
+  .btn-new-chat:active {
+    transform: scale(0.99);
+  }
+
+  [data-theme="light"] .btn-new-session,
+  [data-theme="light"] .btn-new-chat {
+    background: rgba(2, 132, 199, 0.06);
+    border-color: rgba(2, 132, 199, 0.22);
+    color: #0284C7;
+  }
+  [data-theme="light"] .btn-new-session:hover,
+  [data-theme="light"] .btn-new-chat:hover {
+    background: rgba(2, 132, 199, 0.12);
+    border-color: rgba(2, 132, 199, 0.45);
+    color: #0369A1;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.12);
   }
 
   .search-box {
@@ -542,15 +564,26 @@
   }
 
   .session-section-label {
-    padding: 6px 16px 4px 16px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    padding: 6px 14px 4px 14px;
+    font-size: 11.5px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
     color: var(--text-muted);
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+  #sessionCountBadge {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+  }
+  [data-theme="light"] #sessionCountBadge {
+    background: rgba(0, 0, 0, 0.06);
   }
 
   .session-list {
@@ -1581,15 +1614,6 @@
     background: var(--bg-hover);
     color: var(--text-primary);
   }
-  .tool-btn.web-search-btn {
-    color: #0284C7;
-  }
-  [data-theme="dark"] .tool-btn.web-search-btn {
-    color: #38BDF8;
-  }
-  .tool-btn.web-search-btn:hover {
-    background: rgba(56, 189, 248, 0.1);
-  }
 
   /* Thinking Intensity Slider */
   .thinking-control-group {
@@ -2037,7 +2061,7 @@
       </div>
       <span class="titlebar-app-name">Metis</span>
       <span class="titlebar-sep">/</span>
-      <span class="titlebar-session-name" id="titlebarSessionName">Default Session</span>
+      <span class="titlebar-session-name" id="titlebarSessionName">Default Chat</span>
     </div>
   </div>
   <div class="titlebar-controls">
@@ -2062,7 +2086,7 @@
   </div>
 </header>
 <div class="app-shell">
-  <!-- Left Sidebar: Session List + Settings Entry -->
+  <!-- Left Sidebar: Chat List + Settings Entry -->
   <aside class="sidebar">
     <div class="brand-header">
       <div class="brand-left">
@@ -2082,22 +2106,22 @@
           <div class="brand-sub">File-Centric Mini Agent</div>
         </div>
       </div>
-      <span class="version-pill">v1.4.1</span>
+      <span class="version-pill">v1.4.2</span>
     </div>
 
     <div class="sidebar-actions">
-      <button class="btn-new-session" onclick="createNewSession()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New Session
+      <button class="btn-new-session btn-new-chat" onclick="createNewSession()" title="Start a new chat">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>New chat</span>
       </button>
       <div class="search-box">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="sessionSearchInput" placeholder="Search local sessions..." oninput="renderSessionList()" />
+        <input type="text" id="sessionSearchInput" placeholder="Search local chats..." oninput="renderSessionList()" />
       </div>
     </div>
 
     <div class="session-section-label">
-      <span>Local Sessions (Auto-saved)</span>
+      <span>Local chats</span>
       <span id="sessionCountBadge">1</span>
     </div>
 
@@ -2127,10 +2151,10 @@
     <!-- Top Workspace Header -->
     <header class="workspace-header">
       <div class="header-session-title">
-        <span id="currentSessionTitle">Default Session</span>
+        <span id="currentSessionTitle">Default Chat</span>
       </div>
       <div class="header-right">
-        <button class="icon-btn-sm" onclick="promptRenameActiveSession()" title="Rename current session">
+        <button class="icon-btn-sm" onclick="promptRenameActiveSession()" title="Rename current chat">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
       </div>
@@ -2166,10 +2190,6 @@
             <button class="tool-btn" onclick="hostPost({ action: 'pickMedia' })" title="Add image or PDF">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               <span>Image/PDF</span>
-            </button>
-            <button class="tool-btn web-search-btn" onclick="insertSearchPrompt()" title="Insert web search command">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-              <span>Web</span>
             </button>
 
             <div class="thinking-control-group" title="Configure thinking / reasoning budget (Thinking Budget)">
@@ -2397,7 +2417,7 @@
 
   function renderAll() {
     const active = getActiveSession();
-    updateTitlebarSession(active ? active.Title : 'Session');
+    updateTitlebarSession(active ? active.Title : 'Chat');
     renderSidebarFooter();
     renderSessionList();
     renderWorkspaceHeader();
@@ -2435,8 +2455,8 @@
       emptyDiv.style.color = 'var(--text-muted)';
       emptyDiv.style.lineHeight = '1.6';
       emptyDiv.innerHTML = query 
-        ? 'No sessions found matching your search.'
-        : '<div style="opacity:0.6;margin-bottom:4px;">No past sessions</div><div>Chat history will appear here.</div>';
+        ? 'No chats found matching your search.'
+        : '<div style="opacity:0.6;margin-bottom:4px;">No past chats</div><div>Chat history will appear here.</div>';
       container.appendChild(emptyDiv);
       return;
     }
@@ -2457,7 +2477,7 @@
 
       div.innerHTML = `
         <div class="session-info">
-          <div class="session-title">${escapeHtml(s.Title || 'Untitled Session')}</div>
+          <div class="session-title">${escapeHtml(s.Title || 'Untitled Chat')}</div>
           <div class="session-meta">
             <span class="session-file-badge">${badgeLabel}</span>
             <span>·</span>
@@ -2468,7 +2488,7 @@
           <button class="icon-btn-sm" title="Rename" onclick="renameSession('${s.Id}')">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
-          <button class="icon-btn-sm danger" title="Delete session" onclick="deleteSession('${s.Id}')">
+          <button class="icon-btn-sm danger" title="Delete chat" onclick="deleteSession('${s.Id}')">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -2481,7 +2501,7 @@
     const sess = getActiveSession();
     if (!sess) return;
     const titleEl = document.getElementById('currentSessionTitle');
-    if (titleEl) titleEl.textContent = sess.Title || 'Default Session';
+    if (titleEl) titleEl.textContent = sess.Title || 'Default Chat';
   }
 
   function renderWhitelistStrip() {
@@ -2826,17 +2846,17 @@
     return msgCount === 0 && historyCount === 0;
   }
 
-  // Session Actions
+  // Chat Actions
   function createNewSession() {
     const current = getActiveSession();
     if (current && isSessionEmpty(current)) {
-      showToast('Already in an empty session.');
+      showToast('Already in an empty chat.');
       return;
     }
     const existingEmpty = (appState.sessions || []).find(s => isSessionEmpty(s));
     if (existingEmpty) {
       hostPost({ action: 'selectSession', sessionId: existingEmpty.Id });
-      showToast('Switched to empty session.');
+      showToast('Switched to empty chat.');
       return;
     }
     hostPost({ action: 'createSession' });
@@ -2845,7 +2865,7 @@
   function renameSession(sessionId) {
     const s = (appState.sessions || []).find(x => x.Id === sessionId);
     if (!s) return;
-    const newTitle = prompt('Enter new session name:', s.Title || '');
+    const newTitle = prompt('Enter new chat name:', s.Title || '');
     if (newTitle !== null && newTitle.trim().length > 0) {
       hostPost({ action: 'renameSession', sessionId: sessionId, title: newTitle.trim() });
     }
@@ -3325,7 +3345,7 @@
   function updateTitlebarSession(title) {
     const el = document.getElementById('titlebarSessionName');
     if (el) {
-      el.textContent = title || 'Session';
+      el.textContent = title || 'Chat';
     }
   }
 
@@ -3476,16 +3496,6 @@
     return String(str == null ? '' : str)
       .replace(/\\/g, '\\\\')
       .replace(/'/g, "\\'");
-  }
-
-  function insertSearchPrompt() {
-    const el = document.getElementById('promptInput');
-    if (!el) return;
-    const prefix = 'Search web and analyze: ';
-    if (!el.value.startsWith(prefix)) {
-      el.value = prefix + el.value;
-    }
-    el.focus();
   }
 
   function copyCodeBlock(btn) {
@@ -3759,8 +3769,8 @@
   function formatSimpleMarkdown(text) {
     let raw = String(text == null ? '' : text);
     // Strip <metis_title>...</metis_title> and unclosed <metis_title>...
-    raw = raw.replace(/<(?:metis|session)_title\b[^>]*>[\s\S]*?<\/(?:metis|session)_title>/gi, '');
-    raw = raw.replace(/<(?:metis|session)_title\b[^>]*>[\s\S]*$/gi, '');
+    raw = raw.replace(/<(?:metis|session|chat)_title\b[^>]*>[\s\S]*?<\/(?:metis|session|chat)_title>/gi, '');
+    raw = raw.replace(/<(?:metis|session|chat)_title\b[^>]*>[\s\S]*$/gi, '');
     // Strip chain-of-thought <think>...</think> and unclosed <think>...
     raw = raw.replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '');
     raw = raw.replace(/<think\b[^>]*>[\s\S]*$/gi, '');

@@ -16,7 +16,7 @@ async fn main() {
 }
 
 async fn run_headless_self_test() -> i32 {
-    println!("=== Metis v1.4.1 (Tauri 2.0 Host + Python Sidecar) End-to-End Self-Test ===");
+    println!("=== Metis v1.4.2 (Tauri 2.0 Host + Python Sidecar) End-to-End Self-Test ===");
 
     // 1. Run Python Sidecar internal self-test suite
     let (program, args) = match SidecarBridge::resolve_sidecar_command(&["--self-test"]) {
@@ -120,6 +120,6 @@ async fn run_headless_self_test() -> i32 {
     }
 
     println!("[PASS] Rust <-> Python Sidecar Bidirectional Pipe IPC (`ping` -> `pong`, `uiReady` -> `fullState`) Verified!");
-    println!("=== All Metis v1.4.1 Tauri + Python Sidecar Self-Tests Passed! ===");
+    println!("=== All Metis v1.4.2 Tauri + Python Sidecar Self-Tests Passed! ===");
     0
 }

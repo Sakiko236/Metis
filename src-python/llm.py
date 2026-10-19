@@ -22,15 +22,15 @@ from models import (
 THINK_RE = re.compile(r"<think\b[^>]*>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
 UNCLOSED_THINK_RE = re.compile(r"<think\b[^>]*>.*$", re.IGNORECASE | re.DOTALL)
 TITLE_EXTRACT_RE = re.compile(
-    r"<(?:metis|session)_title\b[^>]*>(.*?)</(?:metis|session)_title>",
+    r"<(?:metis|session|chat)_title\b[^>]*>(.*?)</(?:metis|session|chat)_title>",
     re.IGNORECASE | re.DOTALL,
 )
 TITLE_STRIP_RE = re.compile(
-    r"<(?:metis|session)_title\b[^>]*>.*?</(?:metis|session)_title>\s*",
+    r"<(?:metis|session|chat)_title\b[^>]*>.*?</(?:metis|session|chat)_title>\s*",
     re.IGNORECASE | re.DOTALL,
 )
 UNCLOSED_TITLE_RE = re.compile(
-    r"<(?:metis|session)_title\b[^>]*>.*$",
+    r"<(?:metis|session|chat)_title\b[^>]*>.*$",
     re.IGNORECASE | re.DOTALL,
 )
 

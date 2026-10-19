@@ -92,37 +92,37 @@ Download the appropriate release package for your operating system from the [Rel
 
 ---
 
-## 🔄 One-Click Self-Test & Version Bump (一键自测与版本升级)
+## 🔄 One-Click Self-Test & Version Bump
 
-Metis 采用 **单一真实数据源（Single Source of Truth, SSOT）** 动态分发架构。所有组件（Tauri 配置、Rust 宿主程序、Python 侧车引擎与前端 UI）均在编译期或运行时动态继承版本号，无需在多个文件之间繁琐同步。
+Metis follows a **Single Source of Truth (SSOT)** dynamic version distribution architecture. All components (Tauri configuration, Rust host binary, Python sidecar engine, and frontend UI) dynamically inherit the version at compile time or runtime, eliminating manual synchronization across multiple files.
 
-### 1. 本地运行端到端自测 (Headless Self-Test)
+### 1. Headless End-to-End Self-Test
 
-Metis 内置了跨进程 10 项核心功能冒烟与稳定性自测套件，覆盖配置持久化、对话存储、白名单越权拦截、手术式搜索替换、终端静默执行及主流大模型 API 协议：
+Metis features a built-in cross-process suite of 10 core smoke and stability self-tests, verifying configuration persistence, chat session storage, whitelist security guardrails, surgical search/replace operations, silent terminal execution, and multi-vendor LLM streaming protocols:
 
 ```bash
-# 运行 Python 业务引擎独立自测试套件
+# Run standalone Python sidecar engine self-test suite
 python src-python/main.py --self-test
 
-# 运行 Rust 宿主 + Python 侧车跨进程双向 IPC 管道全量自测试
+# Run full cross-process bidirectional IPC pipeline test (Rust host + Python sidecar)
 cargo run --manifest-path src-tauri/Cargo.toml -- --self-test
 ```
 
-### 2. 一键自测升级命令 (Version Bump CLI)
+### 2. Version Bump & Release Automation CLI
 
-项目提供自动化升级工具 [`scripts/bump_version.py`](scripts/bump_version.py)，在修改版本号的同时**强制运行完整端到端自测试**，自测全绿后方允许完成升级与推送：
+The project provides an automated version management utility [`scripts/bump_version.py`](scripts/bump_version.py). It enforces **complete end-to-end self-test verification** before permitting version bumps or git pushes:
 
 ```bash
-# 递增补丁版本 (Patch)，如 1.4.2 -> 1.4.3 并自动执行自测
+# Bump patch version (e.g. 1.4.2 -> 1.4.3) with automated self-tests
 python scripts/bump_version.py patch
 
-# 递增次版本号 (Minor)，如 1.4.2 -> 1.5.0
+# Bump minor version (e.g. 1.4.2 -> 1.5.0)
 python scripts/bump_version.py minor
 
-# 指定任意目标版本号
+# Set an explicit target version
 python scripts/bump_version.py 2.0.0
 
-# 🌟 全自动发版模式：自测验证 -> 版本号同步 -> Git 提交 -> 创建 Tag -> 推送远程触发 GitHub Actions CI 构建
+# 🌟 Automated release mode: self-test -> version sync -> git commit -> git tag -> push to remote & trigger GitHub Actions CI
 python scripts/bump_version.py patch --push
 ```
 

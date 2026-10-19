@@ -1,6 +1,6 @@
 {
   "name": "metis",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Metis - The Laser-Focused File-Centric Micro-Agent",
   "private": true,
   "scripts": {

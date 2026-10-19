@@ -87,8 +87,44 @@ Download the appropriate release package for your operating system from the [Rel
 
 3. **Request Surgical Edits**:
    * Enter your prompt in the chat composer, for example:
-     > *"Add token expiration retry handling to auth.py, update the test suite in test_auth.py, and run python -m unittest to verify."*
-   * Metis will reason, propose surgical Search/Replace edits, and invoke the terminal to run tests until validation succeeds.
+      > *"Add token expiration retry handling to auth.py, update the test suite in test_auth.py, and run python -m unittest to verify."*
+    * Metis will reason, propose surgical Search/Replace edits, and invoke the terminal to run tests until validation succeeds.
+
+---
+
+## 🔄 One-Click Self-Test & Version Bump (一键自测与版本升级)
+
+Metis 采用 **单一真实数据源（Single Source of Truth, SSOT）** 动态分发架构。所有组件（Tauri 配置、Rust 宿主程序、Python 侧车引擎与前端 UI）均在编译期或运行时动态继承版本号，无需在多个文件之间繁琐同步。
+
+### 1. 本地运行端到端自测 (Headless Self-Test)
+
+Metis 内置了跨进程 10 项核心功能冒烟与稳定性自测套件，覆盖配置持久化、对话存储、白名单越权拦截、手术式搜索替换、终端静默执行及主流大模型 API 协议：
+
+```bash
+# 运行 Python 业务引擎独立自测试套件
+python src-python/main.py --self-test
+
+# 运行 Rust 宿主 + Python 侧车跨进程双向 IPC 管道全量自测试
+cargo run --manifest-path src-tauri/Cargo.toml -- --self-test
+```
+
+### 2. 一键自测升级命令 (Version Bump CLI)
+
+项目提供自动化升级工具 [`scripts/bump_version.py`](scripts/bump_version.py)，在修改版本号的同时**强制运行完整端到端自测试**，自测全绿后方允许完成升级与推送：
+
+```bash
+# 递增补丁版本 (Patch)，如 1.4.2 -> 1.4.3 并自动执行自测
+python scripts/bump_version.py patch
+
+# 递增次版本号 (Minor)，如 1.4.2 -> 1.5.0
+python scripts/bump_version.py minor
+
+# 指定任意目标版本号
+python scripts/bump_version.py 2.0.0
+
+# 🌟 全自动发版模式：自测验证 -> 版本号同步 -> Git 提交 -> 创建 Tag -> 推送远程触发 GitHub Actions CI 构建
+python scripts/bump_version.py patch --push
+```
 
 ---
 
@@ -100,7 +136,8 @@ Download the appropriate release package for your operating system from the [Rel
 │   └── firstpage.png           # Main workspace interface preview
 ├── demo_workspace/             # Sample workspace files for quick testing
 ├── scripts/
-│   └── build_sidecar.py        # PyInstaller build script for Tauri externalBin
+│   ├── build_sidecar.py        # PyInstaller build script for Tauri externalBin
+│   └── bump_version.py         # One-command self-test, version bump & release synchronizer
 ├── src/
 │   └── frontend/
 │       └── index.html          # Modern responsive UI (Sky Blue theme, KaTeX, uncapped width)
@@ -128,7 +165,6 @@ Download the appropriate release package for your operating system from the [Rel
 ├── package.json                # Project root manifest & Tauri CLI scripts
 ├── metis_config.example.json   # Sample configuration file
 ├── .gitignore                  # Git ignore rules
-├── RELEASE_NOTES.md            # Version release notes
 └── README.md                   # Project documentation and architectural guide
 ```
 

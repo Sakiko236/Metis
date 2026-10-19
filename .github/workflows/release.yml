@@ -75,17 +75,10 @@ jobs:
         shell: bash
         run: |
           DELIMITER="METIS_RELEASE_NOTES_EOF"
-          if [ -f "RELEASE_NOTES.md" ]; then
-            echo "body<<${DELIMITER}" >> $GITHUB_OUTPUT
-            cat RELEASE_NOTES.md >> $GITHUB_OUTPUT
-            echo "" >> $GITHUB_OUTPUT
-            echo "${DELIMITER}" >> $GITHUB_OUTPUT
-          else
-            echo "body<<${DELIMITER}" >> $GITHUB_OUTPUT
-            git tag -l --format='%(contents)' "${{ github.ref_name }}" | head -n 40 >> $GITHUB_OUTPUT
-            echo "" >> $GITHUB_OUTPUT
-            echo "${DELIMITER}" >> $GITHUB_OUTPUT
-          fi
+          echo "body<<${DELIMITER}" >> $GITHUB_OUTPUT
+          git tag -l --format='%(contents)' "${{ github.ref_name }}" | head -n 40 >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "${DELIMITER}" >> $GITHUB_OUTPUT
 
       - name: Build and Publish Tauri Application
         uses: tauri-apps/tauri-action@v0

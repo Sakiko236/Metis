@@ -1540,6 +1540,98 @@
     flex-shrink: 0;
   }
 
+  /* Command Execution Status Card */
+  .cmd-status-card {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 14px;
+    border-radius: 9px;
+    background: #0D1017;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-size: 12.5px;
+    max-width: 100%;
+  }
+  .cmd-status-card.running {
+    border-color: rgba(56, 189, 248, 0.45);
+    background: rgba(56, 189, 248, 0.06);
+  }
+  .cmd-status-card.pass {
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+  .cmd-status-card.fail {
+    border-color: rgba(239, 68, 68, 0.45);
+  }
+  .cmd-status-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .cmd-status-icon {
+    flex-shrink: 0;
+    color: var(--accent-cyan, #38BDF8);
+  }
+  .cmd-status-card.pass .cmd-status-icon {
+    color: var(--accent-emerald, #10B981);
+  }
+  .cmd-status-card.fail .cmd-status-icon {
+    color: #F87171;
+  }
+  .cmd-status-icon.pulse {
+    animation: pulse-dot-glow 1.5s ease-in-out infinite;
+  }
+  .cmd-status-text {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .cmd-status-code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px 7px;
+    border-radius: 5px;
+    word-break: break-all;
+  }
+  .cmd-status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .cmd-status-badge.fail {
+    background: rgba(239, 68, 68, 0.15);
+    color: #F87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  [data-theme="light"] .cmd-status-card {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+  }
+  [data-theme="light"] .cmd-status-card.running {
+    background: rgba(56, 189, 248, 0.08);
+  }
+  [data-theme="light"] .cmd-status-card.pass {
+    border-color: rgba(16, 185, 129, 0.4);
+  }
+  [data-theme="light"] .cmd-status-card.fail {
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+  [data-theme="light"] .cmd-status-code {
+    background: #EDF2F7;
+    color: #0F172A;
+  }
+
   /* Terminal Verification Loop Card */
   .terminal-card {
     background: #07090E;
@@ -2714,12 +2806,16 @@
         if (!appState.busySessions) appState.busySessions = {};
         const newBusy = {};
         msg.busySessionIds.forEach(id => {
-          newBusy[id] = (appState.busySessions && appState.busySessions[id]) || (id === msg.activeSessionId ? msg.statusText : 'Running...');
+          if (id === msg.activeSessionId && msg.statusText) {
+            newBusy[id] = msg.statusText;
+          } else {
+            newBusy[id] = (appState.busySessions && appState.busySessions[id]) || 'Running...';
+          }
         });
         appState.busySessions = newBusy;
       }
       appState.isBusy = !!(appState.busySessions && appState.busySessions[appState.activeSessionId]);
-      appState.statusText = (appState.busySessions && appState.busySessions[appState.activeSessionId]) || (msg.activeSessionId === appState.activeSessionId ? msg.statusText : 'Ready');
+      appState.statusText = (msg.activeSessionId === appState.activeSessionId && msg.statusText) || (appState.busySessions && appState.busySessions[appState.activeSessionId]) || 'Ready';
       if (msg.configFilePath) appState.configFilePath = msg.configFilePath;
 
       if (!editingVendorId && appState.config) {
@@ -3103,27 +3199,23 @@
       `;
     }
     if (ev.Type === 'verify_result') {
-      const passClass = ev.Succeeded ? 'pass' : 'fail';
-      const badgeText = ev.Succeeded
-        ? `PASSED · Exit 0 (${(ev.DurationSeconds || 0).toFixed(2)}s)`
-        : `FAILED · Exit ${ev.ExitCode} (${(ev.DurationSeconds || 0).toFixed(2)}s)`;
+      const isRunning = !!ev.IsRunning;
+      const cmdRaw = ev.Command || (ev.Content || '').replace(/^(?:Executing|Executed)\s*`?/, '').replace(/`?\s*\.{0,3}$/, '') || 'command';
+      const cmdText = escapeHtml(cmdRaw);
+      const statusClass = isRunning ? 'running' : (ev.Succeeded ? 'pass' : 'fail');
       return `
         <div class="msg-row" id="msg-row-${evId}">
-          <div class="terminal-card ${passClass}">
-            <div class="terminal-header">
-              <div class="terminal-cmd">
-                <span style="color:var(--text-muted);">[Loop ${ev.Round || 1}]</span>
-                <span>$ ${escapeHtml(ev.Command)}</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <button class="btn-msg-copy" style="padding:1px 6px;font-size:10.5px;" title="Copy terminal output" onclick="copyTerminalOutput(this, '${evId}')">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  <span>Copy</span>
-                </button>
-                <span class="terminal-status ${passClass}">${badgeText}</span>
-              </div>
+          <div class="cmd-status-card ${statusClass}">
+            <div class="cmd-status-left">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="cmd-status-icon ${isRunning ? 'pulse' : ''}">
+                <polyline points="4 17 10 11 4 5"/>
+                <line x1="12" y1="19" x2="20" y2="19"/>
+              </svg>
+              <span class="cmd-status-text ${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>
+                ${isRunning ? 'Executing' : 'Executed'} <code class="cmd-status-code">${cmdText}</code>${isRunning ? '...' : ''}
+              </span>
             </div>
-            <div class="terminal-body ${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>${escapeHtml(ev.TerminalOutput || '')}</div>
+            ${!isRunning && !ev.Succeeded ? '<span class="cmd-status-badge fail">Failed</span>' : ''}
           </div>
         </div>
       `;
@@ -4302,7 +4394,6 @@
     raw = raw.replace(/<think\b[^>]*>[\s\S]*$/gi, '');
     const trimmed = raw.trim();
     if (
-      !trimmed ||
       trimmed === 'Thinking' ||
       trimmed === 'Thinking...' ||
       trimmed.startsWith('Thinking... (') ||
@@ -4314,6 +4405,7 @@
       const label = (trimmed && trimmed.startsWith('Thinking')) ? trimmed : 'Thinking...';
       return '<span class="generating-placeholder">' + escapeHtml(label) + '</span>';
     }
+    if (!trimmed) return '';
     // Strip any raw <metis_replace> and unclosed <metis_replace> blocks
     raw = raw.replace(/<(?:metis|pinpoint|surgical)_replace\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)_replace>/gi, '');
     raw = raw.replace(/<(?:metis|pinpoint|surgical)_replace\b[^>]*>[\s\S]*$/gi, '');

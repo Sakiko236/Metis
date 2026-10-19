@@ -44,7 +44,8 @@ class AgentLoop:
             "your command here\n"
             "</metis_cmd>\n"
             "4. You have access to native web search grounding provided by the API when technical documentation, framework specifications, or troubleshooting guides are needed. Use web search as appropriate, but do not force it when existing knowledge suffices.\n"
-            "5. Keep changes focused and verified. When verification passes, summarize concisely."
+            "5. User visibility notice: The raw contents of tool invocations (<metis_cmd>, <metis_replace>, <metis_write>) and their execution outputs are internal and NOT visible to the user. Only your direct conversational text is shown to the user. Therefore, always provide clear text explanations before or after actions so the user understands what you are doing and what the outcome is.\n"
+            "6. Keep changes focused and verified. When verification passes, summarize concisely."
         )
 
     @staticmethod

@@ -669,11 +669,17 @@ class SidecarEngine:
                         needs_session_title = False
 
                 target_session = self.session_store.get_session(session_id)
+                formatted_explanation = MultiVendorClient.format_display_text(raw_response)
                 if target_session is not None:
-                    for ev in target_session.ui_events:
-                        if ev.id == assistant_event_id:
-                            ev.content = MultiVendorClient.format_display_text(raw_response)
-                            break
+                    if not formatted_explanation:
+                        target_session.ui_events = [
+                            e for e in target_session.ui_events if e.id != assistant_event_id
+                        ]
+                    else:
+                        for ev in target_session.ui_events:
+                            if ev.id == assistant_event_id:
+                                ev.content = formatted_explanation
+                                break
                     target_session.api_history.append(ChatHistoryItem(role="assistant", content=raw_response))
 
                 parsed = MultiVendorClient.parse_agent_output(raw_response, whitelist_snapshot)
@@ -757,7 +763,7 @@ class SidecarEngine:
                 # 2. Process Terminal Commands
                 for cmd in parsed.terminal_commands:
                     had_actions = True
-                    cmd_status = f"Running `{cmd}`..."
+                    cmd_status = f"Executing `{cmd}`..."
                     self.set_session_status(session_id, cmd_status)
                     emit_host_message(
                         {
@@ -767,22 +773,34 @@ class SidecarEngine:
                             "statusText": cmd_status,
                         }
                     )
+
+                    cmd_ev = UiStreamEvent(
+                        event_type="verify_result",
+                        content=f"Executing `{cmd}`...",
+                        command=cmd,
+                        round=current_round,
+                        is_running=True,
+                        succeeded=True,
+                    )
+                    target_session = self.session_store.get_session(session_id)
+                    if target_session is not None:
+                        target_session.ui_events.append(cmd_ev)
+
+                    self.broadcast_full_state()
+
                     ws_dir = loop_whitelist.get_active_workspace_directory()
                     exec_res = await ShellRunner.run_command(cmd, ws_dir, timeout_sec)
 
+                    cmd_ev.is_running = False
+                    cmd_ev.working_directory = ws_dir
+                    cmd_ev.exit_code = exec_res.exit_code
+                    cmd_ev.duration_seconds = exec_res.duration_seconds
+                    cmd_ev.succeeded = exec_res.succeeded()
+                    cmd_ev.content = f"Executed `{cmd}`"
+                    cmd_ev.terminal_output = exec_res.combined_output()
+
                     target_session = self.session_store.get_session(session_id)
                     if target_session is not None:
-                        ev = UiStreamEvent(
-                            event_type="verify_result",
-                            content=exec_res.combined_output(),
-                            command=cmd,
-                            working_directory=ws_dir,
-                            exit_code=exec_res.exit_code,
-                            duration_seconds=exec_res.duration_seconds,
-                            succeeded=exec_res.succeeded(),
-                            terminal_output=exec_res.combined_output(),
-                        )
-                        target_session.ui_events.append(ev)
                         target_session.api_history.append(
                             ChatHistoryItem(
                                 role="user",
@@ -793,6 +811,7 @@ class SidecarEngine:
                                 ),
                             )
                         )
+                    self.broadcast_full_state()
 
                 self.broadcast_full_state()
 

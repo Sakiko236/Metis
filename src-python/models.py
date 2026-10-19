@@ -278,6 +278,7 @@ class UiStreamEvent:
         search_query: str = "",
         search_results: Optional[List[SearchResultItem]] = None,
         file_edits: Optional[List[Dict[str, Any]]] = None,
+        is_running: bool = False,
     ):
         self.id = id if id else uuid.uuid4().hex
         self.event_type = event_type
@@ -300,6 +301,7 @@ class UiStreamEvent:
         self.search_query = search_query
         self.search_results = search_results if search_results is not None else []
         self.file_edits = file_edits if file_edits is not None else []
+        self.is_running = is_running
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -324,6 +326,7 @@ class UiStreamEvent:
             "SearchQuery": self.search_query,
             "SearchResults": [r.to_dict() for r in self.search_results],
             "FileEdits": self.file_edits,
+            "IsRunning": self.is_running,
         }
 
     @classmethod
@@ -353,6 +356,7 @@ class UiStreamEvent:
             search_query=str(data.get("SearchQuery", "")),
             search_results=sr,
             file_edits=raw_edits if isinstance(raw_edits, list) else [],
+            is_running=bool(data.get("IsRunning", False)),
         )
 
 

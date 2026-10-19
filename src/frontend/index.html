@@ -484,6 +484,13 @@
     background: var(--accent-emerald-dim);
     color: #38BDF8;
     border: 1px solid rgba(14, 165, 233, 0.35);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s ease;
+  }
+  .version-pill:empty {
+    display: none;
   }
 
   .sidebar-actions {
@@ -2106,7 +2113,7 @@
           <div class="brand-sub">File-Centric Mini Agent</div>
         </div>
       </div>
-      <span class="version-pill">v1.4.2</span>
+      <span class="version-pill" id="appVersionPill"></span>
     </div>
 
     <div class="sidebar-actions">
@@ -2322,7 +2329,21 @@
     });
   }
 
+  function updateAppVersionUI(ver) {
+    if (!ver) return;
+    const cleanVer = String(ver).trim().replace(/^v/i, '');
+    const pill = document.getElementById('appVersionPill');
+    if (pill && cleanVer) {
+      pill.textContent = `v${cleanVer}`;
+    }
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
+    if (window.__METIS_VERSION__) {
+      updateAppVersionUI(window.__METIS_VERSION__);
+    } else if (window.__TAURI__ && window.__TAURI__.app && window.__TAURI__.app.getVersion) {
+      window.__TAURI__.app.getVersion().then(updateAppVersionUI).catch(() => {});
+    }
     setTimeout(() => {
       hostPost({ action: 'uiReady' });
     }, 80);
@@ -2333,6 +2354,9 @@
     if (!msg || !msg.type) return;
 
     if (msg.type === 'fullState') {
+      if (msg.appVersion) {
+        updateAppVersionUI(msg.appVersion);
+      }
       appState.config = msg.config;
       if (appState.config && appState.config.Theme) {
         applyTheme(appState.config.Theme);

@@ -118,6 +118,7 @@ impl SidecarBridge {
         cmd.args(args)
             .env("PYTHONIOENCODING", "utf-8")
             .env("PYTHONUTF8", "1")
+            .env("METIS_APP_VERSION", env!("CARGO_PKG_VERSION"))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -337,6 +338,8 @@ pub fn run() {
                 if let Ok(icon) = tauri::image::Image::from_bytes(icon_bytes) {
                     let _ = window.set_icon(icon);
                 }
+                let ver = env!("CARGO_PKG_VERSION");
+                let _ = window.eval(&format!("window.__METIS_VERSION__ = '{}';", ver));
             }
 
             let handle = app.handle().clone();

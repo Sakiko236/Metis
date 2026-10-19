@@ -88,6 +88,7 @@ class SidecarEngine:
 
         payload: Dict[str, Any] = {
             "type": "fullState",
+            "appVersion": ConfigManager.get_app_version(),
             "config": self.config.to_dict(),
             "sessions": [s.to_dict() for s in self.session_store.sessions],
             "activeSessionId": self.session_store.active_session_id,
@@ -112,7 +113,7 @@ class SidecarEngine:
                 {
                     "type": "pong",
                     "engine": "python-sidecar",
-                    "version": "1.4.2",
+                    "version": ConfigManager.get_app_version(),
                 }
             )
             return
@@ -130,7 +131,7 @@ class SidecarEngine:
                     existing_empty.whitelist,
                     existing_empty.allowed_directories,
                 )
-                msg = "Already in an empty session." if is_already_active else "Switched to empty session."
+                msg = "Already in an empty chat." if is_already_active else "Switched to empty chat."
                 self.broadcast_full_state(toast=msg)
             else:
                 ns = ChatSession()
@@ -649,7 +650,8 @@ class SidecarEngine:
 
 
 async def run_self_test() -> int:
-    print("=== Metis v1.4.2 (Tauri + Python Sidecar) Headless End-to-End Self-Test ===", flush=True)
+    app_ver = ConfigManager.get_app_version()
+    print(f"=== Metis v{app_ver} (Tauri + Python Sidecar) Headless End-to-End Self-Test ===", flush=True)
 
     # 1. Config Persistence
     cfg = ConfigManager.load_or_create_default()
@@ -719,8 +721,8 @@ async def run_self_test() -> int:
     print(f"[PASS] Empty File Population Verified: {msg_emp}", flush=True)
 
     # 6. ShellRunner execution verification
-    exec_res = await ShellRunner.run_command("echo Metis v1.4.2 Python Sidecar Self-Test OK", str(temp_dir), 10)
-    if not exec_res.succeeded() or "Metis v1.4.2 Python Sidecar" not in exec_res.combined_output():
+    exec_res = await ShellRunner.run_command(f"echo Metis v{app_ver} Python Sidecar Self-Test OK", str(temp_dir), 10)
+    if not exec_res.succeeded() or f"Metis v{app_ver} Python Sidecar" not in exec_res.combined_output():
         print(f"FAIL: Shell execution failed: {exec_res.combined_output()}", file=sys.stderr, flush=True)
         return 6
     print(f"[PASS] Terminal Execution Verified (Exit 0): {exec_res.combined_output().strip()}", flush=True)
@@ -851,7 +853,7 @@ async def run_self_test() -> int:
         return 10
     print("[PASS] Gemini 429 Free Tier Search Grounding Downgrade & Tool Fallback Verified", flush=True)
 
-    print("=== All Metis v1.4.2 Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
+    print(f"=== All Metis v{app_ver} Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
     return 0
 
 

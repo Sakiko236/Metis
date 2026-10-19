@@ -35,6 +35,43 @@ class ConfigManager:
         return cls.get_app_data_dir() / "config.json"
 
     @staticmethod
+    def get_app_version() -> str:
+        # 1. Injected via environment variable from Tauri host
+        env_ver = os.environ.get("METIS_APP_VERSION")
+        if env_ver and env_ver.strip():
+            return env_ver.strip()
+
+        # 2. In local dev / standalone mode, resolve dynamically from package.json or Cargo.toml
+        cur_file = Path(__file__).resolve()
+        candidates = [
+            cur_file.parent.parent / "package.json",
+            cur_file.parent.parent / "src-tauri" / "Cargo.toml",
+            Path.cwd() / "package.json",
+            Path.cwd() / "src-tauri" / "Cargo.toml",
+        ]
+        for c in candidates:
+            if c.is_file():
+                try:
+                    if c.suffix == ".json":
+                        with open(c, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            v = data.get("version")
+                            if v and isinstance(v, str) and not v.endswith(".json"):
+                                return v.strip()
+                    elif c.name == "Cargo.toml":
+                        with open(c, "r", encoding="utf-8") as f:
+                            for line in f:
+                                line = line.strip()
+                                if line.startswith("version") and "=" in line:
+                                    val = line.split("=", 1)[1].strip().strip("\"'")
+                                    if val:
+                                        return val
+                except Exception:
+                    continue
+
+        return "1.0.0"
+
+    @staticmethod
     def create_default_config() -> AppConfig:
         gemini = VendorProfile(
             id="gemini",

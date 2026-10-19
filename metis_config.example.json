@@ -1,36 +1,9 @@
 {
-  "ActiveVendorId": "deepseek",
+  "ActiveVendorId": "openai_compatible",
   "MaxVerifyLoops": 8,
   "CommandTimeoutSeconds": 60,
   "ThinkingIntensity": "medium",
   "Vendors": [
-    {
-      "Id": "deepseek",
-      "DisplayName": "DeepSeek",
-      "Type": 3,
-      "BaseUrl": "https://api.deepseek.com/v1",
-      "ApiKey": "",
-      "SelectedModel": "deepseek-chat",
-      "PresetModels": []
-    },
-    {
-      "Id": "openai",
-      "DisplayName": "OpenAI",
-      "Type": 1,
-      "BaseUrl": "https://api.openai.com/v1",
-      "ApiKey": "",
-      "SelectedModel": "gpt-4o",
-      "PresetModels": []
-    },
-    {
-      "Id": "claude",
-      "DisplayName": "Anthropic Claude",
-      "Type": 2,
-      "BaseUrl": "https://api.anthropic.com/v1",
-      "ApiKey": "",
-      "SelectedModel": "claude-3-7-sonnet-latest",
-      "PresetModels": []
-    },
     {
       "Id": "gemini",
       "DisplayName": "Google Gemini",
@@ -38,25 +11,37 @@
       "BaseUrl": "https://generativelanguage.googleapis.com/v1beta",
       "ApiKey": "",
       "SelectedModel": "gemini-2.5-flash",
-      "PresetModels": []
+      "PresetModels": [
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash"
+      ]
     },
     {
-      "Id": "ollama",
-      "DisplayName": "Ollama (Local Models)",
-      "Type": 4,
-      "BaseUrl": "http://localhost:11434/v1",
+      "Id": "claude",
+      "DisplayName": "Anthropic Claude",
+      "Type": 2,
+      "BaseUrl": "https://api.anthropic.com/v1",
       "ApiKey": "",
-      "SelectedModel": "qwen2.5-coder:7b",
-      "PresetModels": []
+      "SelectedModel": "claude-3-7-sonnet-20250219",
+      "PresetModels": [
+        "claude-3-7-sonnet-20250219",
+        "claude-3-5-sonnet-20241022"
+      ]
     },
     {
-      "Id": "custom",
-      "DisplayName": "Custom (OpenAI-Compatible)",
+      "Id": "openai_compatible",
+      "DisplayName": "OpenAI Compatible",
       "Type": 5,
       "BaseUrl": "https://api.openai.com/v1",
       "ApiKey": "",
-      "SelectedModel": "gpt-4o-mini",
-      "PresetModels": []
+      "SelectedModel": "gpt-4o",
+      "PresetModels": [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "deepseek-chat",
+        "deepseek-reasoner"
+      ]
     }
   ],
   "Theme": "dark"

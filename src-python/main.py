@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import copy
+import difflib
 import json
 import os
 import sys
@@ -11,7 +12,30 @@ import unittest.mock
 import urllib.error
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+
+def compute_diff_lines(search_block: str, replace_block: str) -> List[Dict[str, str]]:
+    diff_lines: List[Dict[str, str]] = []
+    if not search_block and replace_block:
+        for line in replace_block.splitlines():
+            diff_lines.append({"type": "add", "line": line})
+        return diff_lines
+
+    s_lines = search_block.splitlines(keepends=True)
+    r_lines = replace_block.splitlines(keepends=True)
+    for raw in difflib.ndiff(s_lines, r_lines):
+        if not raw:
+            continue
+        prefix = raw[:2]
+        line = raw[2:].rstrip("\r\n")
+        if prefix == "- ":
+            diff_lines.append({"type": "del", "line": line})
+        elif prefix == "+ ":
+            diff_lines.append({"type": "add", "line": line})
+        elif prefix == "  ":
+            diff_lines.append({"type": "ctx", "line": line})
+    return diff_lines
 
 # Ensure local modules in src-python are importable and standard streams use UTF-8
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -71,9 +95,43 @@ class SidecarEngine:
         if active is not None:
             self.whitelist.bind_session_list(active.whitelist, active.allowed_directories)
 
-        self.agent = AgentController()
-        self.status_text: str = "Ready"
-        self.active_loop_task: Optional[asyncio.Task] = None
+        self.session_controllers: Dict[str, AgentController] = {}
+        self.session_status_texts: Dict[str, str] = {}
+        self.session_tasks: Dict[str, asyncio.Task] = {}
+        self.session_whitelists: Dict[str, WhitelistManager] = {}
+
+    def get_session_controller(self, session_id: str) -> AgentController:
+        if session_id not in self.session_controllers:
+            self.session_controllers[session_id] = AgentController()
+        return self.session_controllers[session_id]
+
+    def is_session_busy(self, session_id: str) -> bool:
+        ctrl = self.session_controllers.get(session_id)
+        return ctrl.is_busy if ctrl is not None else False
+
+    def get_session_status(self, session_id: str) -> str:
+        return self.session_status_texts.get(session_id, "Ready")
+
+    def set_session_status(self, session_id: str, status: str) -> None:
+        self.session_status_texts[session_id] = status
+
+    def get_busy_session_ids(self) -> List[str]:
+        return [sid for sid, ctrl in self.session_controllers.items() if ctrl.is_busy]
+
+    @property
+    def agent(self) -> AgentController:
+        active_id = self.session_store.active_session_id
+        return self.get_session_controller(active_id)
+
+    @property
+    def status_text(self) -> str:
+        active_id = self.session_store.active_session_id
+        return self.get_session_status(active_id)
+
+    @status_text.setter
+    def status_text(self, val: str) -> None:
+        active_id = self.session_store.active_session_id
+        self.set_session_status(active_id, val)
 
     def broadcast_full_state(
         self,
@@ -86,15 +144,21 @@ class SidecarEngine:
             active.allowed_directories = list(self.whitelist.get_directories())
         SessionManager.save(self.session_store)
 
+        active_id = self.session_store.active_session_id
+        is_busy = self.is_session_busy(active_id)
+        status_txt = self.get_session_status(active_id)
+        busy_ids = self.get_busy_session_ids()
+
         payload: Dict[str, Any] = {
             "type": "fullState",
             "appVersion": ConfigManager.get_app_version(),
             "config": self.config.to_dict(),
             "sessions": [s.to_dict() for s in self.session_store.sessions],
-            "activeSessionId": self.session_store.active_session_id,
+            "activeSessionId": active_id,
             "activeWorkspaceDir": self.whitelist.get_active_workspace_directory(),
-            "isBusy": self.agent.is_busy,
-            "statusText": self.status_text,
+            "isBusy": is_busy,
+            "statusText": status_txt,
+            "busySessionIds": busy_ids,
             "configFilePath": str(ConfigManager.get_config_path()),
             "isMaximized": False,
         }
@@ -122,8 +186,14 @@ class SidecarEngine:
             self.broadcast_full_state()
 
         elif action == "createSession":
-            self.session_store.prune_redundant_empty_sessions()
-            existing_empty = self.session_store.find_empty_session()
+            curr = self.session_store.get_active_session()
+            if curr is not None:
+                curr.whitelist = list(self.whitelist.get_files())
+                curr.allowed_directories = list(self.whitelist.get_directories())
+
+            busy_ids = set(self.get_busy_session_ids())
+            self.session_store.prune_redundant_empty_sessions(busy_ids=busy_ids)
+            existing_empty = self.session_store.find_empty_session(busy_ids=busy_ids)
             if existing_empty is not None:
                 is_already_active = self.session_store.active_session_id == existing_empty.id
                 self.session_store.active_session_id = existing_empty.id
@@ -145,6 +215,10 @@ class SidecarEngine:
         elif action == "selectSession":
             sid = str(data.get("sessionId", ""))
             if sid:
+                curr = self.session_store.get_active_session()
+                if curr is not None:
+                    curr.whitelist = list(self.whitelist.get_files())
+                    curr.allowed_directories = list(self.whitelist.get_directories())
                 self.session_store.active_session_id = sid
                 active = self.session_store.get_active_session()
                 if active is not None:
@@ -164,16 +238,27 @@ class SidecarEngine:
 
         elif action == "deleteSession":
             sid = str(data.get("sessionId", ""))
-            self.session_store.sessions = [s for s in self.session_store.sessions if s.id != sid]
-            if not self.session_store.sessions:
-                self.session_store.sessions.append(ChatSession())
-            if self.session_store.active_session_id == sid:
-                self.session_store.active_session_id = self.session_store.sessions[0].id
-            self.session_store.prune_redundant_empty_sessions()
-            active = self.session_store.get_active_session()
-            if active is not None:
-                self.whitelist.bind_session_list(active.whitelist, active.allowed_directories)
-            self.broadcast_full_state(toast="Chat deleted.")
+            if sid:
+                if sid in self.session_tasks:
+                    ctrl = self.get_session_controller(sid)
+                    ctrl.stop()
+                    t = self.session_tasks.pop(sid, None)
+                    if t and not t.done():
+                        t.cancel()
+                self.session_controllers.pop(sid, None)
+                self.session_status_texts.pop(sid, None)
+                self.session_whitelists.pop(sid, None)
+
+                self.session_store.sessions = [s for s in self.session_store.sessions if s.id != sid]
+                if not self.session_store.sessions:
+                    self.session_store.sessions.append(ChatSession())
+                if self.session_store.active_session_id == sid:
+                    self.session_store.active_session_id = self.session_store.sessions[0].id
+                self.session_store.prune_redundant_empty_sessions(busy_ids=set(self.get_busy_session_ids()))
+                active = self.session_store.get_active_session()
+                if active is not None:
+                    self.whitelist.bind_session_list(active.whitelist, active.allowed_directories)
+                self.broadcast_full_state(toast="Chat deleted.")
 
         elif action == "saveConfig":
             cfg_val = data.get("config")
@@ -277,33 +362,42 @@ class SidecarEngine:
                     self.broadcast_full_state(toast=msg)
 
         elif action == "pauseLoop":
-            self.agent.pause()
-            self.status_text = "⏸ Paused"
+            sid = str(data.get("sessionId", "")) or self.session_store.active_session_id
+            ctrl = self.get_session_controller(sid)
+            ctrl.pause()
+            self.set_session_status(sid, "⏸ Paused")
             emit_host_message(
                 {
                     "type": "busyStatus",
+                    "sessionId": sid,
                     "isBusy": True,
                     "statusText": "⏸ Paused",
                 }
             )
 
         elif action == "resumeLoop":
-            self.agent.resume()
-            self.status_text = "⚡ Working..."
+            sid = str(data.get("sessionId", "")) or self.session_store.active_session_id
+            ctrl = self.get_session_controller(sid)
+            ctrl.resume()
+            self.set_session_status(sid, "⚡ Working...")
             emit_host_message(
                 {
                     "type": "busyStatus",
+                    "sessionId": sid,
                     "isBusy": True,
                     "statusText": "⚡ Working...",
                 }
             )
 
         elif action == "stopLoop":
-            self.agent.stop()
-            self.status_text = "Ready"
+            sid = str(data.get("sessionId", "")) or self.session_store.active_session_id
+            ctrl = self.get_session_controller(sid)
+            ctrl.stop()
+            self.set_session_status(sid, "Ready")
             emit_host_message(
                 {
                     "type": "busyStatus",
+                    "sessionId": sid,
                     "isBusy": False,
                     "statusText": "Ready",
                 }
@@ -311,36 +405,62 @@ class SidecarEngine:
 
         elif action == "sendPrompt":
             prompt = str(data.get("prompt", "")).strip()
-            if prompt and not self.agent.is_busy:
-                self.active_loop_task = asyncio.create_task(self.run_autonomous_loop(prompt))
+            sid = str(data.get("sessionId", "")) or self.session_store.active_session_id
+            if prompt and not self.is_session_busy(sid):
+                task = asyncio.create_task(self.run_autonomous_loop(sid, prompt))
+                self.session_tasks[sid] = task
 
-    async def run_autonomous_loop(self, user_prompt: str) -> None:
-        self.agent.is_busy = True
-        self.agent.stop_requested = False
-        self.agent.is_paused = False
-        self.status_text = "Thinking..."
+    async def run_autonomous_loop(self, session_id: str, user_prompt: str) -> None:
+        ctrl = self.get_session_controller(session_id)
+        ctrl.is_busy = True
+        ctrl.stop_requested = False
+        ctrl.is_paused = False
+        self.set_session_status(session_id, "Thinking...")
 
         emit_host_message(
             {
                 "type": "busyStatus",
+                "sessionId": session_id,
                 "isBusy": True,
                 "statusText": "Thinking...",
             }
         )
 
-        needs_session_title = False
-        active = self.session_store.get_active_session()
-        if active is not None:
-            is_default_title = (
-                active.title in ("Default Session", "Untitled Session", "Default Chat", "Untitled Chat")
-                or active.title.startswith("Session ")
-                or active.title.startswith("Chat ")
+        target_session = self.session_store.get_session(session_id)
+        if target_session is None:
+            ctrl.is_busy = False
+            self.set_session_status(session_id, "Ready")
+            emit_host_message(
+                {
+                    "type": "busyStatus",
+                    "sessionId": session_id,
+                    "isBusy": False,
+                    "statusText": "Ready",
+                }
             )
-            if not active.api_history or is_default_title:
-                needs_session_title = True
+            return
 
-            active.api_history.append(ChatHistoryItem(role="user", content=user_prompt))
-            active.ui_events.append(UiStreamEvent(event_type="user", content=user_prompt))
+        # Dedicated WhitelistManager for this session's autonomous loop
+        if session_id == self.session_store.active_session_id:
+            target_session.whitelist = list(self.whitelist.get_files())
+            target_session.allowed_directories = list(self.whitelist.get_directories())
+
+        loop_whitelist = WhitelistManager()
+        loop_whitelist.bind_session_list(target_session.whitelist, target_session.allowed_directories)
+        self.session_whitelists[session_id] = loop_whitelist
+
+        needs_session_title = False
+        is_default_title = (
+            target_session.title in ("Default Session", "Untitled Session", "Default Chat", "Untitled Chat")
+            or target_session.title.startswith("Session ")
+            or target_session.title.startswith("Chat ")
+        )
+        if not target_session.api_history or is_default_title:
+            needs_session_title = True
+
+        target_session.api_history.append(ChatHistoryItem(role="user", content=user_prompt))
+        target_session.ui_events.append(UiStreamEvent(event_type="user", content=user_prompt))
+        SessionManager.save(self.session_store)
 
         max_rounds = max(1, self.config.max_verify_loops)
         timeout_sec = self.config.command_timeout_seconds
@@ -350,303 +470,353 @@ class SidecarEngine:
         )
 
         if vendor is None:
-            self.agent.is_busy = False
-            self.status_text = "Ready"
+            ctrl.is_busy = False
+            self.set_session_status(session_id, "Ready")
             self.broadcast_full_state()
             return
 
         current_round = 1
         retry_delays_secs = [2, 4, 8]
 
-        while current_round <= max_rounds:
-            if self.agent.stop_requested:
-                break
-
-            while self.agent.is_paused:
-                await asyncio.sleep(0.2)
-                if self.agent.stop_requested:
+        try:
+            while current_round <= max_rounds:
+                if ctrl.stop_requested:
                     break
 
-            if self.agent.stop_requested:
-                break
+                while ctrl.is_paused:
+                    await asyncio.sleep(0.2)
+                    if ctrl.stop_requested:
+                        break
 
-            round_status = (
-                "Thinking..."
-                if current_round == 1
-                else f"Round {current_round}/{max_rounds} — Thinking..."
-            )
-            self.status_text = round_status
-            emit_host_message(
-                {
-                    "type": "busyStatus",
-                    "isBusy": True,
-                    "statusText": round_status,
-                }
-            )
-
-            assistant_event_id = uuid.uuid4().hex
-            active = self.session_store.get_active_session()
-            if active is not None:
-                ev = UiStreamEvent(
-                    id=assistant_event_id,
-                    event_type="assistant",
-                    content="Thinking...",
-                    vendor_name=vendor.display_name,
-                    model_name=vendor.selected_model,
-                    round=current_round,
-                    max_rounds=max_rounds,
-                )
-                active.ui_events.append(ev)
-
-            self.broadcast_full_state()
-
-            history_snapshot = (
-                copy.deepcopy(active.api_history) if active is not None else []
-            )
-            if needs_session_title and current_round == 1 and history_snapshot:
-                last_msg = history_snapshot[-1]
-                if last_msg.role == "user":
-                    last_msg.content = (
-                        f"{last_msg.content}\n\n"
-                        "[System Instruction: Since this is the first turn of the chat, please summarize a concise chat title (2-6 words, in the same language as the user's request) at the very beginning of your reply wrapped in <metis_title>...</metis_title> tags, then provide your normal response.]"
-                    )
-
-            whitelist_snapshot = list(self.whitelist.get_files())
-            files_block = AgentLoop.build_file_snapshot(whitelist_snapshot)
-            system_prompt = AgentLoop.build_system_prompt()
-
-            attempt = 0
-            chat_ok = False
-            raw_response_or_err = ""
-
-            while True:
-                streamed_chunks: list[str] = []
-
-                def on_chunk(chunk: str) -> None:
-                    streamed_chunks.append(chunk)
-                    full_so_far = "".join(streamed_chunks)
-                    display = MultiVendorClient.format_display_text(full_so_far)
-                    display_or_thinking = display if display.strip() else "Thinking..."
-                    emit_host_message(
-                        {
-                            "type": "streamUpdate",
-                            "eventId": assistant_event_id,
-                            "content": display_or_thinking,
-                        }
-                    )
-
-                ok, result_text = await MultiVendorClient.send_chat(
-                    vendor=vendor,
-                    system_prompt=system_prompt,
-                    files_snapshot=files_block,
-                    history=history_snapshot,
-                    whitelist=whitelist_snapshot,
-                    thinking_intensity=self.config.thinking_intensity,
-                    on_chunk=on_chunk,
-                )
-
-                if ok:
-                    chat_ok = True
-                    raw_response_or_err = result_text
+                if ctrl.stop_requested:
                     break
 
-                err_lower = result_text.lower()
-                is_retryable = (
-                    any(code in result_text for code in ("503", "502", "504", "429", "500"))
-                    or "overloaded" in err_lower
-                    or "unavailable" in err_lower
-                    or "http request error" in err_lower
-                    or "stream read error" in err_lower
+                round_status = (
+                    "Thinking..."
+                    if current_round == 1
+                    else f"Round {current_round}/{max_rounds} — Thinking..."
                 )
-
-                if (
-                    is_retryable
-                    and attempt < len(retry_delays_secs)
-                    and not self.agent.stop_requested
-                ):
-                    delay_secs = retry_delays_secs[attempt]
-                    attempt += 1
-
-                    retry_status = f"API returned 503/busy, retrying in {delay_secs}s ({attempt}/3)..."
-                    self.status_text = retry_status
-                    emit_host_message(
-                        {
-                            "type": "busyStatus",
-                            "isBusy": True,
-                            "statusText": retry_status,
-                        }
-                    )
-                    emit_host_message(
-                        {
-                            "type": "streamUpdate",
-                            "eventId": assistant_event_id,
-                            "content": f"Thinking... (Retrying in {delay_secs}s, attempt {attempt}/3)",
-                        }
-                    )
-
-                    ticks = delay_secs * 5
-                    for _ in range(ticks):
-                        if self.agent.stop_requested:
-                            break
-                        await asyncio.sleep(0.2)
-
-                    if self.agent.stop_requested:
-                        raw_response_or_err = "Chat interrupted by user during retry."
-                        break
-
-                    retry_gen_status = f"Retry {attempt}/3 — Thinking..."
-                    self.status_text = retry_gen_status
-                    emit_host_message(
-                        {
-                            "type": "busyStatus",
-                            "isBusy": True,
-                            "statusText": retry_gen_status,
-                        }
-                    )
-                    emit_host_message(
-                        {
-                            "type": "streamUpdate",
-                            "eventId": assistant_event_id,
-                            "content": "Thinking...",
-                        }
-                    )
-                    continue
-
-                raw_response_or_err = result_text
-                break
-
-            if not chat_ok:
-                active = self.session_store.get_active_session()
-                if active is not None:
-                    active.ui_events = [e for e in active.ui_events if e.id != assistant_event_id]
-                    if attempt > 0:
-                        msg = f"⚠️ LLM Error (failed after {attempt} retries — 2s/4s/8s): {raw_response_or_err}"
-                    else:
-                        msg = f"⚠️ LLM Error: {raw_response_or_err}"
-                    active.ui_events.append(UiStreamEvent(event_type="notice", content=msg))
-                break
-
-            raw_response = raw_response_or_err
-
-            if needs_session_title:
-                extracted_title = MultiVendorClient.extract_session_title(raw_response)
-                if not extracted_title:
-                    first_line = user_prompt.splitlines()[0].strip() if user_prompt.strip() else ""
-                    if first_line:
-                        extracted_title = f"{first_line[:24]}..." if len(first_line) > 24 else first_line
-                if extracted_title:
-                    active = self.session_store.get_active_session()
-                    if active is not None:
-                        active.title = extracted_title
-                        active.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    needs_session_title = False
-
-            active = self.session_store.get_active_session()
-            if active is not None:
-                for ev in active.ui_events:
-                    if ev.id == assistant_event_id:
-                        ev.content = MultiVendorClient.format_display_text(raw_response)
-                        break
-                active.api_history.append(ChatHistoryItem(role="assistant", content=raw_response))
-
-            parsed = MultiVendorClient.parse_agent_output(raw_response, whitelist_snapshot)
-            had_actions = False
-            any_edit_failed = False
-
-            # 1. Process File Edits
-            for edit in parsed.file_edits:
-                had_actions = True
-                ok_edit, msg_or_err, wf = self.whitelist.apply_edit_in_place(edit)
-                active = self.session_store.get_active_session()
-                if active is not None:
-                    if ok_edit and wf is not None:
-                        ev = UiStreamEvent(
-                            event_type="file_edit",
-                            content=msg_or_err,
-                            file_name=wf.file_name,
-                            file_path=wf.full_path,
-                            edit_count=wf.edit_count,
-                        )
-                        active.ui_events.append(ev)
-                        active.api_history.append(
-                            ChatHistoryItem(
-                                role="user",
-                                content=f"[File Edit Feedback]:\n{msg_or_err}",
-                            )
-                        )
-                    else:
-                        any_edit_failed = True
-                        ev_type = (
-                            "security_block"
-                            if "[Security Block" in msg_or_err
-                            else "notice"
-                        )
-                        active.ui_events.append(UiStreamEvent(event_type=ev_type, content=msg_or_err))
-                        active.api_history.append(
-                            ChatHistoryItem(
-                                role="user",
-                                content=f"[Operation Feedback]:\n{msg_or_err}",
-                            )
-                        )
-
-            # 2. Process Terminal Commands
-            for cmd in parsed.terminal_commands:
-                had_actions = True
-                self.status_text = f"Running `{cmd}`..."
+                self.set_session_status(session_id, round_status)
                 emit_host_message(
                     {
                         "type": "busyStatus",
+                        "sessionId": session_id,
                         "isBusy": True,
-                        "statusText": self.status_text,
+                        "statusText": round_status,
                     }
                 )
-                ws_dir = self.whitelist.get_active_workspace_directory()
-                exec_res = await ShellRunner.run_command(cmd, ws_dir, timeout_sec)
 
-                active = self.session_store.get_active_session()
-                if active is not None:
+                assistant_event_id = uuid.uuid4().hex
+                target_session = self.session_store.get_session(session_id)
+                if target_session is not None:
                     ev = UiStreamEvent(
-                        event_type="verify_result",
-                        content=exec_res.combined_output(),
-                        command=cmd,
-                        working_directory=ws_dir,
-                        exit_code=exec_res.exit_code,
-                        duration_seconds=exec_res.duration_seconds,
-                        succeeded=exec_res.succeeded(),
-                        terminal_output=exec_res.combined_output(),
+                        id=assistant_event_id,
+                        event_type="assistant",
+                        content="Thinking...",
+                        vendor_name=vendor.display_name,
+                        model_name=vendor.selected_model,
+                        round=current_round,
+                        max_rounds=max_rounds,
                     )
-                    active.ui_events.append(ev)
-                    active.api_history.append(
-                        ChatHistoryItem(
-                            role="user",
-                            content=(
-                                f"[Terminal Execution Feedback for `{cmd}`]:\n"
-                                f"Exit Code: {exec_res.exit_code}\n"
-                                f"Output:\n{exec_res.combined_output()}"
-                            ),
+                    target_session.ui_events.append(ev)
+
+                self.broadcast_full_state()
+
+                history_snapshot = (
+                    copy.deepcopy(target_session.api_history) if target_session is not None else []
+                )
+                if needs_session_title and current_round == 1 and history_snapshot:
+                    last_msg = history_snapshot[-1]
+                    if last_msg.role == "user":
+                        last_msg.content = (
+                            f"{last_msg.content}\n\n"
+                            "[System Instruction: Since this is the first turn of the chat, please summarize a concise chat title (2-6 words, in the same language as the user's request) at the very beginning of your reply wrapped in <metis_title>...</metis_title> tags, then provide your normal response.]"
                         )
+
+                whitelist_snapshot = list(loop_whitelist.get_files())
+                files_block = AgentLoop.build_file_snapshot(whitelist_snapshot)
+                system_prompt = AgentLoop.build_system_prompt()
+
+                attempt = 0
+                chat_ok = False
+                raw_response_or_err = ""
+
+                while True:
+                    streamed_chunks: list[str] = []
+
+                    def on_chunk(chunk: str) -> None:
+                        streamed_chunks.append(chunk)
+                        full_so_far = "".join(streamed_chunks)
+                        display = MultiVendorClient.format_display_text(full_so_far)
+                        display_or_thinking = display if display.strip() else "Thinking..."
+                        emit_host_message(
+                            {
+                                "type": "streamUpdate",
+                                "sessionId": session_id,
+                                "eventId": assistant_event_id,
+                                "content": display_or_thinking,
+                            }
+                        )
+
+                    ok, result_text = await MultiVendorClient.send_chat(
+                        vendor=vendor,
+                        system_prompt=system_prompt,
+                        files_snapshot=files_block,
+                        history=history_snapshot,
+                        whitelist=whitelist_snapshot,
+                        thinking_intensity=self.config.thinking_intensity,
+                        on_chunk=on_chunk,
                     )
 
-            self.broadcast_full_state()
+                    if ok:
+                        chat_ok = True
+                        raw_response_or_err = result_text
+                        break
 
-            needs_followup_round = bool(
-                parsed.terminal_commands or any_edit_failed
+                    err_lower = result_text.lower()
+                    is_retryable = (
+                        any(code in result_text for code in ("503", "502", "504", "429", "500"))
+                        or "overloaded" in err_lower
+                        or "unavailable" in err_lower
+                        or "http request error" in err_lower
+                        or "stream read error" in err_lower
+                    )
+
+                    if (
+                        is_retryable
+                        and attempt < len(retry_delays_secs)
+                        and not ctrl.stop_requested
+                    ):
+                        delay_secs = retry_delays_secs[attempt]
+                        attempt += 1
+
+                        retry_status = f"API returned 503/busy, retrying in {delay_secs}s ({attempt}/3)..."
+                        self.set_session_status(session_id, retry_status)
+                        emit_host_message(
+                            {
+                                "type": "busyStatus",
+                                "sessionId": session_id,
+                                "isBusy": True,
+                                "statusText": retry_status,
+                            }
+                        )
+                        emit_host_message(
+                            {
+                                "type": "streamUpdate",
+                                "sessionId": session_id,
+                                "eventId": assistant_event_id,
+                                "content": f"Thinking... (Retrying in {delay_secs}s, attempt {attempt}/3)",
+                            }
+                        )
+
+                        ticks = delay_secs * 5
+                        for _ in range(ticks):
+                            if ctrl.stop_requested:
+                                break
+                            await asyncio.sleep(0.2)
+
+                        if ctrl.stop_requested:
+                            raw_response_or_err = "Chat interrupted by user during retry."
+                            break
+
+                        retry_gen_status = f"Retry {attempt}/3 — Thinking..."
+                        self.set_session_status(session_id, retry_gen_status)
+                        emit_host_message(
+                            {
+                                "type": "busyStatus",
+                                "sessionId": session_id,
+                                "isBusy": True,
+                                "statusText": retry_gen_status,
+                            }
+                        )
+                        emit_host_message(
+                            {
+                                "type": "streamUpdate",
+                                "sessionId": session_id,
+                                "eventId": assistant_event_id,
+                                "content": "Thinking...",
+                            }
+                        )
+                        continue
+
+                    raw_response_or_err = result_text
+                    break
+
+                if not chat_ok:
+                    target_session = self.session_store.get_session(session_id)
+                    if target_session is not None:
+                        target_session.ui_events = [e for e in target_session.ui_events if e.id != assistant_event_id]
+                        if attempt > 0:
+                            msg = f"⚠️ LLM Error (failed after {attempt} retries — 2s/4s/8s): {raw_response_or_err}"
+                        else:
+                            msg = f"⚠️ LLM Error: {raw_response_or_err}"
+                        target_session.ui_events.append(UiStreamEvent(event_type="notice", content=msg))
+                    break
+
+                raw_response = raw_response_or_err
+
+                if needs_session_title:
+                    extracted_title = MultiVendorClient.extract_session_title(raw_response)
+                    if not extracted_title:
+                        first_line = user_prompt.splitlines()[0].strip() if user_prompt.strip() else ""
+                        if first_line:
+                            extracted_title = f"{first_line[:24]}..." if len(first_line) > 24 else first_line
+                    if extracted_title:
+                        target_session = self.session_store.get_session(session_id)
+                        if target_session is not None:
+                            target_session.title = extracted_title
+                            target_session.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        needs_session_title = False
+
+                target_session = self.session_store.get_session(session_id)
+                if target_session is not None:
+                    for ev in target_session.ui_events:
+                        if ev.id == assistant_event_id:
+                            ev.content = MultiVendorClient.format_display_text(raw_response)
+                            break
+                    target_session.api_history.append(ChatHistoryItem(role="assistant", content=raw_response))
+
+                parsed = MultiVendorClient.parse_agent_output(raw_response, whitelist_snapshot)
+                had_actions = False
+                any_edit_failed = False
+
+                # 1. Process File Edits
+                successful_edits: List[Dict[str, Any]] = []
+
+                for edit in parsed.file_edits:
+                    had_actions = True
+                    ok_edit, msg_or_err, wf = loop_whitelist.apply_edit_in_place(edit)
+                    target_session = self.session_store.get_session(session_id)
+                    if target_session is not None:
+                        if ok_edit and wf is not None:
+                            target_replace = (
+                                edit.replace_block
+                                if edit.action_type != SurgicalActionType.WriteFull
+                                else edit.new_content
+                            )
+                            diff_lines = compute_diff_lines(edit.search_block, target_replace)
+                            successful_edits.append(
+                                {
+                                    "filePath": wf.full_path,
+                                    "fileName": wf.file_name,
+                                    "relativePath": wf.relative_path or wf.file_name,
+                                    "actionType": edit.action_type,
+                                    "searchBlock": edit.search_block,
+                                    "replaceBlock": target_replace,
+                                    "diffLines": diff_lines,
+                                    "editCount": wf.edit_count,
+                                    "statusMessage": msg_or_err,
+                                }
+                            )
+                            target_session.api_history.append(
+                                ChatHistoryItem(
+                                    role="user",
+                                    content=f"[File Edit Feedback]:\n{msg_or_err}",
+                                )
+                            )
+                        else:
+                            any_edit_failed = True
+                            ev_type = (
+                                "security_block"
+                                if "[Security Block" in msg_or_err
+                                else "notice"
+                            )
+                            target_session.ui_events.append(UiStreamEvent(event_type=ev_type, content=msg_or_err))
+                            target_session.api_history.append(
+                                ChatHistoryItem(
+                                    role="user",
+                                    content=f"[Operation Feedback]:\n{msg_or_err}",
+                                )
+                            )
+
+                # Sync whitelist to target session
+                target_session = self.session_store.get_session(session_id)
+                if target_session is not None:
+                    target_session.whitelist = list(loop_whitelist.get_files())
+                    target_session.allowed_directories = list(loop_whitelist.get_directories())
+                    if session_id == self.session_store.active_session_id:
+                        self.whitelist.bind_session_list(target_session.whitelist, target_session.allowed_directories)
+
+                # Consolidate multiple file modifications into a single merged event
+                if successful_edits and target_session is not None:
+                    unique_files = list(dict.fromkeys(e["filePath"] for e in successful_edits))
+                    file_count = len(unique_files)
+                    summary_label = f"Modified {file_count} {'file' if file_count == 1 else 'files'}"
+                    first_edit = successful_edits[0]
+                    ev = UiStreamEvent(
+                        event_type="file_edit",
+                        content=summary_label,
+                        file_name=first_edit["fileName"],
+                        file_path=first_edit["filePath"],
+                        line_count=file_count,
+                        edit_count=len(successful_edits),
+                        file_edits=successful_edits,
+                    )
+                    target_session.ui_events.append(ev)
+
+                # 2. Process Terminal Commands
+                for cmd in parsed.terminal_commands:
+                    had_actions = True
+                    cmd_status = f"Running `{cmd}`..."
+                    self.set_session_status(session_id, cmd_status)
+                    emit_host_message(
+                        {
+                            "type": "busyStatus",
+                            "sessionId": session_id,
+                            "isBusy": True,
+                            "statusText": cmd_status,
+                        }
+                    )
+                    ws_dir = loop_whitelist.get_active_workspace_directory()
+                    exec_res = await ShellRunner.run_command(cmd, ws_dir, timeout_sec)
+
+                    target_session = self.session_store.get_session(session_id)
+                    if target_session is not None:
+                        ev = UiStreamEvent(
+                            event_type="verify_result",
+                            content=exec_res.combined_output(),
+                            command=cmd,
+                            working_directory=ws_dir,
+                            exit_code=exec_res.exit_code,
+                            duration_seconds=exec_res.duration_seconds,
+                            succeeded=exec_res.succeeded(),
+                            terminal_output=exec_res.combined_output(),
+                        )
+                        target_session.ui_events.append(ev)
+                        target_session.api_history.append(
+                            ChatHistoryItem(
+                                role="user",
+                                content=(
+                                    f"[Terminal Execution Feedback for `{cmd}`]:\n"
+                                    f"Exit Code: {exec_res.exit_code}\n"
+                                    f"Output:\n{exec_res.combined_output()}"
+                                ),
+                            )
+                        )
+
+                self.broadcast_full_state()
+
+                needs_followup_round = bool(
+                    parsed.terminal_commands or any_edit_failed
+                )
+                if not needs_followup_round:
+                    break
+
+                current_round += 1
+        finally:
+            ctrl.is_busy = False
+            self.set_session_status(session_id, "Ready")
+            self.session_tasks.pop(session_id, None)
+            self.session_whitelists.pop(session_id, None)
+            emit_host_message(
+                {
+                    "type": "busyStatus",
+                    "sessionId": session_id,
+                    "isBusy": False,
+                    "statusText": "Ready",
+                }
             )
-            if not needs_followup_round:
-                break
-
-            current_round += 1
-
-        self.agent.is_busy = False
-        self.status_text = "Ready"
-        emit_host_message(
-            {
-                "type": "busyStatus",
-                "isBusy": False,
-                "statusText": "Ready",
-            }
-        )
-        self.broadcast_full_state()
+            self.broadcast_full_state()
 
 
 async def run_self_test() -> int:

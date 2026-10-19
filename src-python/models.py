@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 
 class VendorType(IntEnum):
@@ -38,6 +38,10 @@ class VendorType(IntEnum):
                 "4": cls.Ollama,
                 "customopenai": cls.CustomOpenAI,
                 "custom": cls.CustomOpenAI,
+                "openai_compatible": cls.CustomOpenAI,
+                "openai-compatible": cls.CustomOpenAI,
+                "openaicompatible": cls.CustomOpenAI,
+                "openai compatible": cls.CustomOpenAI,
                 "5": cls.CustomOpenAI,
                 "localsandbox": cls.LocalSandbox,
                 "6": cls.LocalSandbox,
@@ -273,6 +277,7 @@ class UiStreamEvent:
         terminal_output: str = "",
         search_query: str = "",
         search_results: Optional[List[SearchResultItem]] = None,
+        file_edits: Optional[List[Dict[str, Any]]] = None,
     ):
         self.id = id if id else uuid.uuid4().hex
         self.event_type = event_type
@@ -294,6 +299,7 @@ class UiStreamEvent:
         self.terminal_output = terminal_output
         self.search_query = search_query
         self.search_results = search_results if search_results is not None else []
+        self.file_edits = file_edits if file_edits is not None else []
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -317,12 +323,14 @@ class UiStreamEvent:
             "TerminalOutput": self.terminal_output,
             "SearchQuery": self.search_query,
             "SearchResults": [r.to_dict() for r in self.search_results],
+            "FileEdits": self.file_edits,
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "UiStreamEvent":
         raw_sr = data.get("SearchResults", [])
         sr = [SearchResultItem.from_dict(x) for x in raw_sr if isinstance(x, dict)]
+        raw_edits = data.get("FileEdits", data.get("file_edits", []))
         return cls(
             id=str(data.get("Id", uuid.uuid4().hex)),
             event_type=str(data.get("Type", "notice")),
@@ -344,6 +352,7 @@ class UiStreamEvent:
             terminal_output=str(data.get("TerminalOutput", "")),
             search_query=str(data.get("SearchQuery", "")),
             search_results=sr,
+            file_edits=raw_edits if isinstance(raw_edits, list) else [],
         )
 
 
@@ -412,19 +421,29 @@ class SessionStoreData:
             self.sessions = sessions
             self.active_session_id = active_session_id or self.sessions[0].id
 
+    def get_session(self, session_id: str) -> Optional[ChatSession]:
+        for s in self.sessions:
+            if s.id == session_id:
+                return s
+        return None
+
     def get_active_session(self) -> Optional[ChatSession]:
         for s in self.sessions:
             if s.id == self.active_session_id:
                 return s
         return self.sessions[0] if self.sessions else None
 
-    def find_empty_session(self) -> Optional[ChatSession]:
+    def find_empty_session(self, busy_ids: Optional[Set[str]] = None) -> Optional[ChatSession]:
+        if busy_ids is None:
+            busy_ids = set()
         for s in self.sessions:
-            if s.is_empty():
+            if s.id not in busy_ids and s.is_empty():
                 return s
         return None
 
-    def prune_redundant_empty_sessions(self) -> None:
+    def prune_redundant_empty_sessions(self, busy_ids: Optional[Set[str]] = None) -> None:
+        if busy_ids is None:
+            busy_ids = set()
         preserved_empty_id: Optional[str] = None
         for s in self.sessions:
             if s.id == self.active_session_id and s.is_empty():
@@ -433,7 +452,9 @@ class SessionStoreData:
 
         retained: List[ChatSession] = []
         for s in self.sessions:
-            if s.is_empty():
+            if s.id in busy_ids:
+                retained.append(s)
+            elif s.is_empty():
                 if preserved_empty_id is not None:
                     if s.id == preserved_empty_id:
                         retained.append(s)

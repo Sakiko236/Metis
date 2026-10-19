@@ -87,20 +87,6 @@ class ConfigManager:
             ],
         )
 
-        openai = VendorProfile(
-            id="openai",
-            display_name="OpenAI",
-            vendor_type=VendorType.OpenAI,
-            base_url="https://api.openai.com/v1",
-            selected_model="gpt-4o",
-            preset_models=[
-                "gpt-4o",
-                "gpt-4o-mini",
-                "o3-mini",
-                "gpt-4.5-preview",
-            ],
-        )
-
         claude = VendorProfile(
             id="claude",
             display_name="Anthropic Claude",
@@ -115,51 +101,91 @@ class ConfigManager:
             ],
         )
 
-        deepseek = VendorProfile(
-            id="deepseek",
-            display_name="DeepSeek",
-            vendor_type=VendorType.DeepSeek,
-            base_url="https://api.deepseek.com/v1",
-            selected_model="deepseek-chat",
-            preset_models=[
-                "deepseek-chat",
-                "deepseek-reasoner",
-            ],
-        )
-
-        ollama = VendorProfile(
-            id="ollama",
-            display_name="Ollama (Local Models)",
-            vendor_type=VendorType.Ollama,
-            base_url="http://localhost:11434/v1",
-            selected_model="qwen2.5-coder:latest",
-            preset_models=[
-                "qwen2.5-coder:latest",
-                "deepseek-r1:latest",
-                "llama3.3:latest",
-            ],
-        )
-
-        custom = VendorProfile(
-            id="custom",
-            display_name="Custom (OpenAI-Compatible)",
+        openai_compat = VendorProfile(
+            id="openai_compatible",
+            display_name="OpenAI Compatible",
             vendor_type=VendorType.CustomOpenAI,
             base_url="https://api.openai.com/v1",
             selected_model="gpt-4o",
             preset_models=[
                 "gpt-4o",
+                "gpt-4o-mini",
                 "deepseek-chat",
+                "deepseek-reasoner",
             ],
         )
 
         return AppConfig(
-            active_vendor_id="deepseek",
+            active_vendor_id="openai_compatible",
             max_verify_loops=8,
             command_timeout_seconds=60,
             theme="dark",
             thinking_intensity="medium",
-            vendors=[deepseek, gemini, openai, claude, ollama, custom],
+            vendors=[gemini, claude, openai_compat],
         )
+
+    @classmethod
+    def migrate_to_three_providers(cls, cfg: AppConfig) -> None:
+        """
+        Consolidates legacy multi-vendor configurations into the 3 standardized providers:
+        1. Google Gemini
+        2. Anthropic Claude
+        3. OpenAI Compatible
+        """
+        existing_vendor_ids = [v.id.lower() for v in cfg.vendors]
+        if set(existing_vendor_ids) == {"gemini", "claude", "openai_compatible"}:
+            return
+
+        gemini_existing = next((v for v in cfg.vendors if v.id.lower() == "gemini"), None)
+        claude_existing = next((v for v in cfg.vendors if v.id.lower() == "claude"), None)
+        compat_existing = next((v for v in cfg.vendors if v.id.lower() in ("openai_compatible", "openai-compatible")), None)
+
+        defaults = cls.create_default_config()
+        final_gemini = gemini_existing or defaults.vendors[0]
+        final_gemini.display_name = "Google Gemini"
+
+        final_claude = claude_existing or defaults.vendors[1]
+        final_claude.display_name = "Anthropic Claude"
+
+        if compat_existing:
+            final_compat = compat_existing
+            final_compat.display_name = "OpenAI Compatible"
+        else:
+            active_id = (cfg.active_vendor_id or "").lower()
+            active_donor = next((v for v in cfg.vendors if v.id.lower() == active_id and v.id.lower() not in ("gemini", "claude")), None)
+            key_donor = next((v for v in cfg.vendors if v.id.lower() in ("deepseek", "openai", "custom", "ollama") and v.api_key and v.api_key.strip()), None)
+            donor = active_donor or key_donor or next((v for v in cfg.vendors if v.id.lower() in ("deepseek", "openai", "custom", "ollama")), None)
+
+            if donor:
+                final_compat = VendorProfile(
+                    id="openai_compatible",
+                    display_name="OpenAI Compatible",
+                    vendor_type=VendorType.CustomOpenAI,
+                    base_url=donor.base_url or "https://api.openai.com/v1",
+                    api_key=donor.api_key or "",
+                    selected_model=donor.selected_model or "gpt-4o",
+                    preset_models=list(donor.preset_models or ["gpt-4o", "gpt-4o-mini", "deepseek-chat", "deepseek-reasoner"]),
+                )
+            else:
+                final_compat = defaults.vendors[2]
+
+        # Aggregate preset models from old OpenAI-compatible configurations
+        merged_presets = list(final_compat.preset_models or [])
+        for v in cfg.vendors:
+            if v.id.lower() in ("openai", "deepseek", "custom", "ollama"):
+                if v.selected_model and v.selected_model not in merged_presets:
+                    merged_presets.append(v.selected_model)
+                for pm in (v.preset_models or []):
+                    if pm and pm not in merged_presets:
+                        merged_presets.append(pm)
+        final_compat.preset_models = merged_presets[:6]
+
+        if (cfg.active_vendor_id or "").lower() in ("openai", "deepseek", "custom", "ollama"):
+            cfg.active_vendor_id = "openai_compatible"
+        elif (cfg.active_vendor_id or "").lower() not in ("gemini", "claude", "openai_compatible"):
+            cfg.active_vendor_id = "openai_compatible"
+
+        cfg.vendors = [final_gemini, final_claude, final_compat]
 
     @classmethod
     def load_or_create_default(cls) -> AppConfig:
@@ -179,6 +205,7 @@ class ConfigManager:
                     if isinstance(data, dict):
                         loaded = AppConfig.from_dict(data)
                         if loaded.vendors:
+                            cls.migrate_to_three_providers(loaded)
                             cls.ensure_all_presets_exist(loaded)
                             cls.populate_env_keys(loaded)
                             cls.save(loaded)
@@ -218,20 +245,16 @@ class ConfigManager:
         for v in cfg.vendors:
             if v.api_key and v.api_key.strip():
                 continue
-            if v.vendor_type == VendorType.Gemini:
+            if v.vendor_type == VendorType.Gemini or v.id == "gemini":
                 k = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
                 if k:
                     v.api_key = k
-            elif v.vendor_type == VendorType.OpenAI:
-                k = os.environ.get("OPENAI_API_KEY")
-                if k:
-                    v.api_key = k
-            elif v.vendor_type == VendorType.Claude:
+            elif v.vendor_type == VendorType.Claude or v.id == "claude":
                 k = os.environ.get("ANTHROPIC_API_KEY")
                 if k:
                     v.api_key = k
-            elif v.vendor_type == VendorType.DeepSeek:
-                k = os.environ.get("DEEPSEEK_API_KEY")
+            elif v.id in ("openai_compatible", "openai", "custom"):
+                k = os.environ.get("OPENAI_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
                 if k:
                     v.api_key = k
 

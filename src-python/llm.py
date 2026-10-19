@@ -46,8 +46,13 @@ SR_BLOCK_RE = re.compile(
     r"<{5,}\s*SEARCH\r?\n(.*?)\r?\n={5,}\r?\n(.*?)\r?\n>{5,}\s*REPLACE",
     re.IGNORECASE | re.DOTALL,
 )
+RAW_SR_STREAMING_RE = re.compile(r"<{5,}\s*SEARCH\b.*$", re.IGNORECASE | re.DOTALL)
 CMD_TAG_RE = re.compile(
-    r"<(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)[^>]*>\r?\n?(.*?)\r?\n?</(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)>",
+    r"<(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)[^>]*>\r?\n?(.*?)\r?\n?</(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)>\r?\n?",
+    re.IGNORECASE | re.DOTALL,
+)
+CMD_STREAMING_RE = re.compile(
+    r"<(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)[^>]*>.*$",
     re.IGNORECASE | re.DOTALL,
 )
 SEARCH_TAG_RE = re.compile(
@@ -933,21 +938,15 @@ class MultiVendorClient:
         step2 = UNCLOSED_THINK_RE.sub("", step1)
         step3 = TITLE_STRIP_RE.sub("", step2)
         step4 = UNCLOSED_TITLE_RE.sub("", step3)
-        cleaned = SEARCH_TAG_RE.sub("", step4).strip()
-
-        def _fmt_write(m: re.Match) -> str:
-            f_name = m.group(1) or ""
-            body = (m.group(2) or "").rstrip()
-            return f"📄 **`{f_name}`**\n```\n{body}\n```"
-
-        formatted = WRITE_TAG_RE.sub(_fmt_write, cleaned)
-
-        def _fmt_replace(m: re.Match) -> str:
-            f_name = m.group(1) or ""
-            body = (m.group(2) or "").strip()
-            return f"📄 **`{f_name}` (Surgical Update)**\n```\n{body}\n```"
-
-        return REPLACE_TAG_RE.sub(_fmt_replace, formatted)
+        cleaned = SEARCH_TAG_RE.sub("", step4)
+        cleaned = REPLACE_TAG_RE.sub("", cleaned)
+        cleaned = WRITE_TAG_RE.sub("", cleaned)
+        cleaned = SR_BLOCK_RE.sub("", cleaned)
+        cleaned = RAW_SR_STREAMING_RE.sub("", cleaned)
+        cleaned = CMD_TAG_RE.sub("", cleaned)
+        cleaned = CMD_STREAMING_RE.sub("", cleaned)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
 
     @staticmethod
     async def fetch_ollama_models(base_url: str) -> List[str]:

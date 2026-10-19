@@ -236,12 +236,58 @@
   }
 
   .titlebar-logo-icon {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent-emerald);
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .titlebar-logo-icon:hover {
+    transform: scale(1.12);
+  }
+  .titlebar-logo-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 4.5px;
+  }
+
+  @keyframes mascotGentleFloat {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-3px) rotate(0.6deg); }
+  }
+  @keyframes mascotCheekGlow {
+    0%, 100% { opacity: 0.65; transform: scale(1); }
+    50% { opacity: 0.95; transform: scale(1.12); }
+  }
+  @keyframes mascotSparkleSpin {
+    0% { transform: rotate(0deg) scale(0.9); opacity: 0.6; }
+    50% { transform: rotate(180deg) scale(1.15); opacity: 1; }
+    100% { transform: rotate(360deg) scale(0.9); opacity: 0.6; }
+  }
+  @keyframes mascotSquishBounce {
+    0% { transform: scale(1, 1); }
+    30% { transform: scale(1.24, 0.76); }
+    55% { transform: scale(0.86, 1.15); }
+    75% { transform: scale(1.06, 0.96); }
+    100% { transform: scale(1, 1); }
+  }
+  .mascot-squish {
+    animation: mascotSquishBounce 0.55s cubic-bezier(0.28, 0.84, 0.42, 1.4);
+  }
+  .mascot-gentle-float {
+    animation: mascotGentleFloat 4s ease-in-out infinite;
+  }
+  .mascot-sparkle {
+    transform-origin: 256px 140px;
+    animation: mascotSparkleSpin 4.5s ease-in-out infinite;
+  }
+  .mascot-blush-glow {
+    animation: mascotCheekGlow 3s ease-in-out infinite;
   }
 
   .titlebar-app-name {
@@ -452,16 +498,46 @@
   }
 
   .brand-logo {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.22), rgba(99, 102, 241, 0.22));
-    border: 1px solid rgba(14, 165, 233, 0.45);
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent-emerald);
-    box-shadow: 0 2px 10px rgba(14, 165, 233, 0.2);
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .brand-logo:hover {
+    transform: scale(1.08);
+  }
+  .brand-logo svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(2, 132, 199, 0.28);
+  }
+
+  .empty-hero-mascot {
+    width: 68px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .empty-hero-mascot:hover {
+    transform: scale(1.08);
+  }
+  .empty-hero-mascot svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 17px;
+    box-shadow: 0 8px 26px rgba(2, 132, 199, 0.25);
   }
 
   .brand-title {
@@ -603,8 +679,9 @@
   }
 
   .session-item {
-    padding: 9px 10px;
-    border-radius: 8px;
+    padding: 6px 10px;
+    min-height: 32px;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -625,40 +702,43 @@
     content: '';
     position: absolute;
     left: 0;
-    top: 8px;
-    bottom: 8px;
+    top: 6px;
+    bottom: 6px;
     width: 3px;
     border-radius: 0 3px 3px 0;
     background: var(--accent-emerald);
   }
 
+  .session-busy-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #38BDF8;
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.9);
+    animation: pulse-dot-glow 1.4s infinite ease-in-out;
+    flex-shrink: 0;
+  }
+
   .session-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
   }
   .session-title {
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.4;
   }
   .session-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 2px;
-    font-size: 11px;
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
+    display: none !important;
   }
   .session-file-badge {
-    padding: 0px 5px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-secondary);
-    font-size: 10.5px;
+    display: none !important;
   }
 
   .session-item-actions {
@@ -1080,19 +1160,21 @@
   }
 
   .msg-assistant {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    padding: 14px 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 2px 0 6px 0;
+    box-shadow: none;
   }
   .msg-assistant-header {
+    display: none;
+  }
+  .msg-assistant-footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-subtle);
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 2px;
   }
   .msg-header-right {
     display: flex;
@@ -2039,7 +2121,90 @@
     right: 0;
     width: 12px;
     height: 12px;
-    cursor: se-resize;
+  /* Search & Replace Diff Inspector Styles */
+  .diff-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    flex: 1;
+    padding-right: 4px;
+  }
+  .diff-file-card {
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--code-bg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .diff-file-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--code-header-bg);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 12.5px;
+  }
+  .diff-file-body {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-x: auto;
+    padding: 6px 0;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+  .diff-chunk-divider {
+    padding: 4px 14px;
+    font-size: 11px;
+    color: #38BDF8;
+    background: rgba(14, 165, 233, 0.08);
+    border-top: 1px dashed var(--border-subtle);
+    border-bottom: 1px dashed var(--border-subtle);
+    font-family: var(--font-mono);
+  }
+  .diff-line {
+    display: flex;
+    align-items: baseline;
+    padding: 2px 14px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .diff-line-prefix {
+    width: 22px;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    font-weight: 700;
+  }
+  .diff-line-content {
+    flex: 1;
+  }
+  .diff-line-del {
+    background: rgba(239, 68, 68, 0.16);
+    color: #F87171;
+    border-left: 3px solid #EF4444;
+  }
+  [data-theme="light"] .diff-line-del {
+    background: rgba(239, 68, 68, 0.1);
+    color: #DC2626;
+    border-left: 3px solid #DC2626;
+  }
+  .diff-line-add {
+    background: rgba(16, 185, 129, 0.16);
+    color: #34D399;
+    border-left: 3px solid #10B981;
+  }
+  [data-theme="light"] .diff-line-add {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    border-left: 3px solid #059669;
+  }
+  .diff-line-ctx {
+    color: var(--text-secondary);
+    border-left: 3px solid transparent;
   }
 </style>
 </head>
@@ -2055,17 +2220,7 @@
 <header class="window-titlebar" id="windowTitlebar">
   <div class="titlebar-drag-area" id="titlebarDragArea">
     <div class="titlebar-brand">
-      <div class="titlebar-logo-icon">
-        <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
-          <rect width="100" height="100" rx="22" fill="#080D1A"/>
-          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
-          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
-          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
-          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
-        </svg>
-      </div>
+      <div class="titlebar-logo-icon" id="titlebarMascot" title="Metis Mascot - click to change mood!"></div>
       <span class="titlebar-app-name">Metis</span>
       <span class="titlebar-sep">/</span>
       <span class="titlebar-session-name" id="titlebarSessionName">Default Chat</span>
@@ -2097,23 +2252,12 @@
   <aside class="sidebar">
     <div class="brand-header">
       <div class="brand-left">
-        <div class="brand-logo">
-          <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
-          <rect width="100" height="100" rx="22" fill="#080D1A"/>
-          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
-          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
-          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
-          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
-        </svg>
-        </div>
+        <div class="brand-logo" id="brandMascot" title="Metis Mascot - click to change mood!"></div>
         <div>
           <div class="brand-title">Metis</div>
           <div class="brand-sub">File-Centric Mini Agent</div>
         </div>
       </div>
-      <span class="version-pill" id="appVersionPill"></span>
     </div>
 
     <div class="sidebar-actions">
@@ -2139,11 +2283,11 @@
         <div style="display:flex;align-items:center;gap:9px;min-width:0;">
           <div id="footerProviderDot" class="provider-dot"></div>
           <div style="min-width:0;">
-            <div id="footerVendorName" style="font-size:12px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Google Gemini</div>
-            <div id="footerModelName" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">gemini-3.8-flash</div>
+            <div id="footerVendorName" style="display:none;"></div>
+            <div id="footerModelName" style="font-size:12px;font-weight:600;color:var(--text-primary);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">(No model specified)</div>
           </div>
         </div>
-        <span style="font-size:11px;color:var(--text-secondary);">Switch ▸</span>
+        <span style="font-size:11px;color:var(--text-secondary);flex-shrink:0;">Switch ▸</span>
       </div>
 
       <button class="btn-settings" onclick="openSettingsModal()">
@@ -2224,7 +2368,7 @@
             <button id="pauseBtn" class="btn-action-icon" style="display:none;" onclick="togglePause()" title="Pause / Resume">
               <span id="pauseBtnIcon">⏸</span>
             </button>
-            <button id="stopBtn" class="btn-action-icon stop" style="display:none;" onclick="hostPost({ action: 'stopLoop' })" title="Stop">
+            <button id="stopBtn" class="btn-action-icon stop" style="display:none;" onclick="stopCurrentLoop()" title="Stop">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect width="24" height="24" rx="3"/></svg>
             </button>
             <button id="sendBtn" class="btn-send-round" onclick="sendPrompt()" title="Send (Enter)">
@@ -2248,9 +2392,10 @@
 <div class="modal-backdrop" id="settingsModal">
   <div class="modal-window">
     <div class="modal-header">
-      <div class="modal-title">
+      <div class="modal-title" style="display:flex;align-items:center;gap:9px;">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
+        <span class="version-pill" id="appVersionPill"></span>
       </div>
       <button class="icon-btn-sm" onclick="closeSettingsModal()">✕</button>
     </div>
@@ -2288,6 +2433,7 @@
         <img id="inspectorImageEl" src="" alt="Preview" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;" />
       </div>
       <textarea id="inspectorCodeBox" class="form-input selectable" readonly style="flex:1;resize:none;line-height:1.55;font-size:12.5px;white-space:pre;overflow:auto;"></textarea>
+      <div id="inspectorDiffContainer" class="diff-container" style="display:none;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="inspectorRevealBtn">Reveal in Explorer</button>
@@ -2309,6 +2455,7 @@
     activeWorkspaceDir: '',
     isBusy: false,
     statusText: 'Ready',
+    busySessions: {},
     configFilePath: '%APPDATA%\\Metis\\config.json'
   };
 
@@ -2319,6 +2466,14 @@
     if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
       window.__TAURI__.core.invoke('host_post', { payload: JSON.stringify(payload) }).catch(console.error);
     }
+  }
+
+  function switchToSession(sessionId) {
+    if (!sessionId || sessionId === appState.activeSessionId) return;
+    appState.activeSessionId = sessionId;
+    appState.isBusy = !!(appState.busySessions && appState.busySessions[sessionId]);
+    appState.statusText = (appState.busySessions && appState.busySessions[sessionId]) || 'Ready';
+    renderAll();
   }
 
   // Receive state updates from Tauri Host
@@ -2338,7 +2493,194 @@
     }
   }
 
+  /* ----------------------------------------------------
+     Metis Dynamic Kawaii Mascot Engine
+     - Mascot: Cartoon Cloud Cat M (Metis Blue Theme)
+     - Expressions: Happy, Wink, Love, Focused, Sleepy, Shocked
+     - Dynamic Periodic Mood Switch + Click Interaction
+  ---------------------------------------------------- */
+  const MASCOT_MOODS = ['happy', 'wink', 'love', 'focused', 'sleepy', 'shocked'];
+  let currentMascotMood = 'happy';
+  let mascotMoodTimer = null;
+
+  function getMascotFaceSvg(mood) {
+    const eyesColor = '#0c4a6e';
+    const blushColor = '#fb7185';
+    let eyesHtml = '';
+    let mouthHtml = '';
+
+    if (mood === 'happy') {
+      eyesHtml = `
+        <path d="M 205,258 Q 220,238 235,258" fill="none" stroke="${eyesColor}" stroke-width="6" stroke-linecap="round"/>
+        <path d="M 277,258 Q 292,238 307,258" fill="none" stroke="${eyesColor}" stroke-width="6" stroke-linecap="round"/>
+      `;
+      mouthHtml = `<path d="M 242,284 Q 256,304 270,284" fill="${eyesColor}" stroke="${eyesColor}" stroke-width="3" stroke-linecap="round"/>`;
+    } else if (mood === 'wink') {
+      eyesHtml = `
+        <circle cx="220" cy="252" r="10" fill="${eyesColor}"/>
+        <circle cx="217" cy="249" r="3.5" fill="#ffffff"/>
+        <path d="M 277,255 Q 292,238 307,255" fill="none" stroke="${eyesColor}" stroke-width="6" stroke-linecap="round"/>
+      `;
+      mouthHtml = `<path d="M 244,285 Q 256,296 268,285" fill="none" stroke="${eyesColor}" stroke-width="4.5" stroke-linecap="round"/>`;
+    } else if (mood === 'love') {
+      eyesHtml = `
+        <path d="M 220,238 L 223,248 L 233,250 L 225,257 L 227,267 L 220,261 L 213,267 L 215,257 L 207,250 L 217,248 Z" fill="#f43f5e"/>
+        <path d="M 292,238 L 295,248 L 305,250 L 297,257 L 299,267 L 292,261 L 285,267 L 287,257 L 279,250 L 289,248 Z" fill="#f43f5e"/>
+      `;
+      mouthHtml = `<path d="M 240,282 Q 256,306 272,282 Z" fill="#f43f5e"/>`;
+    } else if (mood === 'focused') {
+      eyesHtml = `
+        <path d="M 206,244 L 226,254 L 206,264" fill="none" stroke="${eyesColor}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 306,244 L 286,254 L 306,264" fill="none" stroke="${eyesColor}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      `;
+      mouthHtml = `<path d="M 246,288 Q 256,280 266,288" fill="none" stroke="${eyesColor}" stroke-width="4.5" stroke-linecap="round"/>`;
+    } else if (mood === 'sleepy') {
+      eyesHtml = `
+        <path d="M 205,248 Q 220,266 235,248" fill="none" stroke="${eyesColor}" stroke-width="6" stroke-linecap="round"/>
+        <path d="M 277,248 Q 292,266 307,248" fill="none" stroke="${eyesColor}" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="325" cy="230" r="6" fill="none" stroke="#38bdf8" stroke-width="2.5" opacity="0.8"/>
+        <circle cx="338" cy="216" r="9" fill="none" stroke="#38bdf8" stroke-width="2.5" opacity="0.8"/>
+      `;
+      mouthHtml = `<circle cx="256" cy="286" r="3.5" fill="${eyesColor}"/>`;
+    } else { // shocked
+      eyesHtml = `
+        <circle cx="220" cy="252" r="14" fill="${eyesColor}"/>
+        <circle cx="216" cy="248" r="5" fill="#ffffff"/>
+        <circle cx="292" cy="252" r="14" fill="${eyesColor}"/>
+        <circle cx="288" cy="248" r="5" fill="#ffffff"/>
+      `;
+      mouthHtml = `<ellipse cx="256" cy="292" rx="7" ry="11" fill="${eyesColor}"/>`;
+    }
+
+    const blushHtml = `
+      <g class="mascot-blush-glow">
+        <ellipse cx="196" cy="272" rx="14" ry="8" fill="${blushColor}" opacity="0.75" />
+        <ellipse cx="316" cy="272" rx="14" ry="8" fill="${blushColor}" opacity="0.75" />
+      </g>
+    `;
+
+    return `
+      <g class="mascot-face-group">
+        ${eyesHtml}
+        ${mouthHtml}
+        ${blushHtml}
+      </g>
+    `;
+  }
+
+  function renderMascotSvg(mood = 'happy', size = 32, prefix = 'm') {
+    const p = prefix;
+    const faceHtml = getMascotFaceSvg(mood);
+    return `<svg class="metis-mascot-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+    <defs>
+      <linearGradient id="${p}-bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#7dd3fc"/>
+        <stop offset="50%" stop-color="#0284c7"/>
+        <stop offset="100%" stop-color="#0369a1"/>
+      </linearGradient>
+
+      <radialGradient id="${p}-bgGrad" cx="50%" cy="35%" r="80%">
+        <stop offset="0%" stop-color="#111827"/>
+        <stop offset="60%" stop-color="#080c16"/>
+        <stop offset="100%" stop-color="#03050a"/>
+      </radialGradient>
+
+      <filter id="${p}-shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="rgba(56, 189, 248, 0.45)"/>
+        <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="rgba(0,0,0,0.35)"/>
+      </filter>
+    </defs>
+
+    <rect width="512" height="512" rx="128" fill="url(#${p}-bgGrad)" stroke="#1e293b" stroke-width="2.5"/>
+    <rect x="3" y="3" width="506" height="506" rx="125" fill="none" stroke="#38bdf8" stroke-width="1.5" opacity="0.25"/>
+
+    <g class="mascot-sparkle" opacity="0.9">
+      <path d="M 88,140 Q 98,140 98,130 Q 98,140 108,140 Q 98,140 98,150 Q 98,140 88,140 Z" fill="#38bdf8" />
+      <path d="M 405,115 Q 417,115 417,103 Q 417,115 429,115 Q 417,115 405,115 Z" fill="#38bdf8" />
+      <circle cx="430" cy="155" r="4" fill="#ffffff" opacity="0.8"/>
+      <circle cx="80" cy="180" r="3" fill="#ffffff" opacity="0.8"/>
+    </g>
+
+    <g class="mascot-gentle-float">
+      <path d="
+        M 125,360 
+        C 105,320 100,210 135,160 
+        L 175,115 
+        C 195,145 220,200 256,225 
+        C 292,200 317,145 337,115 
+        L 377,160 
+        C 412,210 407,320 387,360 
+        C 355,400 305,370 256,370 
+        C 207,370 157,400 125,360 Z
+      " fill="url(#${p}-bodyGrad)" filter="url(#${p}-shadow)"/>
+
+      <polygon points="148,168 174,136 182,174" fill="#fb7185" opacity="0.65"/>
+      <polygon points="364,168 338,136 330,174" fill="#fb7185" opacity="0.65"/>
+
+      <path d="M 190,340 C 200,300 220,285 256,285 C 292,285 312,300 322,340 C 285,360 227,360 190,340 Z" fill="#f0f9ff" opacity="0.95"/>
+
+      <ellipse cx="170" cy="365" rx="14" ry="10" fill="#ffffff" opacity="0.9"/>
+      <ellipse cx="342" cy="365" rx="14" ry="10" fill="#ffffff" opacity="0.9"/>
+
+      <g class="mascot-face-container">
+        ${faceHtml}
+      </g>
+    </g>
+  </svg>`;
+  }
+
+  function setMascotMood(mood, animate = true) {
+    if (!MASCOT_MOODS.includes(mood)) mood = 'happy';
+    currentMascotMood = mood;
+
+    const targets = [
+      { el: document.getElementById('titlebarMascot') || document.querySelector('.titlebar-logo-icon'), size: 18, prefix: 'tb' },
+      { el: document.getElementById('brandMascot') || document.querySelector('.brand-logo'), size: 32, prefix: 'brand' },
+      { el: document.getElementById('emptyHeroMascot') || document.querySelector('.empty-hero-mascot'), size: 68, prefix: 'hero' }
+    ];
+
+    const moodName = mood.charAt(0).toUpperCase() + mood.slice(1);
+    targets.forEach(({ el, size, prefix }) => {
+      if (!el) return;
+      el.innerHTML = renderMascotSvg(mood, size, prefix);
+      el.title = `Metis Mascot (${moodName}) - click to change mood!`;
+      if (animate) {
+        el.classList.remove('mascot-squish');
+        void el.offsetWidth;
+        el.classList.add('mascot-squish');
+      }
+    });
+  }
+
+  function triggerRandomMascotMood() {
+    const otherMoods = MASCOT_MOODS.filter(m => m !== currentMascotMood);
+    const nextMood = otherMoods[Math.floor(Math.random() * otherMoods.length)];
+    setMascotMood(nextMood, true);
+    resetMascotMoodTimer();
+  }
+
+  function resetMascotMoodTimer() {
+    if (mascotMoodTimer) clearTimeout(mascotMoodTimer);
+    const delay = Math.floor(Math.random() * 6000) + 12000; // 12s - 18s
+    mascotMoodTimer = setTimeout(() => {
+      triggerRandomMascotMood();
+    }, delay);
+  }
+
+  function initMetisMascot() {
+    setMascotMood('happy', false);
+    resetMascotMoodTimer();
+
+    document.addEventListener('click', (e) => {
+      const mascot = e.target && e.target.closest ? e.target.closest('#titlebarMascot, #brandMascot, .empty-hero-mascot') : null;
+      if (mascot) {
+        triggerRandomMascotMood();
+      }
+    });
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
+    initMetisMascot();
     if (window.__METIS_VERSION__) {
       updateAppVersionUI(window.__METIS_VERSION__);
     } else if (window.__TAURI__ && window.__TAURI__.app && window.__TAURI__.app.getVersion) {
@@ -2367,8 +2709,17 @@
       appState.sessions = msg.sessions || [];
       appState.activeSessionId = msg.activeSessionId;
       appState.activeWorkspaceDir = msg.activeWorkspaceDir || '';
-      appState.isBusy = !!msg.isBusy;
-      appState.statusText = msg.statusText || 'Ready';
+
+      if (msg.busySessionIds && Array.isArray(msg.busySessionIds)) {
+        if (!appState.busySessions) appState.busySessions = {};
+        const newBusy = {};
+        msg.busySessionIds.forEach(id => {
+          newBusy[id] = (appState.busySessions && appState.busySessions[id]) || (id === msg.activeSessionId ? msg.statusText : 'Running...');
+        });
+        appState.busySessions = newBusy;
+      }
+      appState.isBusy = !!(appState.busySessions && appState.busySessions[appState.activeSessionId]);
+      appState.statusText = (appState.busySessions && appState.busySessions[appState.activeSessionId]) || (msg.activeSessionId === appState.activeSessionId ? msg.statusText : 'Ready');
       if (msg.configFilePath) appState.configFilePath = msg.configFilePath;
 
       if (!editingVendorId && appState.config) {
@@ -2392,24 +2743,37 @@
     } else if (msg.type === 'windowState') {
       updateWindowStateUI(!!msg.isMaximized);
     } else if (msg.type === 'busyStatus') {
-      appState.isBusy = !!msg.isBusy;
-      appState.statusText = msg.statusText || '';
-      renderBusyBar();
+      const sid = msg.sessionId || appState.activeSessionId;
+      if (!appState.busySessions) appState.busySessions = {};
+      if (msg.isBusy) {
+        appState.busySessions[sid] = msg.statusText || 'Running...';
+      } else {
+        delete appState.busySessions[sid];
+      }
+      if (sid === appState.activeSessionId) {
+        appState.isBusy = !!msg.isBusy;
+        appState.statusText = msg.statusText || 'Ready';
+        renderBusyBar();
+      }
+      renderSessionList();
     } else if (msg.type === 'streamUpdate') {
-      const sess = getActiveSession();
-      if (sess && sess.UiEvents) {
-        const ev = sess.UiEvents.find(x => x.Id === msg.eventId);
+      const sid = msg.sessionId || appState.activeSessionId;
+      const targetSess = (appState.sessions || []).find(x => x.Id === sid);
+      if (targetSess && targetSess.UiEvents) {
+        const ev = targetSess.UiEvents.find(x => x.Id === msg.eventId);
         if (ev) {
           ev.Content = msg.content || '';
         }
       }
-      const domEl = document.getElementById('ev-body-' + msg.eventId);
-      if (domEl) {
-        domEl.innerHTML = formatSimpleMarkdown(msg.content || '');
-        const container = document.getElementById('chatStreamContainer');
-        if (container) container.scrollTop = container.scrollHeight;
-      } else {
-        renderChatStream();
+      if (sid === appState.activeSessionId) {
+        const domEl = document.getElementById('ev-body-' + msg.eventId);
+        if (domEl) {
+          domEl.innerHTML = formatSimpleMarkdown(msg.content || '');
+          const container = document.getElementById('chatStreamContainer');
+          if (container) container.scrollTop = container.scrollHeight;
+        } else {
+          renderChatStream();
+        }
       }
     } else if (msg.type === 'fileContentPreview') {
       openInspectorWithData(msg);
@@ -2417,12 +2781,13 @@
       showToast(msg.text);
     } else if (msg.type === 'ollamaModels') {
       if (appState.config) {
-        const v = appState.config.Vendors.find(x => x.Id === 'ollama');
+        const v = appState.config.Vendors.find(x => x.Id === editingVendorId || x.Id === 'openai_compatible' || x.Id === 'ollama');
         if (v && msg.models && msg.models.length > 0) {
           v.PresetModels = msg.models.slice(0, 4);
           v.SelectedModel = msg.models[0];
           saveSettingsSilent();
           renderSettingsPane();
+          renderSidebarFooter();
         }
       }
       if (msg.toast) showToast(msg.toast);
@@ -2453,11 +2818,15 @@
   function renderSidebarFooter() {
     const v = getActiveVendor();
     if (!v) return;
-    document.getElementById('footerVendorName').textContent = v.DisplayName;
-    document.getElementById('footerModelName').textContent = v.SelectedModel || '(No model specified)';
+    const vendorEl = document.getElementById('footerVendorName');
+    if (vendorEl) vendorEl.textContent = v.DisplayName;
+    const modelEl = document.getElementById('footerModelName');
+    if (modelEl) modelEl.textContent = v.SelectedModel || '(No model selected)';
     const dot = document.getElementById('footerProviderDot');
-    const hasKeyOrFree = (v.Type === 4 || v.Type === 6 || (v.ApiKey && v.ApiKey.trim().length > 0));
-    dot.className = hasKeyOrFree ? 'provider-dot' : 'provider-dot warn';
+    if (dot) {
+      const hasKeyOrFree = (v.Type === 4 || v.Type === 6 || (v.ApiKey && v.ApiKey.trim().length > 0) || (v.BaseUrl && v.BaseUrl.includes('11434')));
+      dot.className = hasKeyOrFree ? 'provider-dot' : 'provider-dot warn';
+    }
   }
 
   function renderSessionList() {
@@ -2486,28 +2855,21 @@
     }
 
     list.forEach(s => {
+      const isGenerating = !!(appState.busySessions && appState.busySessions[s.Id]);
       const div = document.createElement('div');
       div.className = 'session-item' + (s.Id === appState.activeSessionId ? ' active' : '');
       div.onclick = () => {
         if (s.Id !== appState.activeSessionId) {
+          switchToSession(s.Id);
           hostPost({ action: 'selectSession', sessionId: s.Id });
         }
       };
 
-      const dirCount = (s.AllowedDirectories || []).length;
-      const fileCount = (s.Whitelist || []).length;
-      const msgCount = (s.UiEvents || []).length;
-      const badgeLabel = dirCount > 0 ? `${dirCount} folders · ${fileCount} files` : `${fileCount} files`;
-
       div.innerHTML = `
         <div class="session-info">
           <div class="session-title">${escapeHtml(s.Title || 'Untitled Chat')}</div>
-          <div class="session-meta">
-            <span class="session-file-badge">${badgeLabel}</span>
-            <span>·</span>
-            <span>${msgCount} messages</span>
-          </div>
         </div>
+        ${isGenerating ? '<span class="session-busy-dot" title="Generating response..."></span>' : ''}
         <div class="session-item-actions" onclick="event.stopPropagation()">
           <button class="icon-btn-sm" title="Rename" onclick="renameSession('${s.Id}')">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -2645,16 +3007,8 @@
       previouslyRenderedEventIds.clear();
       container.innerHTML = `
         <div class="empty-hero" style="margin: 100px auto 20px auto; text-align: center; display: flex; flex-direction: column; align-items: center;">
-          <div style="margin-bottom: 14px;">
-            <svg width="56" height="56" viewBox="0 0 100 100" fill="none">
-          <rect width="100" height="100" rx="22" fill="#080D1A"/>
-          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
-          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
-          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
-          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
-        </svg>
+          <div class="empty-hero-mascot" id="emptyHeroMascot" style="margin-bottom: 14px;" title="Metis Mascot - click to change mood!">
+            ${renderMascotSvg(currentMascotMood, 68, 'hero')}
           </div>
           <div style="font-size: 22px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: 6px;">Metis</div>
           <p style="color: var(--text-muted); font-size: 13px; margin: 0;">How can I help you today?</p>
@@ -2718,45 +3072,32 @@
       `;
     }
     if (ev.Type === 'assistant') {
+      const formatted = formatSimpleMarkdown(ev.Content || '');
+      if (!formatted) return '';
       return `
         <div class="msg-row assistant-row" id="msg-row-${evId}">
           <div class="msg-assistant">
-            <div class="msg-assistant-header">
-              <div class="assistant-badge">
-                <svg width="15" height="15" viewBox="0 0 100 100" fill="none">
-          <rect width="100" height="100" rx="22" fill="#080D1A"/>
-          <rect x="0.75" y="0.75" width="98.5" height="98.5" rx="21.25" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="1.5"/>
-          <circle cx="50" cy="49" r="36" fill="#0284C7" fill-opacity="0.25"/>
-          <path d="M 16 44 C 13 31, 22 19, 33 20 C 40 21, 42 27, 39 36 L 27 68 C 25 74, 29 76, 34 72" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M 28 72 C 34 50, 43 32, 51 20 C 55 15, 59 18, 57 25 L 47 57 C 51 47, 61 32, 71 20 C 76 15, 79 18, 77 26 L 66 67 C 65 73, 70 75, 77 71 C 82 68, 86 63, 89 57" stroke="#38BDF8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="16" cy="44" r="3.2" fill="#38BDF8"/>
-          <circle cx="89" cy="57" r="2.4" fill="#7DD3FC"/>
-        </svg>
-                <span>Metis · ${escapeHtml(ev.VendorName || '')}</span>
-              </div>
-              <div class="msg-header-right">
-                <button class="btn-msg-copy" title="Copy response" onclick="copyEventRawContent(this, '${evId}')">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  <span>Copy</span>
-                </button>
-                <span class="round-pill">${escapeHtml(ev.Timestamp || '')}</span>
-              </div>
+            <div class="msg-body ${isNew ? 'text-mist-emerge' : ''}" ${animStyle} id="ev-body-${evId}">${formatted}</div>
+            <div class="msg-assistant-footer">
+              <button class="btn-msg-copy" title="Copy response" onclick="copyEventRawContent(this, '${evId}')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copy</span>
+              </button>
+              ${ev.Timestamp ? `<span style="font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums;">${escapeHtml(ev.Timestamp)}</span>` : ''}
             </div>
-            <div class="msg-body ${isNew ? 'text-mist-emerge' : ''}" ${animStyle} id="ev-body-${evId}">${formatSimpleMarkdown(ev.Content || '')}</div>
           </div>
         </div>
       `;
     }
     if (ev.Type === 'file_edit') {
-      const safePath = escapeJsStr(ev.FilePath || '');
       return `
         <div class="msg-row" id="msg-row-${evId}">
           <div class="event-file-edit">
             <div class="event-file-left">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
-              <span class="${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>${escapeHtml(ev.Content)}</span>
+              <span class="${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>${escapeHtml(ev.Content || 'Modified files')}</span>
             </div>
-            <button class="btn-secondary emerald" style="padding:3px 9px;font-size:11.5px;" onclick="hostPost({ action: 'inspectFile', path: '${safePath}' })">Inspect Code</button>
+            <button class="btn-secondary emerald" style="padding:3px 9px;font-size:11.5px;" onclick="openDiffInspector('${evId}')">Inspect Code</button>
           </div>
         </div>
       `;
@@ -2854,17 +3195,35 @@
     }
   }
 
+  function stopCurrentLoop() {
+    const sid = appState.activeSessionId;
+    if (appState.busySessions) {
+      delete appState.busySessions[sid];
+    }
+    appState.isBusy = false;
+    appState.statusText = 'Ready';
+    renderBusyBar();
+    renderSessionList();
+    hostPost({ action: 'stopLoop', sessionId: sid });
+  }
+
   function togglePause() {
     const isPaused = ((appState.statusText || '').toLowerCase().includes('paused'));
+    const sid = appState.activeSessionId;
     if (isPaused) {
-      hostPost({ action: 'resumeLoop' });
+      hostPost({ action: 'resumeLoop', sessionId: sid });
     } else {
-      hostPost({ action: 'pauseLoop' });
+      hostPost({ action: 'pauseLoop', sessionId: sid });
     }
+  }
+
+  function isSessionGenerating(sessionId) {
+    return !!(appState.busySessions && appState.busySessions[sessionId]);
   }
 
   function isSessionEmpty(s) {
     if (!s) return true;
+    if (isSessionGenerating(s.Id)) return false;
     const msgCount = (s.UiEvents || []).length;
     const historyCount = (s.ApiHistory || []).length;
     return msgCount === 0 && historyCount === 0;
@@ -2879,6 +3238,7 @@
     }
     const existingEmpty = (appState.sessions || []).find(s => isSessionEmpty(s));
     if (existingEmpty) {
+      switchToSession(existingEmpty.Id);
       hostPost({ action: 'selectSession', sessionId: existingEmpty.Id });
       showToast('Switched to empty chat.');
       return;
@@ -2901,6 +3261,9 @@
   }
 
   function deleteSession(sessionId) {
+    if (appState.busySessions) {
+      delete appState.busySessions[sessionId];
+    }
     hostPost({ action: 'deleteSession', sessionId: sessionId });
   }
 
@@ -2945,8 +3308,15 @@
     const input = document.getElementById('promptInput');
     const text = (input.value || '').trim();
     if (!text) return;
+    const activeId = appState.activeSessionId;
     input.value = '';
-    hostPost({ action: 'sendPrompt', prompt: text });
+    if (!appState.busySessions) appState.busySessions = {};
+    appState.busySessions[activeId] = 'Thinking...';
+    appState.isBusy = true;
+    appState.statusText = 'Thinking...';
+    renderBusyBar();
+    renderSessionList();
+    hostPost({ action: 'sendPrompt', prompt: text, sessionId: activeId });
   }
 
   // Thinking Intensity Slider Logic
@@ -3218,11 +3588,14 @@
       return `<span class="preset-chip${act}" onclick="pickPresetModel('${escapeJsStr(m)}')">${escapeHtml(m)}</span>`;
     }).join('');
 
+    const isOpenAICompat = (v.Id === 'openai_compatible' || v.Type === 1 || v.Type === 3 || v.Type === 4 || v.Type === 5);
+    const isLocalCapable = isOpenAICompat && (v.BaseUrl && (v.BaseUrl.includes('11434') || v.BaseUrl.includes('localhost') || v.BaseUrl.includes('127.0.0.1')));
+
     pane.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">
         <div>
           <div style="font-size:15px;font-weight:700;color:var(--text-primary);">${escapeHtml(v.DisplayName)}</div>
-          <div style="font-size:12px;color:var(--text-secondary);">Configure API Key, Endpoint, and model</div>
+          <div style="font-size:12px;color:var(--text-secondary);">${isOpenAICompat ? 'Compatible with OpenAI, DeepSeek, Ollama, vLLM, and any OpenAI API endpoint' : 'Configure API Key, endpoint, and model'}</div>
         </div>
         <button class="btn-secondary ${isActive ? 'emerald' : ''}" onclick="setAsActiveVendor('${v.Id}')">
           ${isActive ? '✓ Active Provider' : 'Set as Active Provider'}
@@ -3240,7 +3613,7 @@
           type="${showApiKeyPlain ? 'text' : 'password'}"
           id="settingApiKeyInput"
           class="form-input selectable"
-          placeholder="${v.Type === 4 ? 'Ollama local models do not require an API key' : 'Enter API Key'}"
+          placeholder="${isOpenAICompat ? 'Enter API Key (Optional for local Ollama / vLLM)' : 'Enter API Key'}"
           value="${escapeHtml(v.ApiKey || '')}"
           oninput="syncCurrentInputs(); renderSettingsRail(); triggerAutoSave();"
           onchange="saveSettingsSilent();"
@@ -3256,6 +3629,7 @@
           type="text"
           id="settingBaseUrlInput"
           class="form-input selectable"
+          placeholder="${isOpenAICompat ? 'e.g. https://api.openai.com/v1 or https://api.deepseek.com/v1' : 'https://...'}"
           value="${escapeHtml(v.BaseUrl || '')}"
           oninput="syncCurrentInputs(); triggerAutoSave();"
           onchange="saveSettingsSilent();"
@@ -3266,13 +3640,13 @@
       <div class="form-group">
         <div class="form-label">
           <span>Model Name</span>
-          ${v.Type === 4 ? '<button class="btn-secondary emerald" style="padding:2px 8px;font-size:11px;" onclick="hostPost({ action: \'probeOllama\', baseUrl: document.getElementById(\'settingBaseUrlInput\').value })">Probe Local Ollama Models</button>' : ''}
+          ${isLocalCapable ? '<button class="btn-secondary emerald" style="padding:2px 8px;font-size:11px;" onclick="hostPost({ action: \'probeOllama\', baseUrl: document.getElementById(\'settingBaseUrlInput\').value })">Probe Local Models</button>' : ''}
         </div>
         <input
           type="text"
           id="settingModelInput"
           class="form-input selectable"
-          placeholder="e.g. gpt-4o, claude-3-7-sonnet, gemini-2.5-flash..."
+          placeholder="${isOpenAICompat ? 'e.g. gpt-4o, deepseek-chat, qwen2.5-coder:latest...' : 'e.g. model name...'}"
           value="${escapeHtml(v.SelectedModel || '')}"
           oninput="onModelInputChanged()"
           onchange="onModelInputCommitted()"
@@ -3392,6 +3766,7 @@
     appState.config.ActiveVendorId = id;
     renderSettingsRail();
     renderSettingsPane();
+    renderSidebarFooter();
     saveSettingsSilent();
   }
 
@@ -3404,6 +3779,7 @@
     v.SelectedModel = m;
     ensureVendorModelRemembered(v, m);
     renderSettingsPane();
+    renderSidebarFooter();
     saveSettingsSilent();
   }
 
@@ -3422,6 +3798,7 @@
       ensureVendorModelRemembered(v, val);
       renderSettingsPane();
     }
+    renderSidebarFooter();
     saveSettingsSilent();
   }
 
@@ -3452,25 +3829,150 @@
     const imgContainer = document.getElementById('inspectorImageContainer');
     const imgEl = document.getElementById('inspectorImageEl');
     const codeBox = document.getElementById('inspectorCodeBox');
+    const diffContainer = document.getElementById('inspectorDiffContainer');
     const revertBtn = document.getElementById('inspectorRevertBtn');
+    const revealBtn = document.getElementById('inspectorRevealBtn');
+
+    if (diffContainer) diffContainer.style.display = 'none';
 
     if (isImage && data.dataUrl) {
       imgEl.src = data.dataUrl;
       imgContainer.style.display = 'flex';
+      codeBox.style.display = 'block';
       codeBox.style.flex = '0 0 90px';
     } else {
       imgEl.src = '';
       imgContainer.style.display = 'none';
+      codeBox.style.display = 'block';
       codeBox.style.flex = '1';
     }
 
     codeBox.value = data.content || '';
+    revealBtn.style.display = 'inline-flex';
     revertBtn.style.display = isBinary ? 'none' : 'inline-flex';
-    document.getElementById('inspectorRevealBtn').onclick = () => hostPost({ action: 'revealFile', path: data.fullPath });
+    revealBtn.onclick = () => hostPost({ action: 'revealFile', path: data.fullPath });
     revertBtn.onclick = () => {
       hostPost({ action: 'revertFile', path: data.fullPath });
       closeInspectorModal();
     };
+    document.getElementById('inspectorModal').classList.add('open');
+  }
+
+  function openDiffInspector(eventId) {
+    const sess = getActiveSession();
+    if (!sess || !sess.UiEvents) return;
+    const ev = sess.UiEvents.find(x => (x.Id || '') === eventId);
+    if (!ev) return;
+
+    if (!ev.FileEdits || ev.FileEdits.length === 0) {
+      if (ev.FilePath) {
+        hostPost({ action: 'inspectFile', path: ev.FilePath });
+      }
+      return;
+    }
+
+    const titleEl = document.getElementById('inspectorTitle');
+    const metaEl = document.getElementById('inspectorMeta');
+    const imgContainer = document.getElementById('inspectorImageContainer');
+    const codeBox = document.getElementById('inspectorCodeBox');
+    const diffContainer = document.getElementById('inspectorDiffContainer');
+    const revertBtn = document.getElementById('inspectorRevertBtn');
+    const revealBtn = document.getElementById('inspectorRevealBtn');
+
+    if (imgContainer) imgContainer.style.display = 'none';
+    if (codeBox) codeBox.style.display = 'none';
+    if (diffContainer) diffContainer.style.display = 'flex';
+    if (revertBtn) revertBtn.style.display = 'none';
+
+    // Group edits by file path or name
+    const fileGroups = {};
+    ev.FileEdits.forEach(ed => {
+      const key = ed.filePath || ed.fileName;
+      if (!fileGroups[key]) {
+        fileGroups[key] = {
+          fileName: ed.fileName,
+          filePath: ed.filePath,
+          relativePath: ed.relativePath || ed.fileName,
+          edits: []
+        };
+      }
+      fileGroups[key].edits.push(ed);
+    });
+
+    const groupKeys = Object.keys(fileGroups);
+    const fileCount = groupKeys.length;
+    titleEl.textContent = `Search & Replace Diff — ${ev.Content || (fileCount + ' files modified')}`;
+    metaEl.textContent = `${fileCount} ${fileCount === 1 ? 'file' : 'files'} modified in this turn · Red (-) removed lines, Green (+) added lines`;
+
+    if (groupKeys.length > 0 && fileGroups[groupKeys[0]].filePath) {
+      revealBtn.style.display = 'inline-flex';
+      revealBtn.onclick = () => hostPost({ action: 'revealFile', path: fileGroups[groupKeys[0]].filePath });
+    } else {
+      revealBtn.style.display = 'none';
+    }
+
+    let diffHtml = '';
+    groupKeys.forEach(k => {
+      const g = fileGroups[k];
+      const safePath = escapeJsStr(g.filePath || '');
+      diffHtml += `
+        <div class="diff-file-card">
+          <div class="diff-file-header">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-weight:600;font-family:var(--font-mono);font-size:12.5px;color:var(--text-primary);">📄 ${escapeHtml(g.relativePath)}</span>
+              <span class="round-pill" style="font-size:10.5px;">${g.edits.length} ${g.edits.length === 1 ? 'change' : 'changes'}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="btn-secondary emerald" style="padding:2px 7px;font-size:11px;" onclick="hostPost({ action: 'inspectFile', path: '${safePath}' })">View Full File</button>
+              <button class="icon-btn-sm" title="Reveal in Explorer" onclick="hostPost({ action: 'revealFile', path: '${safePath}' })">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="diff-file-body">
+      `;
+
+      g.edits.forEach((ed, edIdx) => {
+        if (edIdx > 0) {
+          diffHtml += `<div class="diff-chunk-divider">@@ Search / Replace #${edIdx + 1} @@</div>`;
+        }
+
+        const lines = ed.diffLines || [];
+        if (lines.length === 0) {
+          const sLines = (ed.searchBlock || '').split(/\r?\n/);
+          const rLines = (ed.replaceBlock || '').split(/\r?\n/);
+          sLines.forEach(l => {
+            if (l.length > 0) {
+              diffHtml += `<div class="diff-line diff-line-del"><span class="diff-line-prefix">-</span><span class="diff-line-content">${escapeHtml(l)}</span></div>`;
+            }
+          });
+          rLines.forEach(l => {
+            if (l.length > 0) {
+              diffHtml += `<div class="diff-line diff-line-add"><span class="diff-line-prefix">+</span><span class="diff-line-content">${escapeHtml(l)}</span></div>`;
+            }
+          });
+        } else {
+          lines.forEach(item => {
+            const t = item.type;
+            const lineText = item.line || '';
+            if (t === 'del') {
+              diffHtml += `<div class="diff-line diff-line-del"><span class="diff-line-prefix">-</span><span class="diff-line-content">${escapeHtml(lineText)}</span></div>`;
+            } else if (t === 'add') {
+              diffHtml += `<div class="diff-line diff-line-add"><span class="diff-line-prefix">+</span><span class="diff-line-content">${escapeHtml(lineText)}</span></div>`;
+            } else {
+              diffHtml += `<div class="diff-line diff-line-ctx"><span class="diff-line-prefix"> </span><span class="diff-line-content">${escapeHtml(lineText)}</span></div>`;
+            }
+          });
+        }
+      });
+
+      diffHtml += `
+          </div>
+        </div>
+      `;
+    });
+
+    diffContainer.innerHTML = diffHtml;
     document.getElementById('inspectorModal').classList.add('open');
   }
 
@@ -3812,23 +4314,25 @@
       const label = (trimmed && trimmed.startsWith('Thinking')) ? trimmed : 'Thinking...';
       return '<span class="generating-placeholder">' + escapeHtml(label) + '</span>';
     }
-    // Convert any raw <metis_replace> or legacy replace blocks into Markdown code blocks
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_replace\s+file\s*=\s*["']([^"']+)["']\s*>([\s\S]*?)<\/(?:metis|pinpoint|surgical)_replace>/gi, function(_, f, code) {
-      const ext = (f.split('.').pop() || '').toLowerCase();
-      const lang = /^[a-z0-9_-]+$/i.test(ext) ? ext : 'diff';
-      return '\n**Modify file `' + f + '` (Search/Replace):**\n```' + lang + '\n' + code.trim() + '\n```\n';
-    });
-    // Convert any raw <metis_write> or legacy write blocks into Markdown code blocks
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_write\s+file\s*=\s*["']([^"']+)["']\s*>([\s\S]*?)<\/(?:metis|pinpoint|surgical)_write>/gi, function(_, f, code) {
-      const ext = (f.split('.').pop() || '').toLowerCase();
-      const lang = /^[a-z0-9_-]+$/i.test(ext) ? ext : '';
-      return '\n**Write file `' + f + '`:**\n```' + lang + '\n' + code.trim() + '\n```\n';
-    });
+    // Strip any raw <metis_replace> and unclosed <metis_replace> blocks
+    raw = raw.replace(/<(?:metis|pinpoint|surgical)_replace\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)_replace>/gi, '');
+    raw = raw.replace(/<(?:metis|pinpoint|surgical)_replace\b[^>]*>[\s\S]*$/gi, '');
+    // Strip any raw <metis_write> and unclosed <metis_write> blocks
+    raw = raw.replace(/<(?:metis|pinpoint|surgical)_write\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)_write>/gi, '');
+    raw = raw.replace(/<(?:metis|pinpoint|surgical)_write\b[^>]*>[\s\S]*$/gi, '');
+    // Strip raw <<<<< SEARCH ... ===== ... >>>>> REPLACE blocks
+    raw = raw.replace(/<{5,}\s*SEARCH[\s\S]*?={5,}[\s\S]*?>{5,}\s*REPLACE/gi, '');
+    raw = raw.replace(/<{5,}\s*SEARCH\b[\s\S]*$/gi, '');
+    // Strip command tags and streaming command blocks
+    raw = raw.replace(/<(?:metis|pinpoint|surgical)_(?:cmd|terminal|verify)\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)_(?:cmd|terminal|verify)>/gi, '');
+    raw = raw.replace(/<(?:metis|pinpoint|surgical)_(?:cmd|terminal|verify)\b[^>]*>[\s\S]*$/gi, '');
     // Strip search tags
     raw = raw.replace(/<(?:metis|pinpoint|surgical)?_?search\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)?_?search>/gi, '');
     raw = raw.replace(/<\/?(?:metis_cmd|pinpoint_cmd|surgical_cmd|verify_cmd|metis_search|pinpoint_search|surgical_search|search)>/gi, '');
 
-    return renderMarkdownToHtml(raw.trim());
+    const afterStrip = raw.trim();
+    if (!afterStrip) return '';
+    return renderMarkdownToHtml(afterStrip);
   }
 
   function isLikelyInlineMath(expr) {

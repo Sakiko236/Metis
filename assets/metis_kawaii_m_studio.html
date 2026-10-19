@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metis Q-Version Mascot & Icon Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070a12; }
+    ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+    /* Breathing & bounce animations */
+    @keyframes gentleFloat {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-7px) rotate(0.6deg); }
+    }
+    @keyframes cheekGlow {
+      0%, 100% { opacity: 0.65; transform: scale(1); }
+      50% { opacity: 0.95; transform: scale(1.12); }
+    }
+    @keyframes sparkleSpin {
+      0% { transform: rotate(0deg) scale(0.9); opacity: 0.6; }
+      50% { transform: rotate(180deg) scale(1.15); opacity: 1; }
+      100% { transform: rotate(360deg) scale(0.9); opacity: 0.6; }
+    }
+    .animate-gentle-float {
+      animation: gentleFloat 4s ease-in-out infinite;
+    }
+    .animate-sparkle {
+      transform-origin: center;
+      animation: sparkleSpin 4.5s ease-in-out infinite;
+    }
+
+    /* Jelly squish bounce on click */
+    .squish-effect {
+      animation: squishBounce 0.55s cubic-bezier(0.28, 0.84, 0.42, 1.4);
+    }
+    @keyframes squishBounce {
+      0% { transform: scale(1, 1); }
+      30% { transform: scale(1.22, 0.78); }
+      55% { transform: scale(0.88, 1.14); }
+      75% { transform: scale(1.06, 0.96); }
+      100% { transform: scale(1, 1); }
+    }
+  </style>
+</head>
+<body class="bg-[#050811] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-400 selection:text-black">
+
+  <!-- Top navigation -->
+  <header class="border-b border-slate-800/80 bg-[#080d1a]/90 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-8 py-3.5 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-sky-500 to-indigo-500 p-[1.5px] shadow-lg shadow-cyan-500/25">
+        <div class="w-full h-full bg-[#070b16] rounded-[14px] flex items-center justify-center font-black text-cyan-400 text-lg">
+          🐾
+        </div>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-bold tracking-tight text-white">Metis Kawaii M Mascot Studio</h1>
+          <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold">Q-Chibi v2.0</span>
+        </div>
+        <p class="text-xs text-slate-400 hidden sm:block">Minimal healing-style chibi "M" mascot & app icon generator engine</p>
+      </div>
+    </div>
+
+    <!-- Top action buttons -->
+    <div class="flex items-center gap-2">
+      <button id="copySvgBtn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition active:scale-95 shadow-sm">
+        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+        <span>Copy Code</span>
+      </button>
+      <button id="exportSvgBtn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition active:scale-95 shadow-sm">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        <span>SVG Vector</span>
+      </button>
+      <button id="exportPngBtn" class="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 shadow-md shadow-cyan-500/20 transition active:scale-95">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-slate-950"></i>
+        <span>Export 1024px Chibi Icon</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- Left: live stage + mockups + SVG code viewer (7 cols) -->
+    <div class="lg:col-span-7 flex flex-col gap-5">
+      
+      <!-- Main stage -->
+      <div class="relative bg-gradient-to-b from-[#0e1628]/80 via-[#0a0f1d] to-[#060913] border border-slate-800/80 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center min-h-[490px] shadow-2xl overflow-hidden group select-none">
+        
+        <!-- Background glow decorations -->
+        <div id="ambientBackdrop1" class="absolute -top-24 -left-24 w-80 h-80 bg-cyan-500/15 rounded-full blur-[90px] pointer-events-none transition-all duration-700"></div>
+        <div id="ambientBackdrop2" class="absolute -bottom-24 -right-24 w-80 h-80 bg-blue-600/15 rounded-full blur-[90px] pointer-events-none transition-all duration-700"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:22px_22px] opacity-30 pointer-events-none"></div>
+
+        <!-- Top hint bar & squish hint -->
+        <div class="w-full flex items-center justify-between mb-3 z-10 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="font-mono text-slate-300" id="currentStyleLabel">Cloud Cat M</span>
+          </div>
+          <span class="text-[11px] text-cyan-400 bg-cyan-950/70 border border-cyan-800/60 px-2.5 py-0.5 rounded-full font-medium">
+            💡 Click the mascot to squish!
+          </span>
+        </div>
+
+        <!-- Core logo render viewport (with jelly squish bounce) -->
+        <div id="interactiveLogoStage" class="relative z-10 cursor-pointer p-4 transition-transform duration-200">
+          <div id="svgContainer" class="w-[280px] h-[280px] sm:w-[330px] sm:h-[330px] flex items-center justify-center drop-shadow-[0_25px_45px_rgba(0,0,0,0.65)]">
+            <!-- Dynamically generated SVG icon is injected here -->
+          </div>
+        </div>
+
+        <!-- Interactive status hint -->
+        <div class="mt-4 z-10 flex items-center gap-3 text-[11px] font-mono text-slate-400 bg-slate-900/80 px-3.5 py-1.5 rounded-full border border-slate-800 backdrop-blur">
+          <span id="mascotMoodBadge" class="text-cyan-300 font-semibold flex items-center gap-1.5">
+            <i data-lucide="smile" class="w-3.5 h-3.5"></i> Happy (^v^)
+          </span>
+          <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+          <span>SQUIRCLE R: <span id="radiusBadge">128px</span></span>
+          <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+          <span class="text-emerald-400 font-medium">AUDIO ON</span>
+        </div>
+      </div>
+
+      <!-- Mockup previews (multi-size comparison) -->
+      <div class="bg-[#090d18] border border-slate-800/80 rounded-2xl p-5">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3.5 flex items-center gap-2">
+          <i data-lucide="layout" class="w-3.5 h-3.5 text-cyan-400"></i>
+          Mockup Previews
+        </h3>
+        
+        <div class="grid grid-cols-4 gap-3">
+          <!-- iOS home screen -->
+          <div class="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/90 flex flex-col items-center gap-2">
+            <div class="w-12 h-12 rounded-[14px] overflow-hidden shadow-lg border border-white/10 ios-mini-preview"></div>
+            <span class="text-[10px] text-slate-400 font-medium">iOS Home</span>
+          </div>
+
+          <!-- macOS Dock -->
+          <div class="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/90 flex flex-col items-center gap-2">
+            <div class="w-12 h-12 rounded-2xl overflow-hidden shadow-lg border border-white/10 dock-mini-preview"></div>
+            <span class="text-[10px] text-slate-400 font-medium">macOS Dock</span>
+          </div>
+
+          <!-- Light sticker effect -->
+          <div class="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/90 flex flex-col items-center gap-2">
+            <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center p-1 shadow-inner">
+              <div class="w-full h-full rounded-lg overflow-hidden light-mini-preview"></div>
+            </div>
+            <span class="text-[10px] text-slate-400 font-medium">Light Sticker</span>
+          </div>
+
+          <!-- Tiny favicon -->
+          <div class="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/90 flex flex-col items-center gap-2">
+            <div class="w-12 h-12 rounded-xl bg-[#03060f] flex items-center justify-center">
+              <div class="w-5 h-5 rounded overflow-hidden favicon-mini-preview"></div>
+            </div>
+            <span class="text-[10px] text-slate-400 font-medium">Favicon 16px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SVG source viewer -->
+      <div class="bg-[#090d18] border border-slate-800/80 rounded-2xl p-5 overflow-hidden">
+        <div class="flex items-center justify-between mb-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <i data-lucide="code" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Live Clean SVG Vector Code
+          </span>
+          <button id="copyInlineCodeBtn" class="text-xs text-cyan-400 hover:text-cyan-300 transition">Copy All Code</button>
+        </div>
+        <pre id="svgCodeViewer" class="text-[11px] leading-relaxed text-slate-300 bg-[#05070e] p-3.5 rounded-xl border border-slate-800/90 max-h-44 overflow-y-auto select-all whitespace-pre-wrap break-all"></pre>
+      </div>
+
+    </div>
+
+    <!-- Right: control panel & parameters (5 cols) -->
+    <div class="lg:col-span-5 flex flex-col gap-5">
+      
+      <!-- Design style selector -->
+      <div class="bg-[#090d18] border border-slate-800/80 rounded-2xl p-5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between mb-3.5">
+          <span class="flex items-center gap-2">
+            <i data-lucide="wand-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Design Styles
+          </span>
+          <span class="text-[11px] text-cyan-400 font-medium" id="styleBadge">Cloud Cat</span>
+        </label>
+
+        <div class="grid grid-cols-1 gap-2.5">
+          <!-- Cloud Cat M -->
+          <button data-style="cat" class="style-btn active-style p-3 rounded-2xl border border-cyan-500 bg-cyan-950/20 text-left transition flex flex-col gap-1 relative overflow-hidden group">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white group-hover:text-cyan-300">Cloud Cat M</span>
+              <span class="w-2 h-2 rounded-full bg-cyan-400 indicator"></span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">Double peaks become lively cat-ear outlines, paired with a floating tech halo and soft pink paw-pad feel.</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive expression selector -->
+      <div class="bg-[#090d18] border border-slate-800/80 rounded-2xl p-5">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between mb-3">
+          <span class="flex items-center gap-2">
+            <i data-lucide="smile" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Live Expressions
+          </span>
+          <span class="text-[10px] text-slate-500">Instant response on click</span>
+        </label>
+        
+        <div class="grid grid-cols-3 gap-2">
+          <button data-mood="happy" class="mood-btn active-mood p-2 rounded-xl border border-cyan-500 bg-cyan-950/30 text-center transition flex flex-col items-center gap-1">
+            <span class="text-sm">^ ‿ ^</span>
+            <span class="text-[10px] text-slate-300 font-medium">Happy</span>
+          </button>
+
+          <button data-mood="wink" class="mood-btn p-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition flex flex-col items-center gap-1">
+            <span class="text-sm">; ‿ ~</span>
+            <span class="text-[10px] text-slate-300 font-medium">Wink</span>
+          </button>
+
+          <button data-mood="love" class="mood-btn p-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition flex flex-col items-center gap-1">
+            <span class="text-sm">★ ‿ ★</span>
+            <span class="text-[10px] text-slate-300 font-medium">Adore</span>
+          </button>
+
+          <button data-mood="focused" class="mood-btn p-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition flex flex-col items-center gap-1">
+            <span class="text-sm">> ‿ <</span>
+            <span class="text-[10px] text-slate-300 font-medium">Focus/Silly</span>
+          </button>
+
+          <button data-mood="sleepy" class="mood-btn p-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition flex flex-col items-center gap-1">
+            <span class="text-sm">u ‿ u</span>
+            <span class="text-[10px] text-slate-300 font-medium">Sleepy</span>
+          </button>
+
+          <button data-mood="shocked" class="mood-btn p-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition flex flex-col items-center gap-1">
+            <span class="text-sm">⊙ ｏ ⊙</span>
+            <span class="text-[10px] text-slate-300 font-medium">Shocked</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Color palettes -->
+      <div class="bg-[#090d18] border border-slate-800/80 rounded-2xl p-5 flex flex-col gap-4">
+        <div>
+          <label class="text-[11px] font-semibold text-slate-400 mb-2 block">Cute Palettes</label>
+          <div class="grid grid-cols-5 gap-1.5">
+            <button data-palette="metis" class="palette-btn active-palette px-1.5 py-2 rounded-xl border border-cyan-400 bg-cyan-950/30 text-center transition">
+              <div class="w-4 h-4 mx-auto rounded-full bg-gradient-to-r from-[#22d3ee] to-[#0284c7] mb-1"></div>
+              <span class="text-[9px] text-slate-200 block truncate">Metis Blue</span>
+            </button>
+            <button data-palette="sakura" class="palette-btn px-1.5 py-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition">
+              <div class="w-4 h-4 mx-auto rounded-full bg-gradient-to-r from-[#f472b6] to-[#ec4899] mb-1"></div>
+              <span class="text-[9px] text-slate-400 block truncate">Sakura Pink</span>
+            </button>
+            <button data-palette="lilac" class="palette-btn px-1.5 py-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition">
+              <div class="w-4 h-4 mx-auto rounded-full bg-gradient-to-r from-[#c084fc] to-[#7c3aed] mb-1"></div>
+              <span class="text-[9px] text-slate-400 block truncate">Electric Purple</span>
+            </button>
+            <button data-palette="mint" class="palette-btn px-1.5 py-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition">
+              <div class="w-4 h-4 mx-auto rounded-full bg-gradient-to-r from-[#34d399] to-[#059669] mb-1"></div>
+              <span class="text-[9px] text-slate-400 block truncate">Mint Sorbet</span>
+            </button>
+            <button data-palette="peach" class="palette-btn px-1.5 py-2 rounded-xl border border-slate-800 bg-slate-900/50 text-center transition">
+              <div class="w-4 h-4 mx-auto rounded-full bg-gradient-to-r from-[#fb923c] to-[#e11d48] mb-1"></div>
+              <span class="text-[9px] text-slate-400 block truncate">Sunset Peach</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Accessories & FX toggles -->
+        <div class="space-y-2.5 pt-2 border-t border-slate-800/80">
+          <label class="text-[11px] font-semibold text-slate-400 block">Accessories & FX</label>
+          
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/70 cursor-pointer">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="text-pink-400">●</span> Blush
+              </span>
+              <input type="checkbox" id="toggleBlush" checked class="accent-cyan-400 rounded cursor-pointer">
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/70 cursor-pointer">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="text-amber-400">✨</span> Sparkles
+              </span>
+              <input type="checkbox" id="toggleSparkles" checked class="accent-cyan-400 rounded cursor-pointer">
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/70 cursor-pointer">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="text-cyan-400">👑</span> Halo
+              </span>
+              <input type="checkbox" id="toggleHalo" class="accent-cyan-400 rounded cursor-pointer">
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/70 cursor-pointer">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="text-sky-400">〰️</span> Breathing Float
+              </span>
+              <input type="checkbox" id="toggleFloat" checked class="accent-cyan-400 rounded cursor-pointer">
+            </label>
+          </div>
+        </div>
+
+        <!-- Squircle radius -->
+        <div class="space-y-2 pt-2 border-t border-slate-800/80">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400 font-medium">Squircle Radius</span>
+            <span id="radiusVal" class="text-cyan-400 font-mono">128px</span>
+          </div>
+          <input type="range" id="radiusSlider" min="0" max="256" step="4" value="128" class="w-full accent-cyan-400 bg-slate-800 rounded-lg h-1.5 cursor-pointer">
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-2xl border border-slate-700 shadow-2xl flex items-center gap-2.5 text-xs">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastMsg">SVG code copied successfully</span>
+  </div>
+
+  <!-- Hidden high-res rasterization canvas (1024x1024) -->
+  <canvas id="exportCanvas" width="1024" height="1024" class="hidden"></canvas>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // State object
+    const state = {
+      style: 'cat', // cat only
+      mood: 'happy', // happy, wink, love, focused, sleepy, shocked
+      palette: 'metis', // metis, sakura, lilac, mint, peach
+      blush: true,
+      sparkles: true,
+      halo: false,
+      floating: true,
+      cornerRadius: 128
+    };
+
+    // Palette definitions
+    const palettes = {
+      metis: {
+        bodyGradStart: '#7dd3fc',
+        bodyGradMid: '#0284c7',
+        bodyGradEnd: '#0369a1',
+        bellyFill: '#f0f9ff',
+        eyesColor: '#0c4a6e',
+        glowColor: 'rgba(56, 189, 248, 0.45)',
+        blushColor: '#fb7185',
+        sparkleColor: '#38bdf8',
+        haloGradStart: '#38bdf8',
+        haloGradEnd: '#818cf8',
+        ambient: '#0284c7'
+      },
+      sakura: {
+        bodyGradStart: '#fbcfe8',
+        bodyGradMid: '#f472b6',
+        bodyGradEnd: '#db2777',
+        bellyFill: '#fdf2f8',
+        eyesColor: '#831843',
+        glowColor: 'rgba(244, 114, 182, 0.45)',
+        blushColor: '#f43f5e',
+        sparkleColor: '#f472b6',
+        haloGradStart: '#f472b6',
+        haloGradEnd: '#fb7185',
+        ambient: '#db2777'
+      },
+      lilac: {
+        bodyGradStart: '#e9d5ff',
+        bodyGradMid: '#c084fc',
+        bodyGradEnd: '#7e22ce',
+        bellyFill: '#faf5ff',
+        eyesColor: '#581c87',
+        glowColor: 'rgba(192, 132, 252, 0.45)',
+        blushColor: '#f472b6',
+        sparkleColor: '#c084fc',
+        haloGradStart: '#c084fc',
+        haloGradEnd: '#38bdf8',
+        ambient: '#7e22ce'
+      },
+      mint: {
+        bodyGradStart: '#a7f3d0',
+        bodyGradMid: '#34d399',
+        bodyGradEnd: '#047857',
+        bellyFill: '#ecfdf5',
+        eyesColor: '#064e3b',
+        glowColor: 'rgba(52, 211, 153, 0.45)',
+        blushColor: '#f87171',
+        sparkleColor: '#34d399',
+        haloGradStart: '#34d399',
+        haloGradEnd: '#38bdf8',
+        ambient: '#047857'
+      },
+      peach: {
+        bodyGradStart: '#fed7aa',
+        bodyGradMid: '#fb923c',
+        bodyGradEnd: '#c2410c',
+        bellyFill: '#fff7ed',
+        eyesColor: '#7c2d12',
+        glowColor: 'rgba(251, 146, 60, 0.45)',
+        blushColor: '#f43f5e',
+        sparkleColor: '#fb923c',
+        haloGradStart: '#fb923c',
+        haloGradEnd: '#f43f5e',
+        ambient: '#c2410c'
+      }
+    };
+
+    // DOM references
+    const svgContainer = document.getElementById('svgContainer');
+    const svgCodeViewer = document.getElementById('svgCodeViewer');
+    const radiusSlider = document.getElementById('radiusSlider');
+    const radiusVal = document.getElementById('radiusVal');
+    const radiusBadge = document.getElementById('radiusBadge');
+    const currentStyleLabel = document.getElementById('currentStyleLabel');
+    const styleBadge = document.getElementById('styleBadge');
+    const mascotMoodBadge = document.getElementById('mascotMoodBadge');
+    const interactiveStage = document.getElementById('interactiveLogoStage');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+    const exportCanvas = document.getElementById('exportCanvas');
+
+    // Mockup preview elements
+    const iosPreview = document.querySelector('.ios-mini-preview');
+    const dockPreview = document.querySelector('.dock-mini-preview');
+    const lightPreview = document.querySelector('.light-mini-preview');
+    const favPreview = document.querySelector('.favicon-mini-preview');
+
+    // Simple synthesized Web Audio boing sound
+    function playBoingSound() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        const now = ctx.currentTime;
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(680, now + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.35);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.35);
+      } catch (e) {
+        // Ignore possible browser audio blocking
+      }
+    }
+
+    // Generate face expression SVG
+    function generateFaceElements(theme) {
+      const mood = state.mood;
+      let eyesHtml = '';
+      let mouthHtml = '<path d="M 244,286 Q 256,298 268,286" fill="none" stroke="' + theme.eyesColor + '" stroke-width="4.5" stroke-linecap="round"/>';
+
+      if (mood === 'happy') {
+        // ^   ^
+        eyesHtml = `
+          <path d="M 205,258 Q 220,238 235,258" fill="none" stroke="${theme.eyesColor}" stroke-width="6" stroke-linecap="round"/>
+          <path d="M 277,258 Q 292,238 307,258" fill="none" stroke="${theme.eyesColor}" stroke-width="6" stroke-linecap="round"/>
+        `;
+        mouthHtml = `<path d="M 242,284 Q 256,304 270,284" fill="${theme.eyesColor}" stroke="${theme.eyesColor}" stroke-width="3" stroke-linecap="round"/>`;
+      } else if (mood === 'wink') {
+        // ;   ^
+        eyesHtml = `
+          <circle cx="220" cy="252" r="10" fill="${theme.eyesColor}"/>
+          <circle cx="217" cy="249" r="3.5" fill="#ffffff"/>
+          <path d="M 277,255 Q 292,238 307,255" fill="none" stroke="${theme.eyesColor}" stroke-width="6" stroke-linecap="round"/>
+        `;
+        mouthHtml = `<path d="M 244,285 Q 256,296 268,285" fill="none" stroke="${theme.eyesColor}" stroke-width="4.5" stroke-linecap="round"/>`;
+      } else if (mood === 'love') {
+        // ★  ★
+        eyesHtml = `
+          <path d="M 220,238 L 223,248 L 233,250 L 225,257 L 227,267 L 220,261 L 213,267 L 215,257 L 207,250 L 217,248 Z" fill="#f43f5e"/>
+          <path d="M 292,238 L 295,248 L 305,250 L 297,257 L 299,267 L 292,261 L 285,267 L 287,257 L 279,250 L 289,248 Z" fill="#f43f5e"/>
+        `;
+        mouthHtml = `<path d="M 240,282 Q 256,306 272,282 Z" fill="#f43f5e"/>`;
+      } else if (mood === 'focused') {
+        // >   <
+        eyesHtml = `
+          <path d="M 206,244 L 226,254 L 206,264" fill="none" stroke="${theme.eyesColor}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 306,244 L 286,254 L 306,264" fill="none" stroke="${theme.eyesColor}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        `;
+        mouthHtml = `<path d="M 246,288 Q 256,280 266,288" fill="none" stroke="${theme.eyesColor}" stroke-width="4.5" stroke-linecap="round"/>`;
+      } else if (mood === 'sleepy') {
+        // u   u
+        eyesHtml = `
+          <path d="M 205,248 Q 220,266 235,248" fill="none" stroke="${theme.eyesColor}" stroke-width="6" stroke-linecap="round"/>
+          <path d="M 277,248 Q 292,266 307,248" fill="none" stroke="${theme.eyesColor}" stroke-width="6" stroke-linecap="round"/>
+          <!-- Sleepy bubbles -->
+          <circle cx="325" cy="230" r="6" fill="none" stroke="${theme.haloGradStart}" stroke-width="2.5" opacity="0.8"/>
+          <circle cx="338" cy="216" r="9" fill="none" stroke="${theme.haloGradStart}" stroke-width="2.5" opacity="0.8"/>
+        `;
+        mouthHtml = `<circle cx="256" cy="286" r="3.5" fill="${theme.eyesColor}"/>`;
+      } else if (mood === 'shocked') {
+        // ⊙   ⊙
+        eyesHtml = `
+          <circle cx="220" cy="252" r="14" fill="${theme.eyesColor}"/>
+          <circle cx="216" cy="248" r="5" fill="#ffffff"/>
+          <circle cx="292" cy="252" r="14" fill="${theme.eyesColor}"/>
+          <circle cx="288" cy="248" r="5" fill="#ffffff"/>
+        `;
+        mouthHtml = `<ellipse cx="256" cy="292" rx="7" ry="11" fill="${theme.eyesColor}"/>`;
+      }
+
+      // Blush
+      let blushHtml = '';
+      if (state.blush) {
+        blushHtml = `
+          <g style="animation: cheekGlow 3s ease-in-out infinite;">
+            <ellipse cx="196" cy="272" rx="14" ry="8" fill="${theme.blushColor}" opacity="0.75" />
+            <ellipse cx="316" cy="272" rx="14" ry="8" fill="${theme.blushColor}" opacity="0.75" />
+          </g>
+        `;
+      }
+
+      return `
+        <!-- Face group -->
+        <g id="faceGroup">
+          ${eyesHtml}
+          ${mouthHtml}
+          ${blushHtml}
+        </g>
+      `;
+    }
+
+    // Generate main mascot vector graphic
+    function generateLogoSvg(width = 512, height = 512) {
+      const theme = palettes[state.palette];
+      const r = state.cornerRadius;
+      const floatClass = state.floating ? 'animate-gentle-float' : '';
+
+      // Accessory 1: Sparkles
+      let sparklesHtml = '';
+      if (state.sparkles) {
+        sparklesHtml = `
+          <g class="animate-sparkle" opacity="0.9">
+            <path d="M 88,140 Q 98,140 98,130 Q 98,140 108,140 Q 98,140 98,150 Q 98,140 88,140 Z" fill="${theme.sparkleColor}" />
+            <path d="M 405,115 Q 417,115 417,103 Q 417,115 429,115 Q 417,115 417,127 Q 417,115 405,115 Z" fill="${theme.sparkleColor}" />
+            <circle cx="430" cy="155" r="4" fill="#ffffff" opacity="0.8"/>
+            <circle cx="80" cy="180" r="3" fill="#ffffff" opacity="0.8"/>
+          </g>
+        `;
+      }
+
+      // Accessory 2: Tech halo
+      let haloHtml = '';
+      if (state.halo) {
+        haloHtml = `
+          <!-- Floating halo -->
+          <ellipse cx="256" cy="85" rx="72" ry="18" fill="none" stroke="url(#haloGrad)" stroke-width="8" stroke-linecap="round" opacity="0.85" filter="url(#glowFilter)"/>
+          <ellipse cx="256" cy="85" rx="72" ry="18" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.9"/>
+        `;
+      }
+
+      // Body construction for each design concept
+      let mascotBodyHtml = '';
+
+      if (state.style === 'bot') {
+        // Concept 1: Bouncy Bot M
+        // Plump ears, a central dip forming a chubby M
+        mascotBodyHtml = `
+          <!-- Top antenna -->
+          <path d="M 256,120 L 256,92" stroke="${theme.bodyGradStart}" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="256" cy="85" r="9" fill="${theme.bodyGradStart}" filter="url(#glowFilter)"/>
+          <circle cx="256" cy="85" r="4.5" fill="#ffffff"/>
+
+          <!-- Chubby M robot body (smooth symmetric continuous bezier) -->
+          <path d="
+            M 130,370 
+            C 110,340 100,220 125,160 
+            C 145,112 210,120 228,195 
+            C 238,235 248,245 256,245 
+            C 264,245 274,235 284,195 
+            C 302,120 367,112 387,160 
+            C 412,220 402,340 382,370 
+            C 365,395 325,395 300,385 
+            C 278,375 268,365 256,365 
+            C 244,365 234,375 212,385 
+            C 187,395 147,395 130,370 Z
+          " fill="url(#mainBodyGrad)" filter="url(#shadowFilter)"/>
+
+          <!-- Bright soft belly -->
+          <path d="
+            M 175,345 
+            C 165,300 170,220 205,215 
+            C 230,210 248,225 256,225 
+            C 264,225 282,210 307,215 
+            C 342,220 347,300 337,345 
+            C 325,365 285,368 256,368 
+            C 227,368 187,365 175,345 Z
+          " fill="${theme.bellyFill}" opacity="0.95"/>
+
+          <!-- Top head highlight reflections -->
+          <ellipse cx="160" cy="155" rx="22" ry="12" transform="rotate(-25 160 155)" fill="#ffffff" opacity="0.45"/>
+          <ellipse cx="352" cy="155" rx="22" ry="12" transform="rotate(25 352 155)" fill="#ffffff" opacity="0.45"/>
+
+          <!-- Cute little hands (two small round hands at lower sides) -->
+          <ellipse cx="140" cy="340" rx="18" ry="13" transform="rotate(15 140 340)" fill="url(#mainBodyGrad)"/>
+          <ellipse cx="372" cy="340" rx="18" ry="13" transform="rotate(-15 372 340)" fill="url(#mainBodyGrad)"/>
+
+          ${generateFaceElements(theme)}
+        `;
+      } else if (state.style === 'jelly') {
+        // Concept 2: Marshmallow Jelly M
+        mascotBodyHtml = `
+          <!-- Super soft gummy jelly M -->
+          <path d="
+            M 140,365 
+            C 110,320 105,180 155,140 
+            C 195,108 225,160 256,220 
+            C 287,160 317,108 357,140 
+            C 407,180 402,320 372,365 
+            C 335,400 295,355 256,355 
+            C 217,355 177,400 140,365 Z
+          " fill="url(#mainBodyGrad)" filter="url(#shadowFilter)"/>
+
+          <!-- Crystal clear layered gummy shine -->
+          <path d="
+            M 145,155 
+            C 160,135 185,128 200,150 
+            C 210,165 210,185 195,195 
+            C 175,200 150,195 140,175 
+            C 137,168 140,160 145,155 Z
+          " fill="#ffffff" opacity="0.55"/>
+
+          <path d="
+            M 367,155 
+            C 352,135 327,128 312,150 
+            C 302,165 302,185 317,195 
+            C 337,200 362,195 372,175 
+            C 375,168 372,160 367,155 Z
+          " fill="#ffffff" opacity="0.55"/>
+
+          <ellipse cx="256" cy="335" rx="45" ry="12" fill="#ffffff" opacity="0.15"/>
+
+          ${generateFaceElements(theme)}
+        `;
+      } else if (state.style === 'cat') {
+        // Concept 3: Cloud Cat M
+        mascotBodyHtml = `
+          <!-- Cat-ear cloud M -->
+          <path d="
+            M 125,360 
+            C 105,320 100,210 135,160 
+            L 175,115 
+            C 195,145 220,200 256,225 
+            C 292,200 317,145 337,115 
+            L 377,160 
+            C 412,210 407,320 387,360 
+            C 355,400 305,370 256,370 
+            C 207,370 157,400 125,360 Z
+          " fill="url(#mainBodyGrad)" filter="url(#shadowFilter)"/>
+
+          <!-- Pink inner cat ears -->
+          <polygon points="148,168 174,136 182,174" fill="${theme.blushColor}" opacity="0.65"/>
+          <polygon points="364,168 338,136 330,174" fill="${theme.blushColor}" opacity="0.65"/>
+
+          <!-- Fluffy cloud belly -->
+          <path d="M 190,340 C 200,300 220,285 256,285 C 292,285 312,300 322,340 C 285,360 227,360 190,340 Z" fill="${theme.bellyFill}" opacity="0.95"/>
+
+          <!-- Cute cat paw prints -->
+          <ellipse cx="170" cy="365" rx="14" ry="10" fill="#ffffff" opacity="0.9"/>
+          <ellipse cx="342" cy="365" rx="14" ry="10" fill="#ffffff" opacity="0.9"/>
+
+          ${generateFaceElements(theme)}
+        `;
+      } else if (state.style === 'pixel') {
+        // Concept 4: Arcade Pixel-Chibi M
+        mascotBodyHtml = `
+          <!-- Block/pixel grid cute assembled M -->
+          <g filter="url(#shadowFilter)">
+            <!-- Left pillar -->
+            <rect x="120" y="160" width="60" height="200" rx="20" fill="url(#mainBodyGrad)"/>
+            <rect x="130" y="130" width="50" height="50" rx="15" fill="url(#mainBodyGrad)"/>
+
+            <!-- Center V-shaped connector blocks -->
+            <rect x="170" y="210" width="55" height="70" rx="16" fill="url(#mainBodyGrad)"/>
+            <rect x="230" y="250" width="52" height="60" rx="16" fill="url(#mainBodyGrad)"/>
+            <rect x="287" y="210" width="55" height="70" rx="16" fill="url(#mainBodyGrad)"/>
+
+            <!-- Right pillar -->
+            <rect x="332" y="160" width="60" height="200" rx="20" fill="url(#mainBodyGrad)"/>
+            <rect x="332" y="130" width="50" height="50" rx="15" fill="url(#mainBodyGrad)"/>
+          </g>
+
+          <!-- Pixel-style clean belly base -->
+          <rect x="195" y="225" width="122" height="110" rx="22" fill="${theme.bellyFill}" opacity="0.95"/>
+
+          ${generateFaceElements(theme)}
+        `;
+      }
+
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${width}" height="${height}">
+  <defs>
+    <!-- Gradient & shadow definitions -->
+    <linearGradient id="mainBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="${theme.bodyGradStart}"/>
+      <stop offset="50%" stop-color="${theme.bodyGradMid}"/>
+      <stop offset="100%" stop-color="${theme.bodyGradEnd}"/>
+    </linearGradient>
+
+    <linearGradient id="haloGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${theme.haloGradStart}"/>
+      <stop offset="100%" stop-color="${theme.haloGradEnd}"/>
+    </linearGradient>
+
+    <!-- Icon background gradient -->
+    <radialGradient id="iconBgGrad" cx="50%" cy="35%" r="80%">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="60%" stop-color="#080c16"/>
+      <stop offset="100%" stop-color="#03050a"/>
+    </radialGradient>
+
+    <!-- Soft dimensional shadow -->
+    <filter id="shadowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="${theme.glowColor}"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="rgba(0,0,0,0.35)"/>
+    </filter>
+
+    <filter id="glowFilter" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Spec squircle icon frame (dark metallic crystal base) -->
+  <rect width="512" height="512" rx="${r}" fill="url(#iconBgGrad)" stroke="#1e293b" stroke-width="2.5"/>
+  <rect x="3" y="3" width="506" height="506" rx="${Math.max(0, r - 3)}" fill="none" stroke="#38bdf8" stroke-width="1.5" opacity="0.25"/>
+
+  <!-- Sparkle background decoration -->
+  ${sparklesHtml}
+
+  <!-- Floating halo -->
+  ${haloHtml}
+
+  <!-- Chibi Metis "M" mascot body (with breathing or float animation) -->
+  <g class="${floatClass}" id="mascotWrapper">
+    ${mascotBodyHtml}
+  </g>
+</svg>`;
+    }
+
+    // Render update main logic
+    function updateApp() {
+      const svgCode = generateLogoSvg();
+
+      // Inject into main stage
+      svgContainer.innerHTML = svgCode;
+
+      // Inject into mockups
+      iosPreview.innerHTML = svgCode;
+      dockPreview.innerHTML = svgCode;
+      lightPreview.innerHTML = svgCode;
+      favPreview.innerHTML = svgCode;
+
+      // Source code display
+      svgCodeViewer.textContent = svgCode.trim();
+
+      // Update ambient background colors
+      const theme = palettes[state.palette];
+      document.getElementById('ambientBackdrop1').style.backgroundColor = theme.ambient + '30';
+      document.getElementById('ambientBackdrop2').style.backgroundColor = theme.bodyGradEnd + '30';
+
+      // Update labels and numeric text
+      const styleNameMap = {
+        bot: 'Bouncy Bot M',
+        jelly: 'Marshmallow Jelly M',
+        cat: 'Cloud Cat M',
+        pixel: 'Arcade Pixel-Chibi M'
+      };
+      const moodNameMap = {
+        happy: 'Happy (^v^)',
+        wink: 'Wink (;_~)',
+        love: 'Adore (*v*)',
+        focused: 'Focused (>_<)',
+        sleepy: 'Sleepy (u_u)',
+        shocked: 'Shocked (O_O)'
+      };
+      const styleBadgeMap = {
+        bot: 'Bouncy Bot',
+        jelly: 'Jelly',
+        cat: 'Cloud Cat',
+        pixel: 'Pixel'
+      };
+
+      currentStyleLabel.textContent = styleNameMap[state.style];
+      styleBadge.textContent = styleBadgeMap[state.style];
+      mascotMoodBadge.innerHTML = `<i data-lucide="smile" class="w-3.5 h-3.5"></i> ${moodNameMap[state.mood]}`;
+      radiusVal.textContent = state.cornerRadius + 'px';
+      radiusBadge.textContent = state.cornerRadius + 'px';
+
+      lucide.createIcons();
+    }
+
+    // Click mascot for jelly squish interaction
+    interactiveStage.addEventListener('click', () => {
+      playBoingSound();
+      interactiveStage.classList.remove('squish-effect');
+      // Force reflow
+      void interactiveStage.offsetWidth;
+      interactiveStage.classList.add('squish-effect');
+      
+      // Briefly randomize expression to add life
+      const moods = ['wink', 'happy', 'shocked', 'love'];
+      const currentMood = state.mood;
+      const randomMood = moods[Math.floor(Math.random() * moods.length)];
+      state.mood = randomMood;
+      updateApp();
+
+      setTimeout(() => {
+        state.mood = currentMood;
+        updateApp();
+      }, 700);
+    });
+
+    // Concept style switching
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.style-btn').forEach(b => {
+          b.classList.remove('border-cyan-500', 'bg-cyan-950/20');
+          b.classList.add('border-slate-800', 'bg-slate-900/40');
+          b.querySelector('.indicator').classList.remove('bg-cyan-400');
+          b.querySelector('.indicator').classList.add('bg-transparent');
+        });
+        btn.classList.add('border-cyan-500', 'bg-cyan-950/20');
+        btn.classList.remove('border-slate-800', 'bg-slate-900/40');
+        btn.querySelector('.indicator').classList.remove('bg-transparent');
+        btn.querySelector('.indicator').classList.add('bg-cyan-400');
+
+        state.style = btn.dataset.style;
+        playBoingSound();
+        updateApp();
+      });
+    });
+
+    // Expression switching
+    document.querySelectorAll('.mood-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mood-btn').forEach(b => {
+          b.classList.remove('border-cyan-500', 'bg-cyan-950/30');
+          b.classList.add('border-slate-800', 'bg-slate-900/50');
+        });
+        btn.classList.add('border-cyan-500', 'bg-cyan-950/30');
+        btn.classList.remove('border-slate-800', 'bg-slate-900/50');
+
+        state.mood = btn.dataset.mood;
+        playBoingSound();
+        updateApp();
+      });
+    });
+
+    // Palette switching
+    document.querySelectorAll('.palette-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.palette-btn').forEach(b => {
+          b.classList.remove('border-cyan-400', 'bg-cyan-950/30');
+          b.classList.add('border-slate-800', 'bg-slate-900/50');
+          b.querySelector('span').classList.remove('text-slate-200');
+          b.querySelector('span').classList.add('text-slate-400');
+        });
+        btn.classList.add('border-cyan-400', 'bg-cyan-950/30');
+        btn.classList.remove('border-slate-800', 'bg-slate-900/50');
+        btn.querySelector('span').classList.remove('text-slate-400');
+        btn.querySelector('span').classList.add('text-slate-200');
+
+        state.palette = btn.dataset.palette;
+        updateApp();
+      });
+    });
+
+    // Accessories & toggles
+    document.getElementById('toggleBlush').addEventListener('change', (e) => {
+      state.blush = e.target.checked;
+      updateApp();
+    });
+    document.getElementById('toggleSparkles').addEventListener('change', (e) => {
+      state.sparkles = e.target.checked;
+      updateApp();
+    });
+    document.getElementById('toggleHalo').addEventListener('change', (e) => {
+      state.halo = e.target.checked;
+      updateApp();
+    });
+    document.getElementById('toggleFloat').addEventListener('change', (e) => {
+      state.floating = e.target.checked;
+      updateApp();
+    });
+
+    // Radius adjustment
+    radiusSlider.addEventListener('input', (e) => {
+      state.cornerRadius = parseInt(e.target.value);
+      updateApp();
+    });
+
+    // Toast helper
+    function showToast(text) {
+      toastMsg.textContent = text;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+
+    // Clipboard copy fallback (document.execCommand)
+    function copyStringToClipboard(str, successMessage) {
+      const textarea = document.createElement('textarea');
+      textarea.value = str;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMessage || 'Copied to clipboard');
+      } catch (err) {
+        showToast('Copy failed, please select manually');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    // Copy button events
+    document.getElementById('copySvgBtn').addEventListener('click', () => {
+      copyStringToClipboard(generateLogoSvg(), 'Chibi SVG vector code copied!');
+    });
+    document.getElementById('copyInlineCodeBtn').addEventListener('click', () => {
+      copyStringToClipboard(generateLogoSvg(), 'SVG source copied!');
+    });
+
+    // Export SVG file
+    document.getElementById('exportSvgBtn').addEventListener('click', () => {
+      const svgData = generateLogoSvg();
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
+      downloadLink.download = `Metis-Chibi-${state.style}-${state.mood}.svg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(url);
+      showToast('SVG vector file downloaded');
+    });
+
+    // Export 1024x1024 high-res app icon PNG
+    document.getElementById('exportPngBtn').addEventListener('click', () => {
+      showToast('Rasterizing 1024×1024 high-res chibi icon...');
+      
+      const canvas = exportCanvas;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 1024, 1024);
+
+      // Static render for export (temporarily strip float class for precise centering)
+      const tempFloat = state.floating;
+      state.floating = false;
+      const svgMarkup = generateLogoSvg(1024, 1024);
+      state.floating = tempFloat;
+
+      const img = new Image();
+      const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+      const DOMURL = window.URL || window.webkitURL || window;
+      const url = DOMURL.createObjectURL(svgBlob);
+
+      img.onload = function() {
+        ctx.drawImage(img, 0, 0, 1024, 1024);
+        DOMURL.revokeObjectURL(url);
+
+        try {
+          const pngUrl = canvas.toDataURL('image/png');
+          const downloadLink = document.createElement('a');
+          downloadLink.href = pngUrl;
+          downloadLink.download = `Metis-Chibi-Icon-1024px.png`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          showToast('1024x1024 HD chibi icon downloaded!');
+        } catch (e) {
+          showToast('PNG export blocked, please download SVG');
+        }
+      };
+
+      img.src = url;
+    });
+
+    // Initial page render
+    window.onload = () => {
+      updateApp();
+    };
+  </script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import base64
 import copy
 import difflib
 import json
@@ -327,17 +328,59 @@ class SidecarEngine:
             self.whitelist.clear()
             self.broadcast_full_state(toast="Cleared all attached files.")
 
+        elif action in ("pasteImage", "addMediaBlob"):
+            b64_raw = str(data.get("base64", ""))
+            mime_type = str(data.get("mimeType", "image/png"))
+            file_name = str(data.get("fileName", ""))
+            if b64_raw:
+                if "," in b64_raw:
+                    b64_raw = b64_raw.split(",", 1)[1]
+                try:
+                    raw_bytes = base64.b64decode(b64_raw)
+                    ext = "png"
+                    if "jpeg" in mime_type or "jpg" in mime_type:
+                        ext = "jpg"
+                    elif "pdf" in mime_type:
+                        ext = "pdf"
+                    elif "webp" in mime_type:
+                        ext = "webp"
+                    elif "gif" in mime_type:
+                        ext = "gif"
+
+                    if not file_name:
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        file_name = f"attached_{timestamp}.{ext}"
+
+                    temp_dir = Path(tempfile.gettempdir()) / "metis_media"
+                    temp_dir.mkdir(parents=True, exist_ok=True)
+                    target_path = temp_dir / file_name
+                    target_path.write_bytes(raw_bytes)
+                    self.whitelist.add_file(str(target_path))
+                    self.broadcast_full_state(toast=f"Attached media file: {file_name}")
+                except Exception:
+                    pass
+
         elif action == "inspectFile":
             path = str(data.get("path", ""))
             if path:
                 wf = self.whitelist.resolve_whitelisted_file(path)
                 if wf is not None:
                     p = Path(wf.full_path)
+                    data_url = ""
+                    content = wf.last_saved_content
                     if p.exists():
-                        try:
-                            content = p.read_text(encoding="utf-8", errors="replace")
-                        except Exception:
-                            content = wf.last_saved_content
+                        if wf.is_binary_media or wf.media_kind in ("image", "pdf"):
+                            try:
+                                b_data = p.read_bytes()
+                                b64 = base64.b64encode(b_data).decode("ascii")
+                                data_url = f"data:{wf.mime_type};base64,{b64}"
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                content = p.read_text(encoding="utf-8", errors="replace")
+                            except Exception:
+                                content = wf.last_saved_content
                     else:
                         content = wf.last_saved_content
 
@@ -351,6 +394,7 @@ class SidecarEngine:
                             "mimeType": wf.mime_type,
                             "isBinaryMedia": wf.is_binary_media,
                             "content": content,
+                            "dataUrl": data_url,
                         }
                     )
 
@@ -1053,6 +1097,20 @@ async def run_self_test() -> int:
         print("FAIL: Gemini 429 search grounding downgrade verification failed.", file=sys.stderr, flush=True)
         return 10
     print("[PASS] Gemini 429 Free Tier Search Grounding Downgrade & Tool Fallback Verified", flush=True)
+
+    # 11. Multimodal Image & PDF Ingestion and Formatting Verification
+    test_img = temp_dir / "badge.png"
+    test_img.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="))
+    test_pdf = temp_dir / "spec.pdf"
+    test_pdf.write_bytes(base64.b64decode("JVBERi0xLjQKMSAwIG9iago8PCAvTGVuZ3RoIDI1ID4+CnN0cmVhbQooTWV0aXMgQXJjaGl0ZWN0dXJlIFNwZWMpIFRqCmVuZHN0cmVhbQplbmRvYmoKdHJhaWxlcgo8PCAvUm9vdCAxIDAgUiA+PgolJUVPRg=="))
+
+    wl.add_file(str(test_img))
+    wl.add_file(str(test_pdf))
+    media_items = MultiVendorClient.extract_media_items(wl.get_files())
+    if len(media_items) < 2 or not any(m["mediaKind"] == "image" for m in media_items) or not any(m["mediaKind"] == "pdf" for m in media_items):
+        print("FAIL: Multimodal media extraction failed.", file=sys.stderr, flush=True)
+        return 11
+    print(f"[PASS] Multimodal Image & PDF Ingestion & Extraction Verified ({len(media_items)} items)", flush=True)
 
     print(f"=== All Metis v{app_ver} Python Sidecar Self-Test Suites Passed Successfully! ===", flush=True)
     return 0

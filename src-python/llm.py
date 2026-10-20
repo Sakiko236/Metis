@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import base64
 import json
 import re
 import ssl
@@ -63,6 +64,33 @@ SEARCH_TAG_RE = re.compile(
 
 
 class MultiVendorClient:
+    @staticmethod
+    def extract_media_items(whitelist: List[WhitelistedFile]) -> List[dict]:
+        items: List[dict] = []
+        for f in whitelist:
+            if not (f.is_binary_media or f.media_kind in ("image", "pdf")):
+                continue
+            p = Path(f.full_path)
+            if not p.is_file():
+                continue
+            try:
+                raw_bytes = p.read_bytes()
+                if not raw_bytes:
+                    continue
+                b64 = base64.b64encode(raw_bytes).decode("ascii")
+                mime = f.mime_type
+                if not mime or mime == "text/plain":
+                    mime = "application/pdf" if f.media_kind == "pdf" else "image/png"
+                items.append({
+                    "fileName": f.file_name,
+                    "mediaKind": f.media_kind,
+                    "mimeType": mime,
+                    "base64": b64,
+                })
+            except Exception:
+                continue
+        return items
+
     @classmethod
     async def send_chat(
         cls,
@@ -80,6 +108,7 @@ class MultiVendorClient:
 
         full_system = f"{system_prompt}\n\n{files_snapshot}"
         base_url = vendor.base_url.rstrip("/")
+        media_items = cls.extract_media_items(whitelist)
 
         if vendor.vendor_type == VendorType.Gemini:
             return await asyncio.to_thread(
@@ -90,6 +119,7 @@ class MultiVendorClient:
                 history,
                 thinking_intensity,
                 on_chunk,
+                media_items,
             )
         elif vendor.vendor_type == VendorType.Claude:
             return await asyncio.to_thread(
@@ -100,6 +130,7 @@ class MultiVendorClient:
                 history,
                 thinking_intensity,
                 on_chunk,
+                media_items,
             )
         else:
             return await asyncio.to_thread(
@@ -109,6 +140,7 @@ class MultiVendorClient:
                 full_system,
                 history,
                 on_chunk,
+                media_items,
             )
 
     @staticmethod
@@ -156,6 +188,7 @@ class MultiVendorClient:
         system_prompt: str,
         history: List[ChatHistoryItem],
         on_chunk: Callable[[str], None],
+        media_items: Optional[List[dict]] = None,
     ) -> Tuple[bool, str]:
         url = cls.resolve_responses_url(base_url)
 
@@ -168,6 +201,22 @@ class MultiVendorClient:
 
         if not input_items:
             input_items.append({"role": "user", "content": "Please proceed."})
+
+        raw_user_content = ""
+        if media_items and input_items:
+            last_user = input_items[-1]
+            raw_user_content = last_user.get("content", "")
+            content_blocks = [{"type": "text", "text": raw_user_content}] if raw_user_content else []
+            for m in media_items:
+                if m["mediaKind"] == "image":
+                    content_blocks.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{m['mimeType']};base64,{m['base64']}"
+                        }
+                    })
+            if len(content_blocks) > 1:
+                last_user["content"] = content_blocks
 
         payload: dict = {
             "model": vendor.selected_model,
@@ -214,6 +263,7 @@ class MultiVendorClient:
                     system_prompt,
                     history,
                     on_chunk,
+                    media_items,
                 )
 
             body_lower = body.lower()
@@ -250,6 +300,7 @@ class MultiVendorClient:
                     system_prompt,
                     history,
                     on_chunk,
+                    media_items,
                 )
             else:
                 return False, f"Responses API Error (HTTP {he.code}): {body}"
@@ -372,6 +423,7 @@ class MultiVendorClient:
         system_prompt: str,
         history: List[ChatHistoryItem],
         on_chunk: Callable[[str], None],
+        media_items: Optional[List[dict]] = None,
     ) -> Tuple[bool, str]:
         url = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
 
@@ -383,6 +435,21 @@ class MultiVendorClient:
                     "content": item.content,
                 }
             )
+
+        if media_items and messages:
+            last_msg = messages[-1]
+            raw_text = last_msg.get("content", "")
+            content_blocks = [{"type": "text", "text": raw_text}] if raw_text else []
+            for m in media_items:
+                if m["mediaKind"] == "image":
+                    content_blocks.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{m['mimeType']};base64,{m['base64']}"
+                        }
+                    })
+            if len(content_blocks) > 1:
+                last_msg["content"] = content_blocks
 
         payload: dict = {
             "model": vendor.selected_model,
@@ -558,10 +625,43 @@ class MultiVendorClient:
         history: List[ChatHistoryItem],
         thinking_intensity: str,
         on_chunk: Callable[[str], None],
+        media_items: Optional[List[dict]] = None,
     ) -> Tuple[bool, str]:
         url = base_url if base_url.endswith("/messages") else f"{base_url}/messages"
 
         messages = cls.prepare_claude_messages(history)
+        has_pdf = False
+        if media_items and messages:
+            last_msg = messages[-1]
+            raw_text = last_msg.get("content", "")
+            blocks = []
+            if isinstance(raw_text, str) and raw_text:
+                blocks.append({"type": "text", "text": raw_text})
+            elif isinstance(raw_text, list):
+                blocks.extend(raw_text)
+
+            for item in media_items:
+                if item["mediaKind"] == "image":
+                    blocks.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": item["mimeType"],
+                            "data": item["base64"],
+                        },
+                    })
+                elif item["mediaKind"] == "pdf":
+                    has_pdf = True
+                    blocks.append({
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": item["base64"],
+                        },
+                    })
+            if blocks:
+                last_msg["content"] = blocks
 
         intensity = (thinking_intensity or "medium").lower()
         budget_tokens = {
@@ -592,6 +692,8 @@ class MultiVendorClient:
             "Accept": "text/event-stream",
             "User-Agent": "Metis-Agent/1.3",
         }
+        if has_pdf:
+            headers["anthropic-beta"] = "pdfs-2024-09-25" 
 
         ctx = ssl.create_default_context()
 
@@ -719,6 +821,7 @@ class MultiVendorClient:
         history: List[ChatHistoryItem],
         thinking_intensity: str,
         on_chunk: Callable[[str], None],
+        media_items: Optional[List[dict]] = None,
     ) -> Tuple[bool, str]:
         raw_model = vendor.selected_model.strip()
         clean_model = raw_model[7:] if raw_model.startswith("models/") else (raw_model or "gemini-2.5-flash")
@@ -730,6 +833,14 @@ class MultiVendorClient:
             url = f"{base_url}/models/{clean_model}:streamGenerateContent?alt=sse&key={api_key}"
 
         contents = cls.prepare_gemini_contents(history)
+        if media_items and contents:
+            for item in media_items:
+                contents[-1]["parts"].append({
+                    "inlineData": {
+                        "mimeType": item["mimeType"],
+                        "data": item["base64"],
+                    }
+                })
 
         gen_config, supports_thinking = cls.build_gemini_generation_config(clean_model, thinking_intensity)
 

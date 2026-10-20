@@ -1,5 +1,7 @@
 from __future__ import annotations
 import os
+import re
+import zlib
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -68,6 +70,36 @@ class WhitelistManager:
         fallback.mkdir(parents=True, exist_ok=True)
         return str(fallback)
 
+    @staticmethod
+    def extract_pdf_text(data_bytes: bytes) -> str:
+        """Extract readable text from PDF bytes using standard library zlib & regex."""
+        try:
+            texts = []
+            stream_re = re.compile(rb"stream[\r\n]+(.*?)[\r\n]+endstream", re.DOTALL)
+            for match in stream_re.finditer(data_bytes):
+                stream_data = match.group(1)
+                try:
+                    decompressed = zlib.decompress(stream_data)
+                except Exception:
+                    decompressed = stream_data
+
+                for tj in re.finditer(rb"\((.*?)\)\s*Tj", decompressed):
+                    try:
+                        texts.append(tj.group(1).decode("utf-8", errors="ignore"))
+                    except Exception:
+                        pass
+                for tja in re.finditer(rb"\[(.*?)\]\s*TJ", decompressed):
+                    inner = tja.group(1)
+                    for part in re.finditer(rb"\((.*?)\)", inner):
+                        try:
+                            texts.append(part.group(1).decode("utf-8", errors="ignore"))
+                        except Exception:
+                            pass
+            cleaned = " ".join(texts).strip()
+            return cleaned if len(cleaned) > 10 else ""
+        except Exception:
+            return ""
+
     def add_file(self, full_path: str) -> bool:
         try:
             p = Path(full_path)
@@ -88,19 +120,39 @@ class WhitelistManager:
             is_pdf = ext == "pdf"
             is_img = ext in {"png", "jpg", "jpeg", "webp", "gif", "bmp"}
 
+            raw_file_bytes = b""
             if is_pdf or is_img:
-                content = f"[Binary Media: {file_name}]"
+                try:
+                    raw_file_bytes = p.read_bytes()
+                except Exception:
+                    pass
+
+            if is_pdf:
+                extracted = self.extract_pdf_text(raw_file_bytes) if raw_file_bytes else ""
+                if extracted:
+                    content = f"[Attached PDF Document: {file_name} ({len(extracted)} characters extracted)]\n\n{extracted}"
+                else:
+                    content = f"[Attached PDF Document: {file_name} (Multimodal visual document)]"
+            elif is_img:
+                content = f"[Attached Image: {file_name} (Multimodal visual input)]"
             else:
                 try:
                     content = p.read_text(encoding="utf-8", errors="replace")
                 except Exception:
                     content = ""
 
+            file_size = (
+                len(raw_file_bytes)
+                if (is_pdf or is_img) and raw_file_bytes
+                else len(content.encode("utf-8", errors="replace"))
+            )
+
             wf = WhitelistedFile(
                 full_path=canonical_str,
                 file_name=file_name,
                 directory_path=dir_path,
                 content=content,
+                current_size_bytes=file_size,
             )
             if is_pdf:
                 wf.media_kind = "pdf"

@@ -278,6 +278,31 @@ pub mod commands {
                     }
                 });
             }
+            "pickMedia" => {
+                let bridge = state.inner().clone();
+                tokio::spawn(async move {
+                    if let Some(files) = rfd::AsyncFileDialog::new()
+                        .set_title("Select images or PDF documents to attach")
+                        .add_filter(
+                            "Images & PDFs",
+                            &["png", "jpg", "jpeg", "webp", "gif", "bmp", "pdf"],
+                        )
+                        .pick_files()
+                        .await
+                    {
+                        let paths: Vec<String> = files
+                            .into_iter()
+                            .map(|f| f.path().to_string_lossy().to_string())
+                            .collect();
+                        let _ = bridge
+                            .send_json(&serde_json::json!({
+                                "action": "addFiles",
+                                "paths": paths
+                            }))
+                            .await;
+                    }
+                });
+            }
             "pickFolder" => {
                 let bridge = state.inner().clone();
                 tokio::spawn(async move {
@@ -350,16 +375,29 @@ pub fn run() {
 
             Ok(())
         })
-        .on_window_event(move |_window, event| {
-            if matches!(
-                event,
-                tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed
-            ) {
+        .on_window_event(move |_window, event| match event {
+            tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed => {
                 let b = bridge_window.clone();
                 tauri::async_runtime::spawn(async move {
                     b.shutdown().await;
                 });
             }
+            tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
+                let b = bridge_window.clone();
+                let file_paths: Vec<String> = paths
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect();
+                tauri::async_runtime::spawn(async move {
+                    let _ = b
+                        .send_json(&serde_json::json!({
+                            "action": "addFiles",
+                            "paths": file_paths
+                        }))
+                        .await;
+                });
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![commands::host_post])
         .run(tauri::generate_context!())

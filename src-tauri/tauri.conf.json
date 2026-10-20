@@ -4,7 +4,7 @@
   "version": "../package.json",
   "identifier": "com.sakiko.metis",
   "build": {
-    "frontendDist": "../src/frontend"
+    "frontendDist": "../src-frontend"
   },
   "app": {
     "withGlobalTauri": true,

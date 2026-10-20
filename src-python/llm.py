@@ -202,21 +202,28 @@ class MultiVendorClient:
         if not input_items:
             input_items.append({"role": "user", "content": "Please proceed."})
 
-        raw_user_content = ""
         if media_items and input_items:
-            last_user = input_items[-1]
+            last_user = None
+            for itm in reversed(input_items):
+                if itm.get("role") == "user":
+                    last_user = itm
+                    break
+            if not last_user:
+                last_user = input_items[-1]
+
             raw_user_content = last_user.get("content", "")
-            content_blocks = [{"type": "text", "text": raw_user_content}] if raw_user_content else []
-            for m in media_items:
-                if m["mediaKind"] == "image":
-                    content_blocks.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{m['mimeType']};base64,{m['base64']}"
-                        }
-                    })
-            if len(content_blocks) > 1:
-                last_user["content"] = content_blocks
+            if isinstance(raw_user_content, str):
+                content_blocks: List[dict] = []
+                if raw_user_content:
+                    content_blocks.append({"type": "input_text", "text": raw_user_content})
+                for m in media_items:
+                    if m["mediaKind"] == "image":
+                        content_blocks.append({
+                            "type": "input_image",
+                            "image_url": f"data:{m['mimeType']};base64,{m['base64']}",
+                        })
+                if any(b.get("type") == "input_image" for b in content_blocks):
+                    last_user["content"] = content_blocks
 
         payload: dict = {
             "model": vendor.selected_model,
@@ -283,17 +290,28 @@ class MultiVendorClient:
                             system_prompt,
                             history,
                             on_chunk,
+                            media_items,
                         )
                     body2 = ""
                     try:
                         body2 = he2.read().decode("utf-8", errors="replace")
                     except Exception:
                         pass
+                    body2_lower = body2.lower()
+                    if (he2.code in (400, 422)) and any(term in body2_lower for term in ("instructions", "unknown parameter", "unrecognized field", "input", "deserialize", "target type", "unknown variant")):
+                        return cls._call_chat_completions_fallback_sync(
+                            vendor,
+                            base_url,
+                            system_prompt,
+                            history,
+                            on_chunk,
+                            media_items,
+                        )
                     return False, f"Responses API Error (HTTP {he2.code}): {body2}"
                 except Exception as e2:
                     return False, f"HTTP request error on retry: {e2}"
-            elif he.code == 400 and any(term in body_lower for term in ("instructions", "unknown parameter", "unrecognized field", "input")):
-                # Older endpoint only supports /chat/completions schema
+            elif (he.code in (400, 422)) and any(term in body_lower for term in ("instructions", "unknown parameter", "unrecognized field", "input", "deserialize", "target type", "unknown variant")):
+                # Schema/variant deserialization failure in Responses API; fallback to standard /chat/completions
                 return cls._call_chat_completions_fallback_sync(
                     vendor,
                     base_url,
@@ -437,19 +455,29 @@ class MultiVendorClient:
             )
 
         if media_items and messages:
-            last_msg = messages[-1]
+            last_msg = None
+            for m_item in reversed(messages):
+                if m_item.get("role") == "user":
+                    last_msg = m_item
+                    break
+            if not last_msg:
+                last_msg = messages[-1]
+
             raw_text = last_msg.get("content", "")
-            content_blocks = [{"type": "text", "text": raw_text}] if raw_text else []
-            for m in media_items:
-                if m["mediaKind"] == "image":
-                    content_blocks.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{m['mimeType']};base64,{m['base64']}"
-                        }
-                    })
-            if len(content_blocks) > 1:
-                last_msg["content"] = content_blocks
+            if isinstance(raw_text, str):
+                content_blocks = []
+                if raw_text:
+                    content_blocks.append({"type": "text", "text": raw_text})
+                for m in media_items:
+                    if m["mediaKind"] == "image":
+                        content_blocks.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{m['mimeType']};base64,{m['base64']}"
+                            }
+                        })
+                if any(b.get("type") == "image_url" for b in content_blocks):
+                    last_msg["content"] = content_blocks
 
         payload: dict = {
             "model": vendor.selected_model,

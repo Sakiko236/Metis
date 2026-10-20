@@ -54,7 +54,12 @@ In an era where AI coding assistants promise "autonomous full-stack repository g
 * Enforced across the prompt protocol, the Python whitelist guardrails, and the terminal runner.
 * Any command attempting to delete files (`rm`, `del`, `Remove-Item`) or create unauthorized scripts is intercepted and blocked immediately.
 
-### 4. 🎨 Responsive Minimalist UI & Dark/Light Themes
+### 4. 🖼️ Multimodal Vision & Document Ingestion
+* Native support for attaching or pasting images (PNG, JPG, WEBP, GIF, BMP) and PDF documents.
+* Automatically converts and dispatches base64 payloads to Google Gemini (`inlineData`), Anthropic Claude (`image` & PDF `document` blocks), and OpenAI / DeepSeek (`image_url`).
+* Built-in PDF text extraction via standard stream decompression (`zlib`) and in-app visual modal previews.
+
+### 5. 🎨 Responsive Minimalist UI & Dark/Light Themes
 * Distraction-free modern interface with mist-dissolving text animations, uncapped full-width responsive dialog bubbles and composer, and KaTeX mathematical typesetting.
 * Seamless switching between **Dark Mode** and **Light Mode**.
 * System default browser integration for all external links.
@@ -83,7 +88,7 @@ Download the appropriate release package for your operating system from the [Rel
    * Settings automatically save locally as you type (stored locally on your system, never uploaded to third parties).
 
 2. **Select Target Files**:
-   * In the workspace panel, click "Add File" or "Upload Folder" to scope down the exact files requiring modification.
+   * In the workspace panel, click "Add File", "Upload Folder", or "Image/PDF" to scope down the exact files requiring modification.
 
 3. **Request Surgical Edits**:
    * Enter your prompt in the chat composer, for example:

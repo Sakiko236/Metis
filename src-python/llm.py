@@ -21,6 +21,7 @@ from models import (
 
 THINK_RE = re.compile(r"<think\b[^>]*>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
 UNCLOSED_THINK_RE = re.compile(r"<think\b[^>]*>.*$", re.IGNORECASE | re.DOTALL)
+ORPHAN_THINK_RE = re.compile(r"<\/?(?:think|thought|reasoning)\b[^>]*>\s*", re.IGNORECASE)
 TITLE_EXTRACT_RE = re.compile(
     r"<(?:metis|session|chat)_title\b[^>]*>(.*?)</(?:metis|session|chat)_title>",
     re.IGNORECASE | re.DOTALL,
@@ -859,6 +860,8 @@ class MultiVendorClient:
         parsed = ParsedAgentResponse(raw_text=raw_output)
 
         cleaned_think = THINK_RE.sub("", raw_output)
+        cleaned_think = UNCLOSED_THINK_RE.sub("", cleaned_think)
+        cleaned_think = ORPHAN_THINK_RE.sub("", cleaned_think)
         cleaned = TITLE_STRIP_RE.sub("", cleaned_think)
 
         # 1. Parse <metis_replace file="...">
@@ -936,6 +939,7 @@ class MultiVendorClient:
     def format_display_text(text: str) -> str:
         step1 = THINK_RE.sub("", text)
         step2 = UNCLOSED_THINK_RE.sub("", step1)
+        step2 = ORPHAN_THINK_RE.sub("", step2)
         step3 = TITLE_STRIP_RE.sub("", step2)
         step4 = UNCLOSED_TITLE_RE.sub("", step3)
         cleaned = SEARCH_TAG_RE.sub("", step4)

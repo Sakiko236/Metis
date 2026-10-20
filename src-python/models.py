@@ -97,7 +97,7 @@ class AppConfig:
     def __init__(
         self,
         active_vendor_id: str = "deepseek",
-        max_verify_loops: int = 8,
+        max_verify_loops: int = 0,
         command_timeout_seconds: int = 60,
         theme: str = "dark",
         thinking_intensity: str = "medium",
@@ -130,9 +130,12 @@ class AppConfig:
         vendors = [VendorProfile.from_dict(v) for v in raw_vendors if isinstance(v, dict)]
         raw_thinking = str(data.get("ThinkingIntensity", data.get("thinking_intensity", "medium"))).lower()
         thinking_intensity = raw_thinking if raw_thinking in ("low", "medium", "high") else "medium"
+        raw_verify_loops = int(data.get("MaxVerifyLoops", data.get("max_verify_loops", 0)))
+        # Migrate legacy default 8-round limit to 0 (unlimited)
+        max_verify_loops = 0 if raw_verify_loops == 8 else raw_verify_loops
         return cls(
             active_vendor_id=str(data.get("ActiveVendorId", data.get("active_vendor_id", "deepseek"))),
-            max_verify_loops=int(data.get("MaxVerifyLoops", data.get("max_verify_loops", 8))),
+            max_verify_loops=max_verify_loops,
             command_timeout_seconds=int(data.get("CommandTimeoutSeconds", data.get("command_timeout_seconds", 60))),
             theme=str(data.get("Theme", data.get("theme", "dark"))),
             thinking_intensity=thinking_intensity,

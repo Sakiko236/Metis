@@ -462,7 +462,7 @@ class SidecarEngine:
         target_session.ui_events.append(UiStreamEvent(event_type="user", content=user_prompt))
         SessionManager.save(self.session_store)
 
-        max_rounds = max(1, self.config.max_verify_loops)
+        max_rounds = self.config.max_verify_loops
         timeout_sec = self.config.command_timeout_seconds
         vendor = next(
             (v for v in self.config.vendors if v.id == self.config.active_vendor_id),
@@ -479,7 +479,7 @@ class SidecarEngine:
         retry_delays_secs = [2, 4, 8]
 
         try:
-            while current_round <= max_rounds:
+            while True:
                 if ctrl.stop_requested:
                     break
 
@@ -491,11 +491,15 @@ class SidecarEngine:
                 if ctrl.stop_requested:
                     break
 
-                round_status = (
-                    "Thinking..."
-                    if current_round == 1
-                    else f"Round {current_round}/{max_rounds} — Thinking..."
-                )
+                if max_rounds > 0 and current_round > max_rounds:
+                    break
+
+                if current_round == 1:
+                    round_status = "Thinking..."
+                elif max_rounds > 0:
+                    round_status = f"Round {current_round}/{max_rounds} — Thinking..."
+                else:
+                    round_status = f"Round {current_round} — Thinking..."
                 self.set_session_status(session_id, round_status)
                 emit_host_message(
                     {
@@ -543,12 +547,17 @@ class SidecarEngine:
 
                 while True:
                     streamed_chunks: list[str] = []
+                    last_emitted_display: str = ""
 
                     def on_chunk(chunk: str) -> None:
+                        nonlocal last_emitted_display
                         streamed_chunks.append(chunk)
                         full_so_far = "".join(streamed_chunks)
                         display = MultiVendorClient.format_display_text(full_so_far)
                         display_or_thinking = display if display.strip() else "Thinking..."
+                        if display_or_thinking == last_emitted_display:
+                            return
+                        last_emitted_display = display_or_thinking
                         emit_host_message(
                             {
                                 "type": "streamUpdate",
@@ -943,8 +952,10 @@ async def run_self_test() -> int:
 
     # 8. Session Title Extraction, Tag Stripping & Gemini Thinking Config verification (low, medium, high)
     sample_reply = "<think>Thinking deeply...</think>\n<metis_title>Python Sidecar Architecture</metis_title>\nReady to assist!"
+    sample_trailing_think = "Ready to assist!</think>"
     extracted_title = MultiVendorClient.extract_session_title(sample_reply)
     display_text = MultiVendorClient.format_display_text(sample_reply)
+    display_text_clean = MultiVendorClient.format_display_text(sample_trailing_think)
     gen_cfg_high, supports = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "high")
     gen_cfg_med, _ = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "medium")
     gen_cfg_low, _ = MultiVendorClient.build_gemini_generation_config("gemini-2.5-flash", "low")
@@ -952,6 +963,7 @@ async def run_self_test() -> int:
     if (
         extracted_title != "Python Sidecar Architecture"
         or display_text != "Ready to assist!"
+        or display_text_clean != "Ready to assist!"
         or not supports
         or gen_cfg_high.get("thinkingConfig", {}).get("thinkingBudget") != 24576
         or gen_cfg_med.get("thinkingConfig", {}).get("thinkingBudget") != 8192

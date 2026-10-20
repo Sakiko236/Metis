@@ -103,10 +103,7 @@ Detailed documentation for tools, engine scripts, and codebase files is maintain
 
 * [`src-python/`](src-python/README.md) – Core Python sidecar engine, agent loop, LLM integrations, and file guardrails.
 * [`src-tauri/`](src-tauri/README.md) – Tauri 2.0 native host shell, application lifecycle, and IPC bridge.
-* [`src/`](src/README.md) – Frontend user interface and responsive single-page webview application.
 * [`scripts/`](scripts/README.md) – Developer automation tools, build scripts, and version synchronizer.
-* [`demo_workspace/`](demo_workspace/README.md) – Sample workspace files for testing surgical edits and multimodal ingestion.
-* [`assets/`](assets/README.md) – Application graphics, icons, and mascot art assets.
 
 ---
 

@@ -92,81 +92,16 @@ Download the appropriate release package for your operating system from the [Rel
 
 ---
 
-## 🔄 One-Click Self-Test & Version Bump
+## 📚 Component Documentation
 
-Metis follows a **Single Source of Truth (SSOT)** dynamic version distribution architecture. All components (Tauri configuration, Rust host binary, Python sidecar engine, and frontend UI) dynamically inherit the version at compile time or runtime, eliminating manual synchronization across multiple files.
+Detailed documentation for tools, engine scripts, and codebase files is maintained directly within each component directory:
 
-### 1. Headless End-to-End Self-Test
-
-Metis features a built-in cross-process suite of 10 core smoke and stability self-tests, verifying configuration persistence, chat session storage, whitelist security guardrails, surgical search/replace operations, silent terminal execution, and multi-vendor LLM streaming protocols:
-
-```bash
-# Run standalone Python sidecar engine self-test suite
-python src-python/main.py --self-test
-
-# Run full cross-process bidirectional IPC pipeline test (Rust host + Python sidecar)
-cargo run --manifest-path src-tauri/Cargo.toml -- --self-test
-```
-
-### 2. Version Bump & Release Automation CLI
-
-The project provides an automated version management utility [`scripts/bump_version.py`](scripts/bump_version.py). It enforces **complete end-to-end self-test verification** before permitting version bumps or git pushes:
-
-```bash
-# Bump patch version (e.g. 1.4.2 -> 1.4.3) with automated self-tests
-python scripts/bump_version.py patch
-
-# Bump minor version (e.g. 1.4.2 -> 1.5.0)
-python scripts/bump_version.py minor
-
-# Set an explicit target version
-python scripts/bump_version.py 2.0.0
-
-# 🌟 Automated release mode: self-test -> version sync -> git commit -> git tag -> push to remote & trigger GitHub Actions CI
-python scripts/bump_version.py patch --push
-```
-
----
-
-## 📂 Project Structure
-
-```text
-├── assets/
-│   ├── metis-icon.png          # High-resolution application logo
-│   └── firstpage.png           # Main workspace interface preview
-├── demo_workspace/             # Sample workspace files for quick testing
-├── scripts/
-│   ├── build_sidecar.py        # PyInstaller build script for Tauri externalBin
-│   └── bump_version.py         # One-command self-test, version bump & release synchronizer
-├── src/
-│   └── frontend/
-│       └── index.html          # Modern responsive UI (Sky Blue theme, KaTeX, uncapped width)
-├── src-python/                 # Core Python Sidecar Business Engine
-│   ├── main.py                 # Async IPC loop, CLI self-test runner, and agent orchestrator
-│   ├── agent.py                # AgentController state & AgentLoop prompt builder
-│   ├── config.py               # Cross-platform config persistence & model memory
-│   ├── llm.py                  # Multi-vendor streaming client (Gemini, Claude, OpenAI, DeepSeek)
-│   ├── models.py               # Data domain models & PascalCase serialization schemas
-│   ├── requirements.txt        # Python build dependencies (PyInstaller)
-│   ├── session.py              # Cross-platform chat session store
-│   ├── shell.py                # Silent cross-platform terminal command runner
-│   └── whitelist.py            # Zero-blast-radius file guardrails & surgical editor
-├── src-tauri/                  # Tauri 2.0 Native Shell Host
-│   ├── Cargo.toml              # Rust crate manifest (minimal lightweight shell)
-│   ├── tauri.conf.json         # Tauri 2.0 app, window, and externalBin configuration
-│   ├── build.rs                # Universal cross-platform build script
-│   ├── icons/                  # Multi-resolution application icons (ICO, ICNS, PNG)
-│   ├── capabilities/           # Tauri 2.0 security capabilities
-│   └── src/
-│       ├── main.rs             # Desktop launcher & end-to-end headless self-test runner
-│       └── lib.rs              # SidecarBridge supervisor, window controls, and IPC bridge
-├── .github/workflows/
-│   └── release.yml             # Automated multi-platform CI/CD release workflow
-├── package.json                # Project root manifest & Tauri CLI scripts
-├── metis_config.example.json   # Sample configuration file
-├── .gitignore                  # Git ignore rules
-└── README.md                   # Project documentation and architectural guide
-```
+* [`src-python/`](src-python/README.md) – Core Python sidecar engine, agent loop, LLM integrations, and file guardrails.
+* [`src-tauri/`](src-tauri/README.md) – Tauri 2.0 native host shell, application lifecycle, and IPC bridge.
+* [`src/`](src/README.md) – Frontend user interface and responsive single-page webview application.
+* [`scripts/`](scripts/README.md) – Developer automation tools, build scripts, and version synchronizer.
+* [`demo_workspace/`](demo_workspace/README.md) – Sample workspace files for testing surgical edits and multimodal ingestion.
+* [`assets/`](assets/README.md) – Application graphics, icons, and mascot art assets.
 
 ---
 

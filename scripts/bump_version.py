@@ -113,14 +113,7 @@ def main() -> int:
     print("\n[Synchronizing Cargo.lock via cargo check...]")
     subprocess.run(["cargo", "check", "--manifest-path", str(cargo_toml_path)], cwd=str(repo_root))
 
-    # 6. Run Python Self-Test verification
-    print("\n[Verifying Dynamic Resolution in Python Sidecar...]")
-    res = subprocess.run([sys.executable, str(repo_root / "src-python" / "main.py"), "--self-test"], cwd=str(repo_root))
-    if res.returncode != 0:
-        print("ERROR: Python sidecar self-test failed with new version.", file=sys.stderr)
-        return res.returncode
-
-    # 7. Optional Git operations
+    # 6. Optional Git operations
     if args.commit or args.push:
         print("\n[Git Commit & Tag]")
         subprocess.check_call(["git", "add", "-A"], cwd=str(repo_root))

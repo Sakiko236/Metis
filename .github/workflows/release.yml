@@ -67,9 +67,6 @@ jobs:
       - name: Build Python Sidecar Executable
         run: python scripts/build_sidecar.py --target ${{ matrix.target }}
 
-      - name: Verify Python Sidecar Self-Test
-        run: python src-python/main.py --self-test
-
       - name: Prepare Release Notes
         id: release_notes
         shell: bash

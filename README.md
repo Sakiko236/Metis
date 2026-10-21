@@ -18,7 +18,7 @@
 
 <div align="center">
   <p><b>Clean, minimalist workspace and file management</b></p>
-  <img src="assets/firstpage.png" alt="Metis Minimalist Main Interface" width="850" />
+  <img src="assets/001.png" alt="Metis Minimalist Main Interface" width="850" />
 </div>
 
 ---

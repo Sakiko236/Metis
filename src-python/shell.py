@@ -17,24 +17,32 @@ class ShellRunner:
         cwd = working_dir if (working_dir and working_dir.strip() and Path(working_dir).is_dir()) else None
         timeout_val = timeout_seconds if timeout_seconds > 0 else 60
 
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
+
+        # PyInstaller safety: prevent child Python interpreter from inheriting PyInstaller's bundle path
+        for py_var in ("PYTHONHOME", "_MEIPASS2", "_MEIPASS"):
+            env.pop(py_var, None)
+        if "PYTHONPATH" in env and hasattr(sys, "_MEIPASS") and str(getattr(sys, "_MEIPASS")) in env["PYTHONPATH"]:
+            env.pop("PYTHONPATH", None)
+
+        kwargs = {
+            "cwd": cwd,
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "timeout": timeout_val,
+            "shell": True,
+            "env": env,
+        }
+
         if sys.platform == "win32":
-            args = ["cmd.exe", "/c", cmd_trimmed]
-            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-        else:
-            args = ["sh", "-c", cmd_trimmed]
-            creationflags = 0
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
 
         try:
-            kwargs = {
-                "cwd": cwd,
-                "stdout": subprocess.PIPE,
-                "stderr": subprocess.PIPE,
-                "timeout": timeout_val,
-            }
-            if sys.platform == "win32":
-                kwargs["creationflags"] = creationflags
-
-            proc = subprocess.run(args, **kwargs)
+            proc = subprocess.run(cmd_trimmed, **kwargs)
             stdout = proc.stdout.decode("utf-8", errors="replace") if proc.stdout else ""
             stderr = proc.stderr.decode("utf-8", errors="replace") if proc.stderr else ""
             return VerifyExecutionResult(

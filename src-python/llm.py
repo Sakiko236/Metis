@@ -344,6 +344,14 @@ class MultiVendorClient:
                         continue
 
                     event_type = v.get("type", "")
+                    if event_type in (
+                        "response.done",
+                        "response.completed",
+                        "response.incomplete",
+                        "response.cancelled",
+                        "done",
+                    ):
+                        break
 
                     # 1. Server-side web search status indicators
                     if event_type == "response.output_item.added":
@@ -424,6 +432,10 @@ class MultiVendorClient:
                                         on_chunk("<think>")
                                     output_parts.append(reasoning)
                                     on_chunk(reasoning)
+
+                            finish_reason = choices[0].get("finish_reason")
+                            if finish_reason and finish_reason in ("stop", "length", "tool_calls", "content_filter"):
+                                break
 
             if is_in_reasoning:
                 output_parts.append("</think>\n")
@@ -538,6 +550,10 @@ class MultiVendorClient:
                             on_chunk("<think>")
                         output_parts.append(reasoning)
                         on_chunk(reasoning)
+
+                    finish_reason = choices[0].get("finish_reason")
+                    if finish_reason and finish_reason in ("stop", "length", "tool_calls", "content_filter"):
+                        break
 
                 if is_in_reasoning:
                     output_parts.append("</think>\n")
@@ -775,7 +791,11 @@ class MultiVendorClient:
                     except Exception:
                         continue
 
-                    if v.get("type") == "content_block_delta":
+                    ev_type = v.get("type")
+                    if ev_type in ("message_stop", "done"):
+                        break
+
+                    if ev_type == "content_block_delta":
                         delta = v.get("delta", {})
                         if isinstance(delta, dict):
                             dtype = delta.get("type", "")
@@ -975,6 +995,10 @@ class MultiVendorClient:
                                 on_chunk("</think>\n")
                             full_output.append(txt)
                             on_chunk(txt)
+
+                    finish_reason = candidates[0].get("finishReason")
+                    if finish_reason and finish_reason in ("STOP", "MAX_TOKENS", "SAFETY", "RECITATION"):
+                        break
 
                 if is_in_thought:
                     full_output.append("</think>\n")

@@ -2449,52 +2449,147 @@
     font-family: var(--font-mono);
     font-weight: 600;
   }
+  /* Code Syntax Highlighting Tokens */
+  .syn-comment { color: #64748B; font-style: italic; }
+  .syn-string  { color: #FCD34D; }
+  .syn-number  { color: #FB923C; }
+  .syn-keyword { color: #C084FC; font-weight: 600; }
+  .syn-type    { color: #6EE7B7; }
+  .syn-func    { color: #38BDF8; }
+
+  [data-theme="light"] .syn-comment { color: #6B7280; font-style: italic; }
+  [data-theme="light"] .syn-string  { color: #B45309; }
+  [data-theme="light"] .syn-number  { color: #C2410C; }
+  [data-theme="light"] .syn-keyword { color: #7E22CE; font-weight: 600; }
+  [data-theme="light"] .syn-type    { color: #047857; }
+  [data-theme="light"] .syn-func    { color: #0284C7; }
+
+  /* Full File Code Viewer in Modal */
+  .code-viewer-container {
+    background: #0B0E17;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 8px 0;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    overflow-y: auto;
+    flex: 1;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+  .code-line {
+    display: flex;
+    align-items: baseline;
+    padding: 1.5px 0;
+    min-height: 22px;
+    transition: background 0.1s;
+  }
+  .code-line:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .code-line-num {
+    width: 44px;
+    padding-right: 12px;
+    text-align: right;
+    color: rgba(255, 255, 255, 0.28);
+    user-select: none;
+    -webkit-user-select: none;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .code-line-content {
+    flex: 1;
+    padding-right: 14px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #E2E8F0;
+  }
+
+  /* Diff Line Coloring & Gutters */
   .diff-line {
     display: flex;
     align-items: baseline;
-    padding: 2px 0;
+    padding: 2.5px 0;
     font-family: var(--font-mono);
     font-size: 12.5px;
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-all;
+    transition: background 0.1s;
+  }
+  .diff-line:hover {
+    filter: brightness(1.08);
   }
   .diff-line-prefix {
-    width: 28px;
+    width: 32px;
     flex-shrink: 0;
     text-align: center;
     user-select: none;
     -webkit-user-select: none;
     font-weight: 700;
-    opacity: 0.85;
+    font-size: 12px;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    margin-right: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.95;
   }
   .diff-line-content {
     flex: 1;
     padding-right: 14px;
   }
   .diff-line-del {
-    background: rgba(239, 68, 68, 0.13);
+    background: rgba(239, 68, 68, 0.16);
+    color: #FECDD3;
+    border-left: 3.5px solid #EF4444;
+  }
+  .diff-line-del .diff-line-prefix {
+    background: rgba(239, 68, 68, 0.25);
     color: #FCA5A5;
-    border-left: 3px solid #EF4444;
+    border-right-color: rgba(239, 68, 68, 0.3);
   }
   [data-theme="light"] .diff-line-del {
-    background: rgba(239, 68, 68, 0.08);
+    background: rgba(239, 68, 68, 0.1);
+    color: #991B1B;
+    border-left: 3.5px solid #DC2626;
+  }
+  [data-theme="light"] .diff-line-del .diff-line-prefix {
+    background: rgba(239, 68, 68, 0.18);
     color: #DC2626;
-    border-left: 3px solid #DC2626;
   }
   .diff-line-add {
-    background: rgba(16, 185, 129, 0.13);
+    background: rgba(16, 185, 129, 0.16);
+    color: #D1FAE5;
+    border-left: 3.5px solid #10B981;
+  }
+  .diff-line-add .diff-line-prefix {
+    background: rgba(16, 185, 129, 0.25);
     color: #6EE7B7;
-    border-left: 3px solid #10B981;
+    border-right-color: rgba(16, 185, 129, 0.3);
   }
   [data-theme="light"] .diff-line-add {
-    background: rgba(16, 185, 129, 0.08);
+    background: rgba(16, 185, 129, 0.1);
+    color: #065F46;
+    border-left: 3.5px solid #059669;
+  }
+  [data-theme="light"] .diff-line-add .diff-line-prefix {
+    background: rgba(16, 185, 129, 0.18);
     color: #059669;
-    border-left: 3px solid #059669;
   }
   .diff-line-ctx {
-    color: var(--text-secondary);
-    border-left: 3px solid transparent;
+    background: rgba(255, 255, 255, 0.015);
+    color: #E2E8F0;
+    border-left: 3.5px solid transparent;
+  }
+  .diff-line-ctx:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .diff-line-ctx .diff-line-prefix {
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.35);
   }
 </style>
 </head>
@@ -2725,7 +2820,8 @@
       <div id="inspectorImageContainer" style="display:none;flex:1;overflow:auto;background:#080A0F;border:1px solid var(--border-subtle);border-radius:8px;align-items:center;justify-content:center;padding:12px;">
         <img id="inspectorImageEl" src="" alt="Preview" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;" />
       </div>
-      <textarea id="inspectorCodeBox" class="form-input selectable" readonly style="flex:1;resize:none;line-height:1.6;font-size:12.5px;font-family:var(--font-mono);white-space:pre;overflow:auto;background:#0B0E17;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;"></textarea>
+      <div id="inspectorCodeViewer" class="code-viewer-container" style="display:none;"></div>
+      <textarea id="inspectorCodeBox" class="form-input selectable" readonly style="display:none;"></textarea>
       <div id="inspectorDiffContainer" class="diff-container" style="display:none;"></div>
     </div>
     <div class="modal-footer">
@@ -4158,6 +4254,46 @@
     renderSettingsPane();
   }
 
+  function highlightCodeLine(raw) {
+    if (!raw && raw !== '') return '&nbsp;';
+    if (raw === '') return '&nbsp;';
+
+    const tokenRegex = /(#.*$|\/\/.*$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\b(?:def|class|return|if|elif|else|for|while|try|except|finally|with|as|import|from|in|is|not|and|or|lambda|yield|async|await|fn|let|const|var|function|new|this|throw|switch|case|break|continue|default|typeof|instanceof|interface|type|struct|impl|pub|mut|use|mod|crate|enum|self|True|False|None|true|false|null|undefined|nil)\b|\b(?:int|float|str|bool|list|dict|set|tuple|cls|console|window|document|Promise|Array|Object|String|Number|Boolean|Option|Result|Some|Ok|Err|Vec)\b|\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\s*\())/g;
+
+    const keywords = new Set(['def','class','return','if','elif','else','for','while','try','except','finally','with','as','import','from','in','is','not','and','or','lambda','yield','async','await','fn','let','const','var','function','new','this','throw','switch','case','break','continue','default','typeof','instanceof','interface','type','struct','impl','pub','mut','use','mod','crate','enum','self','True','False','None','true','false','null','undefined','nil']);
+    const types = new Set(['int','float','str','bool','list','dict','set','tuple','cls','console','window','document','Promise','Array','Object','String','Number','Boolean','Option','Result','Some','Ok','Err','Vec']);
+
+    let result = '';
+    let lastIndex = 0;
+    let match;
+
+    while ((match = tokenRegex.exec(raw)) !== null) {
+      if (match.index > lastIndex) {
+        result += escapeHtml(raw.slice(lastIndex, match.index));
+      }
+      const val = match[0];
+      const esc = escapeHtml(val);
+      if (val.startsWith('#') || val.startsWith('//') || val.startsWith('/*')) {
+        result += `<span class="syn-comment">${esc}</span>`;
+      } else if (val.startsWith('"') || val.startsWith("'") || val.startsWith('`')) {
+        result += `<span class="syn-string">${esc}</span>`;
+      } else if (/^\d/.test(val)) {
+        result += `<span class="syn-number">${esc}</span>`;
+      } else if (keywords.has(val)) {
+        result += `<span class="syn-keyword">${esc}</span>`;
+      } else if (types.has(val)) {
+        result += `<span class="syn-type">${esc}</span>`;
+      } else {
+        result += `<span class="syn-func">${esc}</span>`;
+      }
+      lastIndex = tokenRegex.lastIndex;
+    }
+    if (lastIndex < raw.length) {
+      result += escapeHtml(raw.slice(lastIndex));
+    }
+    return result || '&nbsp;';
+  }
+
   // Inspector Modal
   function openInspectorWithData(data) {
     const mediaKind = (data.mediaKind || 'code').toLowerCase();
@@ -4190,6 +4326,7 @@
     const imgContainer = document.getElementById('inspectorImageContainer');
     const imgEl = document.getElementById('inspectorImageEl');
     const codeBox = document.getElementById('inspectorCodeBox');
+    const codeViewer = document.getElementById('inspectorCodeViewer');
     const diffContainer = document.getElementById('inspectorDiffContainer');
     const revertBtn = document.getElementById('inspectorRevertBtn');
     const revealBtn = document.getElementById('inspectorRevealBtn');
@@ -4199,13 +4336,22 @@
     if (isImage && data.dataUrl) {
       imgEl.src = data.dataUrl;
       imgContainer.style.display = 'flex';
+      if (codeViewer) codeViewer.style.display = 'none';
       codeBox.style.display = 'block';
       codeBox.style.flex = '0 0 90px';
     } else {
       imgEl.src = '';
       imgContainer.style.display = 'none';
-      codeBox.style.display = 'block';
-      codeBox.style.flex = '1';
+      codeBox.style.display = 'none';
+      if (codeViewer) {
+        const rawLines = (data.content || '').split(/\r?\n/);
+        let viewerHtml = '';
+        rawLines.forEach((l, idx) => {
+          viewerHtml += `<div class="code-line"><span class="code-line-num">${idx + 1}</span><span class="code-line-content">${highlightCodeLine(l)}</span></div>`;
+        });
+        codeViewer.innerHTML = viewerHtml;
+        codeViewer.style.display = 'block';
+      }
     }
 
     codeBox.value = data.content || '';
@@ -4237,7 +4383,10 @@
     const statsChips = document.getElementById('inspectorStatsChips');
     const imgContainer = document.getElementById('inspectorImageContainer');
     const codeBox = document.getElementById('inspectorCodeBox');
+    const codeViewer = document.getElementById('inspectorCodeViewer');
     const diffContainer = document.getElementById('inspectorDiffContainer');
+
+    if (codeViewer) codeViewer.style.display = 'none';
     const revertBtn = document.getElementById('inspectorRevertBtn');
     const revealBtn = document.getElementById('inspectorRevealBtn');
 
@@ -4338,12 +4487,12 @@
           const rLines = (ed.replaceBlock || '').split(/\r?\n/);
           sLines.forEach(l => {
             if (l.length > 0) {
-              diffHtml += `<div class="diff-line diff-line-del"><span class="diff-line-prefix">-</span><span class="diff-line-content">${escapeHtml(l)}</span></div>`;
+              diffHtml += `<div class="diff-line diff-line-del"><span class="diff-line-prefix">-</span><span class="diff-line-content">${highlightCodeLine(l)}</span></div>`;
             }
           });
           rLines.forEach(l => {
             if (l.length > 0) {
-              diffHtml += `<div class="diff-line diff-line-add"><span class="diff-line-prefix">+</span><span class="diff-line-content">${escapeHtml(l)}</span></div>`;
+              diffHtml += `<div class="diff-line diff-line-add"><span class="diff-line-prefix">+</span><span class="diff-line-content">${highlightCodeLine(l)}</span></div>`;
             }
           });
         } else {
@@ -4351,11 +4500,11 @@
             const t = item.type;
             const lineText = item.line || '';
             if (t === 'del') {
-              diffHtml += `<div class="diff-line diff-line-del"><span class="diff-line-prefix">-</span><span class="diff-line-content">${escapeHtml(lineText)}</span></div>`;
+              diffHtml += `<div class="diff-line diff-line-del"><span class="diff-line-prefix">-</span><span class="diff-line-content">${highlightCodeLine(lineText)}</span></div>`;
             } else if (t === 'add') {
-              diffHtml += `<div class="diff-line diff-line-add"><span class="diff-line-prefix">+</span><span class="diff-line-content">${escapeHtml(lineText)}</span></div>`;
+              diffHtml += `<div class="diff-line diff-line-add"><span class="diff-line-prefix">+</span><span class="diff-line-content">${highlightCodeLine(lineText)}</span></div>`;
             } else {
-              diffHtml += `<div class="diff-line diff-line-ctx"><span class="diff-line-prefix"> </span><span class="diff-line-content">${escapeHtml(lineText)}</span></div>`;
+              diffHtml += `<div class="diff-line diff-line-ctx"><span class="diff-line-prefix"> </span><span class="diff-line-content">${highlightCodeLine(lineText)}</span></div>`;
             }
           });
         }
@@ -4381,7 +4530,7 @@
     let textToCopy = '';
     if (diffContainer && diffContainer.style.display !== 'none') {
       textToCopy = diffContainer.innerText;
-    } else if (codeBox && codeBox.style.display !== 'none') {
+    } else if (codeBox && codeBox.value) {
       textToCopy = codeBox.value;
     }
     if (!textToCopy) return;

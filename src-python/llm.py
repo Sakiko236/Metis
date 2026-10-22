@@ -1082,41 +1082,6 @@ class MultiVendorClient:
                     )
                 )
 
-        # 4. Parse <metis_cmd>
-        for cap in CMD_TAG_RE.finditer(cleaned):
-            raw_cmd = (cap.group(1) or "").strip()
-            if raw_cmd:
-                valid_lines = [
-                    line.strip()
-                    for line in raw_cmd.splitlines()
-                    if line.strip()
-                    and not line.strip().startswith("#")
-                    and not line.strip().startswith("//")
-                    and not line.strip().lower().startswith("rem ")
-                ]
-                if valid_lines:
-                    combined = " && ".join(valid_lines)
-                    if combined not in parsed.terminal_commands:
-                        parsed.terminal_commands.append(combined)
-
-        # 5. Parse DSML tool calls if present (e.g. DeepSeek models)
-        for cap in DSML_CMD_RE.finditer(cleaned):
-            raw_cmd = cap.group(1) or ""
-            raw_cmd = re.sub(r"<[^>]+>", "", raw_cmd).strip()
-            if raw_cmd:
-                valid_lines = [
-                    line.strip()
-                    for line in raw_cmd.splitlines()
-                    if line.strip()
-                    and not line.strip().startswith("#")
-                    and not line.strip().startswith("//")
-                    and not line.strip().lower().startswith("rem ")
-                ]
-                if valid_lines:
-                    combined = " && ".join(valid_lines)
-                    if combined not in parsed.terminal_commands:
-                        parsed.terminal_commands.append(combined)
-
         parsed.explanation_text = cls.format_display_text(raw_output)
         return parsed
 
@@ -1213,7 +1178,6 @@ class MultiVendorClient:
             parts.append("    return current_time >= expires_at\n")
             parts.append(">>>>>>> REPLACE\n")
             parts.append("</metis_replace>\n")
-            parts.append("<metis_cmd>\npython -m unittest test_auth.py\n</metis_cmd>\n")
         else:
             parts.append(f"[Mock Sandbox Engine] Inspected `{target.file_name}`.\n")
 

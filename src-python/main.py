@@ -811,64 +811,9 @@ class SidecarEngine:
                     )
                     target_session.ui_events.append(ev)
 
-                # 2. Process Terminal Commands
-                for cmd in parsed.terminal_commands:
-                    had_actions = True
-                    cmd_status = f"Executing `{cmd}`..."
-                    self.set_session_status(session_id, cmd_status)
-                    emit_host_message(
-                        {
-                            "type": "busyStatus",
-                            "sessionId": session_id,
-                            "isBusy": True,
-                            "statusText": cmd_status,
-                        }
-                    )
-
-                    cmd_ev = UiStreamEvent(
-                        event_type="verify_result",
-                        content=f"Executing `{cmd}`...",
-                        command=cmd,
-                        round=current_round,
-                        is_running=True,
-                        succeeded=True,
-                    )
-                    target_session = self.session_store.get_session(session_id)
-                    if target_session is not None:
-                        target_session.ui_events.append(cmd_ev)
-
-                    self.broadcast_full_state()
-
-                    ws_dir = loop_whitelist.get_active_workspace_directory()
-                    exec_res = await ShellRunner.run_command(cmd, ws_dir, timeout_sec)
-
-                    cmd_ev.is_running = False
-                    cmd_ev.working_directory = ws_dir
-                    cmd_ev.exit_code = exec_res.exit_code
-                    cmd_ev.duration_seconds = exec_res.duration_seconds
-                    cmd_ev.succeeded = exec_res.succeeded()
-                    cmd_ev.content = f"Executed `{cmd}`"
-                    cmd_ev.terminal_output = exec_res.combined_output()
-
-                    target_session = self.session_store.get_session(session_id)
-                    if target_session is not None:
-                        target_session.api_history.append(
-                            ChatHistoryItem(
-                                role="user",
-                                content=(
-                                    f"[Terminal Execution Feedback for `{cmd}`]:\n"
-                                    f"Exit Code: {exec_res.exit_code}\n"
-                                    f"Output:\n{exec_res.combined_output()}"
-                                ),
-                            )
-                        )
-                    self.broadcast_full_state()
-
                 self.broadcast_full_state()
 
-                needs_followup_round = bool(
-                    parsed.terminal_commands or any_edit_failed
-                )
+                needs_followup_round = bool(any_edit_failed)
                 if not needs_followup_round:
                     break
 

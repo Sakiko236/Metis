@@ -967,8 +967,158 @@
   }
   .whitelist-strip {
     flex: 0 0 auto;
-    max-height: 150px;
+    max-height: 220px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .whitelist-count-badge {
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .whitelist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    padding-right: 4px;
+    flex: 1;
+    min-height: 0;
+  }
+  .file-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    transition: all 0.14s ease;
+    gap: 12px;
+  }
+  .file-list-row:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.04);
+  }
+  .file-list-row.modified {
+    border-color: rgba(16, 185, 129, 0.45);
+    background: rgba(16, 185, 129, 0.04);
+  }
+  .file-list-row-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+  .file-list-row-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .file-list-row-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .file-list-row-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .file-list-row-name {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-list-row-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .file-list-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .btn-row-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .btn-row-action:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+  .btn-row-action.btn-revert {
+    color: #FBBF24;
+    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.08);
+  }
+  .btn-row-action.btn-revert:hover {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: #FBBF24;
+    color: #FDE68A;
+  }
+  .badge-row-status {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .badge-row-status.badge-mod {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34D399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  .badge-row-status.badge-pdf {
+    background: rgba(245, 158, 11, 0.15);
+    color: #FBBF24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+  .badge-row-status.badge-img {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38BDF8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+  }
+  .badge-row-status.badge-dir {
+    background: rgba(129, 140, 248, 0.15);
+    color: #A5B4FC;
+    border: 1px solid rgba(129, 140, 248, 0.3);
   }
   .chat-stream {
     min-height: 120px;
@@ -2198,84 +2348,134 @@
     right: 0;
     width: 12px;
     height: 12px;
-  /* Search & Replace Diff Inspector Styles */
+  /* Search & Replace Diff Inspector & Modal Styles */
+  .inspector-modal-window {
+    width: min(1080px, 94vw);
+    height: min(840px, 86vh);
+    max-height: 880px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  .inspector-stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: rgba(0, 0, 0, 0.22);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .diff-stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .diff-stat-chip.add {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34D399;
+  }
+  .diff-stat-chip.del {
+    background: rgba(239, 68, 68, 0.15);
+    color: #F87171;
+  }
+  .diff-stat-chip.neutral {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+  }
   .diff-container {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     overflow-y: auto;
     flex: 1;
-    padding-right: 4px;
+    padding: 4px 2px;
   }
   .diff-file-card {
     border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    background: var(--code-bg);
+    border-radius: 9px;
+    background: #0B0E17;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   }
   .diff-file-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
-    background: var(--code-header-bg);
+    padding: 10px 14px;
+    background: #111625;
     border-bottom: 1px solid var(--border-subtle);
     font-size: 12.5px;
+    gap: 12px;
   }
   .diff-file-body {
     font-family: var(--font-mono);
     font-size: 12px;
-    line-height: 1.6;
+    line-height: 1.65;
     overflow-x: auto;
     padding: 6px 0;
     user-select: text !important;
     -webkit-user-select: text !important;
   }
   .diff-chunk-divider {
-    padding: 4px 14px;
-    font-size: 11px;
+    padding: 5px 14px;
+    font-size: 11.5px;
     color: #38BDF8;
     background: rgba(14, 165, 233, 0.08);
-    border-top: 1px dashed var(--border-subtle);
-    border-bottom: 1px dashed var(--border-subtle);
+    border-top: 1px solid rgba(14, 165, 233, 0.18);
+    border-bottom: 1px solid rgba(14, 165, 233, 0.18);
     font-family: var(--font-mono);
+    font-weight: 600;
   }
   .diff-line {
     display: flex;
     align-items: baseline;
-    padding: 2px 14px;
+    padding: 2px 0;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-all;
   }
   .diff-line-prefix {
-    width: 22px;
+    width: 28px;
     flex-shrink: 0;
+    text-align: center;
     user-select: none;
     -webkit-user-select: none;
     font-weight: 700;
+    opacity: 0.85;
   }
   .diff-line-content {
     flex: 1;
+    padding-right: 14px;
   }
   .diff-line-del {
-    background: rgba(239, 68, 68, 0.16);
-    color: #F87171;
+    background: rgba(239, 68, 68, 0.13);
+    color: #FCA5A5;
     border-left: 3px solid #EF4444;
   }
   [data-theme="light"] .diff-line-del {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.08);
     color: #DC2626;
     border-left: 3px solid #DC2626;
   }
   .diff-line-add {
-    background: rgba(16, 185, 129, 0.16);
-    color: #34D399;
+    background: rgba(16, 185, 129, 0.13);
+    color: #6EE7B7;
     border-left: 3px solid #10B981;
   }
   [data-theme="light"] .diff-line-add {
-    background: rgba(16, 185, 129, 0.1);
+    background: rgba(16, 185, 129, 0.08);
     color: #059669;
     border-left: 3px solid #059669;
   }
@@ -2493,23 +2693,32 @@
 
 <!-- File Inspector Modal -->
 <div class="modal-backdrop" id="inspectorModal">
-  <div class="modal-window" style="width:880px;height:620px;">
+  <div class="modal-window inspector-modal-window">
     <div class="modal-header">
-      <div class="modal-title" id="inspectorTitle">Live File Preview</div>
-      <button class="icon-btn-sm" onclick="closeInspectorModal()">✕</button>
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div class="modal-title" id="inspectorTitle" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Inspect Code</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn-secondary" id="inspectorCopyAllBtn" style="padding:3px 9px;font-size:11.5px;" onclick="copyInspectorContent(this)">Copy All</button>
+        <button class="icon-btn-sm" onclick="closeInspectorModal()">✕</button>
+      </div>
     </div>
-    <div style="flex:1;padding:14px 18px;overflow:hidden;display:flex;flex-direction:column;gap:8px;">
-      <div id="inspectorMeta" style="font-size:12px;color:var(--text-secondary);"></div>
+    <div class="inspector-stats-bar" id="inspectorStatsBar">
+      <div id="inspectorMeta" style="font-size:12px;color:var(--text-secondary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="inspectorStatsChips" style="display:flex;align-items:center;gap:6px;"></div>
+    </div>
+    <div style="flex:1;padding:12px 18px;overflow:hidden;display:flex;flex-direction:column;gap:8px;min-height:0;">
       <div id="inspectorImageContainer" style="display:none;flex:1;overflow:auto;background:#080A0F;border:1px solid var(--border-subtle);border-radius:8px;align-items:center;justify-content:center;padding:12px;">
         <img id="inspectorImageEl" src="" alt="Preview" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;" />
       </div>
-      <textarea id="inspectorCodeBox" class="form-input selectable" readonly style="flex:1;resize:none;line-height:1.55;font-size:12.5px;white-space:pre;overflow:auto;"></textarea>
+      <textarea id="inspectorCodeBox" class="form-input selectable" readonly style="flex:1;resize:none;line-height:1.6;font-size:12.5px;font-family:var(--font-mono);white-space:pre;overflow:auto;background:#0B0E17;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;"></textarea>
       <div id="inspectorDiffContainer" class="diff-container" style="display:none;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="inspectorRevealBtn">Reveal in Explorer</button>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-        <button class="btn-secondary" id="inspectorRevertBtn" style="color:#FBBF24;">Revert to Initial Version</button>
+        <button class="btn-secondary" id="inspectorRevertBtn" style="color:#FBBF24;border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.08);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:4px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Revert to Initial Version</button>
         <button class="btn-primary" onclick="closeInspectorModal()">Close</button>
       </div>
     </div>
@@ -2968,6 +3177,18 @@
     if (titleEl) titleEl.textContent = sess.Title || 'Default Chat';
   }
 
+  function formatFileSize(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    let size = bytes;
+    while (size >= 1024 && i < units.length - 1) {
+      size /= 1024;
+      i++;
+    }
+    return (i === 0 ? size : size.toFixed(1)) + ' ' + units[i];
+  }
+
   function renderWhitelistStrip() {
     const container = document.getElementById('whitelistStripContainer');
     const sess = getActiveSession();
@@ -2979,95 +3200,117 @@
       container.innerHTML = '';
       return;
     }
-    container.style.display = 'block';
+    container.style.display = 'flex';
 
-    let dirChipsHtml = dirs.map(d => {
+    let dirRowsHtml = dirs.map(d => {
       const safeDir = escapeJsStr(d);
       const folderName = d.split(/[\\/]/).filter(Boolean).pop() || d;
       return `
-        <div class="file-chip" style="border-color:rgba(99,102,241,0.45);background:rgba(99,102,241,0.08);" title="${escapeHtml(d)}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818CF8" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="file-chip-name" style="color:#C7D2FE;">📁 ${escapeHtml(folderName)}</span>
-              <span class="file-chip-status" style="color:#818CF8;">DIR</span>
+        <div class="file-list-row" title="${escapeHtml(d)}">
+          <div class="file-list-row-left">
+            <div class="file-list-row-icon" style="color:#818CF8;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             </div>
-            <div class="file-chip-meta" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(d)}</div>
+            <div class="file-list-row-details">
+              <div class="file-list-row-primary">
+                <span class="file-list-row-name" style="color:#C7D2FE;">${escapeHtml(folderName)}</span>
+                <span class="badge-row-status badge-dir">DIR</span>
+              </div>
+              <div class="file-list-row-meta" title="${escapeHtml(d)}">${escapeHtml(d)}</div>
+            </div>
           </div>
-          <div class="file-chip-actions">
-            <button class="icon-btn-sm" title="Reveal in Explorer" onclick="hostPost({ action: 'revealFile', path: '${safeDir}' })">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          <div class="file-list-row-actions">
+            <button class="btn-row-action" title="Reveal in Explorer" onclick="hostPost({ action: 'revealFile', path: '${safeDir}' })">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span>Reveal</span>
             </button>
-            <button class="icon-btn-sm danger" title="Unlink" onclick="hostPost({ action: 'removeDirectory', path: '${safeDir}' })">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button class="icon-btn-sm danger" title="Unlink directory" onclick="hostPost({ action: 'removeDirectory', path: '${safeDir}' })">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
       `;
     }).join('');
 
-    let cardsHtml = files.map(f => {
+    let fileRowsHtml = files.map(f => {
       const mediaKind = (f.MediaKind || 'code').toLowerCase();
       const isPdf = mediaKind === 'pdf';
       const isImage = mediaKind === 'image';
       const isBinaryMedia = isPdf || isImage || !!f.IsBinaryMedia;
+      const isModified = (f.EditCount > 0);
 
-      const modClass = f.EditCount > 0 ? ' modified' : '';
-      let chipStyle = '';
-      let statusLabel = 'Normal';
-      let iconPrefix = '';
+      let badgeHtml = '';
+      let iconColor = isModified ? '#34D399' : '#9CA3AF';
+      let iconSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 
       if (isPdf) {
-        chipStyle = 'border-color:rgba(245,158,11,0.45);background:rgba(245,158,11,0.08);';
-        statusLabel = 'PDF';
-        iconPrefix = '📕 ';
+        badgeHtml = '<span class="badge-row-status badge-pdf">PDF</span>';
+        iconColor = '#FBBF24';
+        iconSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
       } else if (isImage) {
-        chipStyle = 'border-color:rgba(56,189,248,0.45);background:rgba(56,189,248,0.08);';
-        statusLabel = 'Image';
-        iconPrefix = '🖼️ ';
-      } else if (f.EditCount > 0) {
-        statusLabel = 'Modified ' + f.EditCount;
+        badgeHtml = '<span class="badge-row-status badge-img">IMG</span>';
+        iconColor = '#38BDF8';
+        iconSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+      } else if (isModified) {
+        badgeHtml = `<span class="badge-row-status badge-mod">Modified (${f.EditCount})</span>`;
       }
 
       const displayName = f.RelativePath || f.FileName;
       const safePath = escapeJsStr(f.FullPath);
+      const sizeFormatted = formatFileSize(f.CurrentSizeBytes || 0);
+
       return `
-        <div class="file-chip${modClass}" style="${chipStyle}" title="${escapeHtml(f.FullPath)}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isPdf ? '#FBBF24' : (isImage ? '#38BDF8' : (f.EditCount > 0 ? '#38BDF8' : '#9CA3AF'))}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="file-chip-name">${iconPrefix}${escapeHtml(displayName)}</span>
-              <span class="file-chip-status" style="${isPdf ? 'color:#FBBF24;' : (isImage ? 'color:#38BDF8;' : '')}">${statusLabel}</span>
+        <div class="file-list-row${isModified ? ' modified' : ''}" title="${escapeHtml(f.FullPath)}">
+          <div class="file-list-row-left">
+            <div class="file-list-row-icon" style="color:${iconColor};">
+              ${iconSvg}
             </div>
-            <div class="file-chip-meta">${f.CurrentSizeBytes || 0} B</div>
+            <div class="file-list-row-details">
+              <div class="file-list-row-primary">
+                <span class="file-list-row-name">${escapeHtml(displayName)}</span>
+                ${badgeHtml}
+              </div>
+              <div class="file-list-row-meta">
+                <span>${sizeFormatted}</span>
+                <span style="opacity:0.4;">•</span>
+                <span style="max-width:320px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(f.FullPath)}">${escapeHtml(f.FullPath)}</span>
+              </div>
+            </div>
           </div>
-          <div class="file-chip-actions">
-            <button class="icon-btn-sm" title="Inspect" onclick="hostPost({ action: 'inspectFile', path: '${safePath}' })">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <div class="file-list-row-actions">
+            <button class="btn-row-action" title="Inspect file content" onclick="hostPost({ action: 'inspectFile', path: '${safePath}' })">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Inspect</span>
             </button>
-            ${!isBinaryMedia ? `<button class="icon-btn-sm" title="Revert" onclick="hostPost({ action: 'revertFile', path: '${safePath}' })">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            ${!isBinaryMedia ? `
+            <button class="btn-row-action btn-revert" title="Revert to initial version (回滚到初始状态)" onclick="hostPost({ action: 'revertFile', path: '${safePath}' })">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              <span>Revert</span>
             </button>` : ''}
-            <button class="icon-btn-sm danger" title="Remove" onclick="hostPost({ action: 'removeFile', path: '${safePath}' })">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button class="icon-btn-sm danger" title="Remove from workspace" onclick="hostPost({ action: 'removeFile', path: '${safePath}' })">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
       `;
     }).join('');
 
+    const totalCount = files.length + dirs.length;
+    const countText = `${files.length} ${files.length === 1 ? 'file' : 'files'}${dirs.length > 0 ? ', ' + dirs.length + (dirs.length === 1 ? ' folder' : ' folders') : ''}`;
+
     container.innerHTML = `
       <div class="whitelist-header-row">
         <div class="whitelist-label">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Workspace Files (${dirs.length > 0 ? (dirs.length + ' folders · ') : ''}${files.length} files)</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Workspace Files</span>
+          <span class="whitelist-count-badge">${countText}</span>
         </div>
         <div style="display:flex;gap:6px;">
           ${dirs.length > 0 ? '<button class="btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="hostPost({ action: \'refreshWorkspace\' })">Refresh</button>' : ''}
           <button class="btn-secondary" style="padding:2px 8px;font-size:11px;color:#F87171;" onclick="hostPost({ action: 'clearWhitelist' })">Clear</button>
         </div>
       </div>
-      <div class="whitelist-cards">${dirChipsHtml}${cardsHtml}</div>
+      <div class="whitelist-list">${dirRowsHtml}${fileRowsHtml}</div>
     `;
   }
 
@@ -3914,15 +4157,26 @@
     const isPdf = mediaKind === 'pdf';
     const isBinary = !!data.isBinaryMedia || isImage || isPdf;
 
+    const statsChips = document.getElementById('inspectorStatsChips');
+    if (statsChips) statsChips.innerHTML = '';
+
     if (isImage) {
-      document.getElementById('inspectorTitle').textContent = '🖼️ Vision Image Preview — ' + (data.fileName || '');
-      document.getElementById('inspectorMeta').textContent = `Full path: ${data.fullPath}  |  MIME: ${data.mimeType || 'image/*'}  |  Vision API enabled`;
+      document.getElementById('inspectorTitle').textContent = 'Vision Image Preview — ' + (data.fileName || '');
+      document.getElementById('inspectorMeta').textContent = `Full path: ${data.fullPath}  |  MIME: ${data.mimeType || 'image/*'}`;
+      if (statsChips) statsChips.innerHTML = '<span class="diff-stat-chip neutral">IMG</span>';
     } else if (isPdf) {
-      document.getElementById('inspectorTitle').textContent = '📕 PDF Document Preview — ' + (data.fileName || '');
-      document.getElementById('inspectorMeta').textContent = `Full path: ${data.fullPath}  |  Multimodal Base64 upload enabled`;
+      document.getElementById('inspectorTitle').textContent = 'PDF Document Preview — ' + (data.fileName || '');
+      document.getElementById('inspectorMeta').textContent = `Full path: ${data.fullPath}  |  Multimodal Base64`;
+      if (statsChips) statsChips.innerHTML = '<span class="diff-stat-chip neutral">PDF</span>';
     } else {
       document.getElementById('inspectorTitle').textContent = 'Live File Preview — ' + (data.fileName || '');
-      document.getElementById('inspectorMeta').textContent = `Full path: ${data.fullPath}  |  Modified in place: ${data.editCount || 0} times`;
+      document.getElementById('inspectorMeta').textContent = `Full path: ${data.fullPath}`;
+      if (statsChips) {
+        statsChips.innerHTML = `
+          <span class="diff-stat-chip neutral">${formatFileSize(data.sizeBytes || (data.content || '').length)}</span>
+          ${data.editCount > 0 ? `<span class="diff-stat-chip add">Modified ${data.editCount}x</span>` : ''}
+        `;
+      }
     }
 
     const imgContainer = document.getElementById('inspectorImageContainer');
@@ -3972,6 +4226,7 @@
 
     const titleEl = document.getElementById('inspectorTitle');
     const metaEl = document.getElementById('inspectorMeta');
+    const statsChips = document.getElementById('inspectorStatsChips');
     const imgContainer = document.getElementById('inspectorImageContainer');
     const codeBox = document.getElementById('inspectorCodeBox');
     const diffContainer = document.getElementById('inspectorDiffContainer');
@@ -3985,6 +4240,9 @@
 
     // Group edits by file path or name
     const fileGroups = {};
+    let totalAdd = 0;
+    let totalDel = 0;
+
     ev.FileEdits.forEach(ed => {
       const key = ed.filePath || ed.fileName;
       if (!fileGroups[key]) {
@@ -3992,16 +4250,46 @@
           fileName: ed.fileName,
           filePath: ed.filePath,
           relativePath: ed.relativePath || ed.fileName,
-          edits: []
+          edits: [],
+          fileAdd: 0,
+          fileDel: 0
         };
       }
       fileGroups[key].edits.push(ed);
+
+      const lines = ed.diffLines || [];
+      if (lines.length > 0) {
+        lines.forEach(item => {
+          if (item.type === 'add') {
+            totalAdd++;
+            fileGroups[key].fileAdd++;
+          } else if (item.type === 'del') {
+            totalDel++;
+            fileGroups[key].fileDel++;
+          }
+        });
+      } else {
+        const sLines = (ed.searchBlock || '').split(/\r?\n/).filter(Boolean);
+        const rLines = (ed.replaceBlock || '').split(/\r?\n/).filter(Boolean);
+        totalDel += sLines.length;
+        totalAdd += rLines.length;
+        fileGroups[key].fileDel += sLines.length;
+        fileGroups[key].fileAdd += rLines.length;
+      }
     });
 
     const groupKeys = Object.keys(fileGroups);
     const fileCount = groupKeys.length;
-    titleEl.textContent = `Search & Replace Diff — ${ev.Content || (fileCount + ' files modified')}`;
-    metaEl.textContent = `${fileCount} ${fileCount === 1 ? 'file' : 'files'} modified in this turn · Red (-) removed lines, Green (+) added lines`;
+    titleEl.textContent = `Inspect Code — ${ev.Content || (fileCount + ' files modified')}`;
+    metaEl.textContent = `${fileCount} ${fileCount === 1 ? 'file' : 'files'} changed · Red (-) removed lines, Green (+) added lines`;
+
+    if (statsChips) {
+      statsChips.innerHTML = `
+        <span class="diff-stat-chip add">+${totalAdd}</span>
+        <span class="diff-stat-chip del">-${totalDel}</span>
+        <span class="diff-stat-chip neutral">${fileCount} ${fileCount === 1 ? 'file' : 'files'}</span>
+      `;
+    }
 
     if (groupKeys.length > 0 && fileGroups[groupKeys[0]].filePath) {
       revealBtn.style.display = 'inline-flex';
@@ -4017,14 +4305,16 @@
       diffHtml += `
         <div class="diff-file-card">
           <div class="diff-file-header">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-weight:600;font-family:var(--font-mono);font-size:12.5px;color:var(--text-primary);">📄 ${escapeHtml(g.relativePath)}</span>
-              <span class="round-pill" style="font-size:10.5px;">${g.edits.length} ${g.edits.length === 1 ? 'change' : 'changes'}</span>
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+              <span style="font-weight:600;font-family:var(--font-mono);font-size:12.5px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📄 ${escapeHtml(g.relativePath)}</span>
+              <span class="diff-stat-chip add" style="font-size:10px;">+${g.fileAdd}</span>
+              <span class="diff-stat-chip del" style="font-size:10px;">-${g.fileDel}</span>
+              <span class="round-pill" style="font-size:10px;">${g.edits.length} ${g.edits.length === 1 ? 'hunk' : 'hunks'}</span>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <button class="btn-secondary emerald" style="padding:2px 7px;font-size:11px;" onclick="hostPost({ action: 'inspectFile', path: '${safePath}' })">View Full File</button>
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+              <button class="btn-secondary emerald" style="padding:2px 8px;font-size:11px;" onclick="hostPost({ action: 'inspectFile', path: '${safePath}' })">View Full File</button>
               <button class="icon-btn-sm" title="Reveal in Explorer" onclick="hostPost({ action: 'revealFile', path: '${safePath}' })">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               </button>
             </div>
           </div>
@@ -4032,9 +4322,7 @@
       `;
 
       g.edits.forEach((ed, edIdx) => {
-        if (edIdx > 0) {
-          diffHtml += `<div class="diff-chunk-divider">@@ Search / Replace #${edIdx + 1} @@</div>`;
-        }
+        diffHtml += `<div class="diff-chunk-divider">@@ Hunk #${edIdx + 1}: Search & Replace @@</div>`;
 
         const lines = ed.diffLines || [];
         if (lines.length === 0) {
@@ -4077,6 +4365,23 @@
 
   function closeInspectorModal() {
     document.getElementById('inspectorModal').classList.remove('open');
+  }
+
+  function copyInspectorContent(btn) {
+    const diffContainer = document.getElementById('inspectorDiffContainer');
+    const codeBox = document.getElementById('inspectorCodeBox');
+    let textToCopy = '';
+    if (diffContainer && diffContainer.style.display !== 'none') {
+      textToCopy = diffContainer.innerText;
+    } else if (codeBox && codeBox.style.display !== 'none') {
+      textToCopy = codeBox.value;
+    }
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    }).catch(console.error);
   }
 
   // Native File Drag-and-Drop via WebView2 CoreWebView2File

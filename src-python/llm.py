@@ -45,8 +45,8 @@ WRITE_TAG_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 SR_BLOCK_RE = re.compile(
-    r"<{5,}\s*SEARCH\r?\n(.*?)\r?\n={5,}\r?\n(.*?)\r?\n>{5,}\s*REPLACE",
-    re.IGNORECASE | re.DOTALL,
+    r"<{5,}\s*SEARCH\r?\n((?:(?!={5,}|<{5,}\s*SEARCH)[\s\S])*?)\r?\n={5,}(?:\r?\n((?:(?!>{5,}\s*REPLACE|={5,})[\s\S])*?))?\r?\n>{5,}\s*REPLACE",
+    re.IGNORECASE,
 )
 RAW_SR_STREAMING_RE = re.compile(r"<{5,}\s*SEARCH\b.*$", re.IGNORECASE | re.DOTALL)
 CMD_TAG_RE = re.compile(
@@ -56,6 +56,10 @@ CMD_TAG_RE = re.compile(
 CMD_STREAMING_RE = re.compile(
     r"<(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)[^>]*>.*$",
     re.IGNORECASE | re.DOTALL,
+)
+DSML_CMD_RE = re.compile(
+    r'''<[｜|]{1,2}\s*DSML\s*[｜|]{1,2}\s*invoke\s+name=["']?(?:metis|pinpoint|surgical)?_?(?:cmd|terminal|verify)["']?[^>]*>([\s\S]*?)(?:<[｜|]{1,2}\s*/?\s*DSML|\Z)''',
+    re.IGNORECASE,
 )
 SEARCH_TAG_RE = re.compile(
     r"<(?:metis|surgical|pinpoint)?_?search[^>]*>\r?\n?(.*?)\r?\n?</(?:metis|surgical|pinpoint)?_?search>",
@@ -1095,6 +1099,24 @@ class MultiVendorClient:
                     if combined not in parsed.terminal_commands:
                         parsed.terminal_commands.append(combined)
 
+        # 5. Parse DSML tool calls if present (e.g. DeepSeek models)
+        for cap in DSML_CMD_RE.finditer(cleaned):
+            raw_cmd = cap.group(1) or ""
+            raw_cmd = re.sub(r"<[^>]+>", "", raw_cmd).strip()
+            if raw_cmd:
+                valid_lines = [
+                    line.strip()
+                    for line in raw_cmd.splitlines()
+                    if line.strip()
+                    and not line.strip().startswith("#")
+                    and not line.strip().startswith("//")
+                    and not line.strip().lower().startswith("rem ")
+                ]
+                if valid_lines:
+                    combined = " && ".join(valid_lines)
+                    if combined not in parsed.terminal_commands:
+                        parsed.terminal_commands.append(combined)
+
         parsed.explanation_text = cls.format_display_text(raw_output)
         return parsed
 
@@ -1112,6 +1134,10 @@ class MultiVendorClient:
         cleaned = RAW_SR_STREAMING_RE.sub("", cleaned)
         cleaned = CMD_TAG_RE.sub("", cleaned)
         cleaned = CMD_STREAMING_RE.sub("", cleaned)
+        cleaned = re.sub(r"<[｜|]{1,2}[\s\S]*?[｜|]{1,2}>", "", cleaned)
+        cleaned = re.sub(r"<[｜|]{1,2}[\s\S]*$", "", cleaned)
+        cleaned = re.sub(r"<result\b[^>]*>[\s\S]*?<\/result>", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"<result\b[^>]*>[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
         return cleaned.strip()
 

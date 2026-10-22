@@ -11,6 +11,18 @@ from models import VerifyExecutionResult
 
 class ShellRunner:
     @staticmethod
+    def _decode_bytes(b: bytes | None) -> str:
+        if not b:
+            return ""
+        try:
+            return b.decode("utf-8")
+        except UnicodeDecodeError:
+            try:
+                return b.decode("gbk", errors="replace")
+            except Exception:
+                return b.decode("utf-8", errors="replace")
+
+    @staticmethod
     def _run_sync(command_line: str, working_dir: str, timeout_seconds: int) -> VerifyExecutionResult:
         start = time.perf_counter()
         cmd_trimmed = command_line.strip()
@@ -43,8 +55,8 @@ class ShellRunner:
 
         try:
             proc = subprocess.run(cmd_trimmed, **kwargs)
-            stdout = proc.stdout.decode("utf-8", errors="replace") if proc.stdout else ""
-            stderr = proc.stderr.decode("utf-8", errors="replace") if proc.stderr else ""
+            stdout = ShellRunner._decode_bytes(proc.stdout)
+            stderr = ShellRunner._decode_bytes(proc.stderr)
             return VerifyExecutionResult(
                 command=cmd_trimmed,
                 working_directory=working_dir,
@@ -56,8 +68,8 @@ class ShellRunner:
                 cancelled=False,
             )
         except subprocess.TimeoutExpired as te:
-            stdout = te.stdout.decode("utf-8", errors="replace") if te.stdout else ""
-            stderr = te.stderr.decode("utf-8", errors="replace") if te.stderr else ""
+            stdout = ShellRunner._decode_bytes(te.stdout)
+            stderr = ShellRunner._decode_bytes(te.stderr)
             if stderr:
                 stderr += f"\nProcess timed out after {timeout_val} seconds."
             else:

@@ -3184,19 +3184,38 @@
       const cmdRaw = ev.Command || (ev.Content || '').replace(/^(?:Executing|Executed)\s*`?/, '').replace(/`?\s*\.{0,3}$/, '') || 'command';
       const cmdText = escapeHtml(cmdRaw);
       const statusClass = isRunning ? 'running' : (ev.Succeeded ? 'pass' : 'fail');
+      const termOutput = (ev.TerminalOutput || '').trim();
+      const hasOutput = !isRunning && termOutput.length > 0;
+      const autoExpand = !isRunning && !ev.Succeeded && hasOutput;
       return `
         <div class="msg-row" id="msg-row-${evId}">
-          <div class="cmd-status-card ${statusClass}">
-            <div class="cmd-status-left">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="cmd-status-icon ${isRunning ? 'pulse' : ''}">
-                <polyline points="4 17 10 11 4 5"/>
-                <line x1="12" y1="19" x2="20" y2="19"/>
-              </svg>
-              <span class="cmd-status-text ${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>
-                ${isRunning ? 'Executing' : 'Executed'} <code class="cmd-status-code">${cmdText}</code>${isRunning ? '...' : ''}
-              </span>
+          <div class="cmd-status-card ${statusClass}" style="flex-direction:column;align-items:stretch;width:100%;max-width:100%;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;cursor:${hasOutput ? 'pointer' : 'default'};" ${hasOutput ? `onclick="toggleTerminalOutput('${evId}')"` : ''}>
+              <div class="cmd-status-left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="cmd-status-icon ${isRunning ? 'pulse' : ''}">
+                  <polyline points="4 17 10 11 4 5"/>
+                  <line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+                <span class="cmd-status-text ${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>
+                  ${isRunning ? 'Executing' : 'Executed'} <code class="cmd-status-code">${cmdText}</code>${isRunning ? '...' : ''}
+                </span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                ${!isRunning && !ev.Succeeded ? '<span class="cmd-status-badge fail">Failed</span>' : ''}
+                ${!isRunning && ev.Succeeded && hasOutput ? '<span class="cmd-status-badge" style="background:rgba(16,185,129,0.12);color:var(--accent-emerald,#10B981);">Passed</span>' : ''}
+                ${hasOutput ? `
+                  <button class="icon-btn-sm" title="Toggle Terminal Output" onclick="event.stopPropagation();toggleTerminalOutput('${evId}')">
+                    <svg id="term-chevron-${evId}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform 0.2s;${autoExpand ? 'transform:rotate(180deg);' : ''}"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <button class="icon-btn-sm" title="Copy Output" onclick="event.stopPropagation();copyTerminalOutput(this, '${evId}')">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                ` : ''}
+              </div>
             </div>
-            ${!isRunning && !ev.Succeeded ? '<span class="cmd-status-badge fail">Failed</span>' : ''}
+            ${hasOutput ? `
+              <div id="term-body-${evId}" class="terminal-body" style="display:${autoExpand ? 'block' : 'none'};margin-top:8px;border-top:1px solid var(--border-subtle);background:#07090E;border-radius:6px;padding:8px 12px;max-height:260px;overflow-y:auto;font-family:var(--font-mono);font-size:11.5px;line-height:1.5;color:#D1D5DB;white-space:pre-wrap;word-break:break-all;">${escapeHtml(termOutput)}</div>
+            ` : ''}
           </div>
         </div>
       `;
@@ -4197,6 +4216,17 @@
     copyTextWithFeedback(btn, rawText, 'Copied conversation');
   }
 
+  function toggleTerminalOutput(eventId) {
+    const body = document.getElementById('term-body-' + eventId);
+    const chevron = document.getElementById('term-chevron-' + eventId);
+    if (!body) return;
+    const isHidden = (body.style.display === 'none');
+    body.style.display = isHidden ? 'block' : 'none';
+    if (chevron) {
+      chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+  }
+
   function copyTerminalOutput(btn, eventId) {
     let rawText = '';
     const sess = getActiveSession();
@@ -4382,6 +4412,11 @@
     raw = raw.replace(/<think\b[^>]*>[\s\S]*$/gi, '');
     // Strip stray or orphan thinking tags
     raw = raw.replace(/<\/?(?:think|thought|reasoning)\b[^>]*>/gi, '');
+    // Strip DeepSeek DSML / special protocol tags
+    raw = raw.replace(/<[｜|]{1,2}[\s\S]*?[｜|]{1,2}>/g, '');
+    raw = raw.replace(/<[｜|]{1,2}[\s\S]*$/g, '');
+    raw = raw.replace(/<result\b[^>]*>[\s\S]*?<\/result>/gi, '');
+    raw = raw.replace(/<result\b[^>]*>[\s\S]*$/gi, '');
     const trimmed = raw.trim();
     if (
       trimmed === 'Thinking' ||

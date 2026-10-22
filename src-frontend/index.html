@@ -2361,6 +2361,8 @@
     right: 0;
     width: 12px;
     height: 12px;
+    cursor: se-resize;
+  }
   /* Search & Replace Diff Inspector & Modal Styles */
   .inspector-modal-window {
     width: min(1080px, 94vw);
@@ -2493,6 +2495,12 @@
     padding: 1.5px 0;
     min-height: 22px;
     transition: background 0.08s;
+  }
+  .code-line:nth-child(even) {
+    background: rgba(128, 128, 128, 0.045);
+  }
+  [data-theme="light"] .code-line:nth-child(even) {
+    background: #F8FAFC;
   }
   .code-line:hover {
     background: var(--bg-hover);
@@ -4425,11 +4433,33 @@
       imgContainer.style.display = 'none';
       codeBox.style.display = 'none';
       if (codeViewer) {
-        const rawLines = (data.content || '').split(/\r?\n/);
+        const dLines = data.diffLines || data.DiffLines || [];
         let viewerHtml = '';
-        rawLines.forEach((l, idx) => {
-          viewerHtml += `<div class="code-line"><span class="code-line-num">${idx + 1}</span><span class="code-line-content">${highlightCodeLine(l)}</span></div>`;
-        });
+        if (dLines.length > 0) {
+          let oldLineNo = 1;
+          let newLineNo = 1;
+          dLines.forEach(item => {
+            const t = (item.type || item.Type || '').toLowerCase();
+            const lineText = (item.line !== undefined ? item.line : (item.Line !== undefined ? item.Line : ''));
+            const isDel = (t === 'del' || t === '-' || t === 'delete');
+            const isAdd = (t === 'add' || t === '+' || t === 'insert');
+            if (isDel) {
+              const gutter = `<span class="diff-gutter-num">${oldLineNo++}</span><span class="diff-gutter-num"></span><span class="diff-gutter-sign">-</span>`;
+              viewerHtml += `<div class="diff-line diff-line-del"><span class="diff-line-gutter">${gutter}</span><span class="diff-line-content">${highlightCodeLine(lineText)}</span></div>`;
+            } else if (isAdd) {
+              const gutter = `<span class="diff-gutter-num"></span><span class="diff-gutter-num">${newLineNo++}</span><span class="diff-gutter-sign">+</span>`;
+              viewerHtml += `<div class="diff-line diff-line-add"><span class="diff-line-gutter">${gutter}</span><span class="diff-line-content">${highlightCodeLine(lineText)}</span></div>`;
+            } else {
+              const gutter = `<span class="diff-gutter-num">${oldLineNo++}</span><span class="diff-gutter-num">${newLineNo++}</span><span class="diff-gutter-sign"> </span>`;
+              viewerHtml += `<div class="diff-line diff-line-ctx"><span class="diff-line-gutter">${gutter}</span><span class="diff-line-content">${highlightCodeLine(lineText)}</span></div>`;
+            }
+          });
+        } else {
+          const rawLines = (data.content || '').split(/\r?\n/);
+          rawLines.forEach((l, idx) => {
+            viewerHtml += `<div class="code-line"><span class="code-line-num">${idx + 1}</span><span class="code-line-content">${highlightCodeLine(l)}</span></div>`;
+          });
+        }
         codeViewer.innerHTML = viewerHtml;
         codeViewer.style.display = 'block';
       }

@@ -382,6 +382,16 @@ class SidecarEngine:
                     else:
                         content = wf.last_saved_content
 
+                    diff_lines = (
+                        compute_diff_lines(wf.initial_content, content)
+                        if (
+                            not wf.is_binary_media
+                            and wf.media_kind not in ("image", "pdf")
+                            and wf.edit_count > 0
+                            and wf.initial_content != content
+                        )
+                        else []
+                    )
                     emit_host_message(
                         {
                             "type": "fileContentPreview",
@@ -392,6 +402,7 @@ class SidecarEngine:
                             "mimeType": wf.mime_type,
                             "isBinaryMedia": wf.is_binary_media,
                             "content": content,
+                            "diffLines": diff_lines,
                             "dataUrl": data_url,
                         }
                     )
@@ -742,23 +753,40 @@ class SidecarEngine:
 
                 for edit in parsed.file_edits:
                     had_actions = True
+                    pre_wf = loop_whitelist.resolve_whitelisted_file(edit.target_file)
+                    prev_content = ""
+                    if pre_wf is not None:
+                        pre_p = Path(pre_wf.full_path)
+                        if pre_p.exists():
+                            try:
+                                prev_content = pre_p.read_text(encoding="utf-8", errors="replace")
+                            except Exception:
+                                prev_content = pre_wf.last_saved_content
+                        else:
+                            prev_content = pre_wf.last_saved_content
+
                     ok_edit, msg_or_err, wf = loop_whitelist.apply_edit_in_place(edit)
                     target_session = self.session_store.get_session(session_id)
                     if target_session is not None:
                         if ok_edit and wf is not None:
+                            target_search = (
+                                edit.search_block
+                                if edit.action_type != SurgicalActionType.WriteFull
+                                else prev_content
+                            )
                             target_replace = (
                                 edit.replace_block
                                 if edit.action_type != SurgicalActionType.WriteFull
                                 else edit.new_content
                             )
-                            diff_lines = compute_diff_lines(edit.search_block, target_replace)
+                            diff_lines = compute_diff_lines(target_search, target_replace)
                             successful_edits.append(
                                 {
                                     "filePath": wf.full_path,
                                     "fileName": wf.file_name,
                                     "relativePath": wf.relative_path or wf.file_name,
                                     "actionType": edit.action_type,
-                                    "searchBlock": edit.search_block,
+                                    "searchBlock": target_search,
                                     "replaceBlock": target_replace,
                                     "diffLines": diff_lines,
                                     "editCount": wf.edit_count,

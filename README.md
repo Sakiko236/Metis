@@ -1,5 +1,3 @@
-# Metis 🎯
-
 <div align="center">
   <img src="assets/metis-icon.png" width="108" height="108" alt="Metis Logo" />
   <br/>
@@ -25,46 +23,17 @@
 
 ## 💡 Philosophy & Design
 
-> **"Why scan and re-index an entire repository when you only need to fix a single bug?"**
+> **This could be the most useless agent in the world, but I like it.**
 
-In an era where AI coding assistants promise "autonomous full-stack repository generation", real-world developers often encounter:
-* **High Blast Radius**: Unchecked full-repo agents frequently rearrange directories, overwrite dependencies, or introduce breaking structural changes without warning.
-* **Context Dilution**: Cramming entire monorepos into LLM context windows causes severe token waste, slow responses, and hallucinated modifications.
-
-**Metis is built on the philosophy of "Laser Focus, Zero Blast Radius":**
-* **Laser Focus**: Only files or directories you explicitly drag in or select are admitted into the prompt context. No uninvited background file crawling.
-* **Zero Blast Radius**: **Creating new files is strictly forbidden. Deleting existing files is strictly forbidden.** Metis operates exclusively by surgically modifying existing whitelisted files in-place using exact Search/Replace blocks or initial population.
-* **Native Vendor API Search Grounding**: Metis integrates with official provider search specifications (e.g. Google Search Grounding for Gemini, Web Search for Claude) dynamically without forcing search when existing knowledge suffices.
+I love using web chat interfaces for LLMs because I really enjoy solving problems through conversation. The only drawback is that I have to manually upload and download code every time. However, I’m not really into heavy harnesses either—they just end up making me feel foolish.
 
 ---
 
 ## ✨ Key Features
 
-### 1. 📂 Explicit Whitelist & In-Place Surgical Editing
-* Support for individual file drag-and-drop or selection, as well as **recursive directory mounting**.
-* **Zero Blast Radius**: Modifies existing whitelisted files in-place using precise 3-tier Search/Replace blocks (exact, normalized CRLF/LF, line-by-line whitespace-trimmed), with automatic support for populating empty 0-byte files.
-* Built-in file snapshots with one-click historical version rollback.
+Technically speaking, it's pretty much just a chat LLM that can modify local files, but with full ReAct capabilities under the hood. After some thought, I decided to drop terminal execution support in v1.5.0. If you still need command-line execution, though, feel free to grab v1.4.12.
 
-### 2. 🧠 Thinking Budget & Extended Reasoning
-* Comprehensive support for Thinking configurations (`thinkingBudget`: `low` = 2048, `medium` = 8192, `high` = 24576).
-* Real-time streaming parser extracts `thought` parts dynamically, rendering breathing animation placeholders without polluting generated code.
-* Automatic fallback protection for legacy models without thinking support.
-
-### 3. 🛡️ Strict Prohibition on File Creation & Deletion
-* Enforced across the prompt protocol, the Python whitelist guardrails, and the terminal runner.
-* Any command attempting to delete files (`rm`, `del`, `Remove-Item`) or create unauthorized scripts is intercepted and blocked immediately.
-
-### 4. 🖼️ Multimodal Vision & Document Ingestion
-* Native support for attaching or pasting images (PNG, JPG, WEBP, GIF, BMP) and PDF documents.
-* Automatically converts and dispatches base64 payloads to Google Gemini (`inlineData`), Anthropic Claude (`image` & PDF `document` blocks), and OpenAI / DeepSeek (`image_url`).
-* Built-in PDF text extraction via standard stream decompression (`zlib`) and in-app visual modal previews.
-
-### 5. 🎨 Responsive Minimalist UI & Dark/Light Themes
-* Distraction-free modern interface with mist-dissolving text animations, uncapped full-width responsive dialog bubbles and composer, and KaTeX mathematical typesetting.
-* Seamless switching between **Dark Mode** and **Light Mode**.
-* System default browser integration for all external links.
-
----
+Another mind-blowing detail: because I built the UI with Rust, it’s ridiculously small. The installer and memory footprint are both around just **10MB**! It also launches in the blink of an eye.
 
 ## 🖥️ Quick Start & Downloads
 
@@ -80,33 +49,6 @@ Download the appropriate release package for your operating system from the [Rel
 
 ---
 
-## 🛠️ Configuration & Workflow
-
-1. **Configure Your API Key**:
-   * Click **⚙️ Settings** in the bottom-left corner;
-   * Select your preferred LLM provider (e.g., Gemini, DeepSeek, OpenAI, or Claude), enter your `Base URL`, `API Key`, and `Model Name`;
-   * Settings automatically save locally as you type (stored locally on your system, never uploaded to third parties).
-
-2. **Select Target Files**:
-   * In the workspace panel, click "Add File", "Upload Folder", or "Image/PDF" to scope down the exact files requiring modification.
-
-3. **Request Surgical Edits**:
-   * Enter your prompt in the chat composer, for example:
-      > *"Add token expiration retry handling to auth.py, update the test suite in test_auth.py, and run python -m unittest to verify."*
-    * Metis will reason, propose surgical Search/Replace edits, and invoke the terminal to run tests until validation succeeds.
-
----
-
-## 📚 Component Documentation
-
-Detailed documentation for tools, engine scripts, and codebase files is maintained directly within each component directory:
-
-* [`src-python/`](src-python/README.md) – Core Python sidecar engine, agent loop, LLM integrations, and file guardrails.
-* [`src-tauri/`](src-tauri/README.md) – Tauri 2.0 native host shell, application lifecycle, and IPC bridge.
-* [`scripts/`](scripts/README.md) – Developer automation tools, build scripts, and version synchronizer.
-
----
-
 <div align="center">
-  <sub>Metis · Surgical precision for the code that matters most.</sub>
+  <sub>Metis · 2026</sub>
 </div>

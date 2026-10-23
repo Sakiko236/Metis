@@ -312,13 +312,13 @@ class WhitelistManager:
 
         if is_initially_empty:
             status_message = (
-                f"⚡ Populated empty file {display_name} in-place "
-                f"({line_count} lines / {byte_len} bytes, update #{target_file.edit_count})"
+                f"Successfully populated empty file `{display_name}` in-place "
+                f"({line_count} lines / {byte_len} bytes)."
             )
         else:
             status_message = (
-                f"⚡ Modified file {display_name} in-place "
-                f"({line_count} lines / {byte_len} bytes, update #{target_file.edit_count})"
+                f"Successfully replaced 1 occurrence in `{display_name}` "
+                f"({line_count} lines / {byte_len} bytes)."
             )
 
         return True, status_message, target_file

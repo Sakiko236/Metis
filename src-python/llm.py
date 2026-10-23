@@ -100,19 +100,35 @@ class MultiVendorClient:
         cls,
         vendor: VendorProfile,
         system_prompt: str,
-        files_snapshot: str,
-        history: List[ChatHistoryItem],
-        whitelist: List[WhitelistedFile],
-        thinking_intensity: str,
-        on_chunk: Callable[[str], None],
+        files_snapshot: Optional[str] = None,
+        history: Optional[List[ChatHistoryItem]] = None,
+        whitelist: Optional[List[WhitelistedFile]] = None,
+        thinking_intensity: str = "medium",
+        on_chunk: Optional[Callable[[str], None]] = None,
     ) -> Tuple[bool, str]:
         """Returns (success, full_response_or_error_message)."""
-        if vendor.vendor_type == VendorType.LocalSandbox:
-            return await cls._run_local_sandbox(files_snapshot, history, whitelist, on_chunk)
+        chat_history = list(history) if history is not None else []
+        file_list = list(whitelist) if whitelist is not None else []
+        chunk_cb = on_chunk if on_chunk is not None else (lambda _: None)
 
-        full_system = f"{system_prompt}\n\n{files_snapshot}"
+        if vendor.vendor_type == VendorType.LocalSandbox:
+            return await cls._run_local_sandbox(files_snapshot or "", chat_history, file_list, chunk_cb)
+
+        # 1. Decouple System Prompt from mutable files_snapshot.
+        # System prompt remains strictly static and deterministic as Prefix Cache Anchor.
+        full_system = system_prompt.strip()
+
+        # If history is empty but a snapshot was passed directly, seed it as the initial user context
+        if files_snapshot and files_snapshot.strip() and not chat_history:
+            chat_history.append(
+                ChatHistoryItem(
+                    role="user",
+                    content=f"[Workspace Initial Files Snapshot]\n{files_snapshot.strip()}",
+                )
+            )
+
         base_url = vendor.base_url.rstrip("/")
-        media_items = cls.extract_media_items(whitelist)
+        media_items = cls.extract_media_items(file_list)
 
         if vendor.vendor_type == VendorType.Gemini:
             return await asyncio.to_thread(
@@ -120,9 +136,9 @@ class MultiVendorClient:
                 vendor,
                 base_url,
                 full_system,
-                history,
+                chat_history,
                 thinking_intensity,
-                on_chunk,
+                chunk_cb,
                 media_items,
             )
         elif vendor.vendor_type == VendorType.Claude:
@@ -131,9 +147,9 @@ class MultiVendorClient:
                 vendor,
                 base_url,
                 full_system,
-                history,
+                chat_history,
                 thinking_intensity,
-                on_chunk,
+                chunk_cb,
                 media_items,
             )
         else:
@@ -142,8 +158,8 @@ class MultiVendorClient:
                 vendor,
                 base_url,
                 full_system,
-                history,
-                on_chunk,
+                chat_history,
+                chunk_cb,
                 media_items,
             )
 
@@ -185,6 +201,45 @@ class MultiVendorClient:
         return f"{clean}/v1/responses"
 
     @classmethod
+    def prepare_responses_inputs(cls, history: List[ChatHistoryItem]) -> List[dict]:
+        """
+        Sanitize and format chat history for OpenAI / DeepSeek Responses API:
+        1. Map 'assistant' -> 'assistant', everything else -> 'user'.
+        2. Merge consecutive turns of the same role to maintain a clean alternating turn sequence.
+        3. Ensure the sequence starts with a 'user' turn.
+        4. Ensure the sequence does not end with an 'assistant' turn.
+        """
+        input_items: List[dict] = []
+        for item in history:
+            role = "assistant" if item.role == "assistant" else "user"
+            content = (item.content or "").strip()
+            if not content:
+                continue
+
+            if not input_items:
+                input_items.append({"role": role, "content": content})
+            else:
+                if input_items[-1]["role"] == role:
+                    prev_content = input_items[-1]["content"]
+                    if isinstance(prev_content, str):
+                        input_items[-1]["content"] = f"{prev_content}\n\n{content}"
+                    else:
+                        input_items.append({"role": role, "content": content})
+                else:
+                    input_items.append({"role": role, "content": content})
+
+        while input_items and input_items[0]["role"] == "assistant":
+            input_items.pop(0)
+
+        if not input_items:
+            input_items.append({"role": "user", "content": "Please proceed."})
+
+        if input_items[-1]["role"] == "assistant":
+            input_items.append({"role": "user", "content": "Please proceed."})
+
+        return input_items
+
+    @classmethod
     def _call_responses_api_sync(
         cls,
         vendor: VendorProfile,
@@ -196,15 +251,7 @@ class MultiVendorClient:
     ) -> Tuple[bool, str]:
         url = cls.resolve_responses_url(base_url)
 
-        input_items: List[dict] = []
-        for item in history:
-            role = "assistant" if item.role == "assistant" else "user"
-            content = (item.content or "").strip()
-            if content:
-                input_items.append({"role": role, "content": content})
-
-        if not input_items:
-            input_items.append({"role": "user", "content": "Please proceed."})
+        input_items = cls.prepare_responses_inputs(history)
 
         if media_items and input_items:
             last_user = None
@@ -450,6 +497,52 @@ class MultiVendorClient:
             return False, f"Responses API stream read error: {e}"
 
     @classmethod
+    def prepare_chat_completions_messages(
+        cls, system_prompt: str, history: List[ChatHistoryItem]
+    ) -> List[dict]:
+        """
+        Sanitize and format chat history for OpenAI / DeepSeek Chat Completions API:
+        1. Keep system prompt strictly static as message 0 (Prefix Cache anchor).
+        2. Map 'assistant' -> 'assistant', everything else -> 'user'.
+        3. Merge consecutive turns of the same role to maintain strict alternation.
+        4. Ensure sequence starts with 'user' turn after system prompt and does not end with 'assistant'.
+        """
+        messages: List[dict] = []
+        if system_prompt and system_prompt.strip():
+            messages.append({"role": "system", "content": system_prompt.strip()})
+
+        user_or_assistant: List[dict] = []
+        for item in history:
+            role = "assistant" if item.role == "assistant" else "user"
+            content = (item.content or "").strip()
+            if not content:
+                continue
+
+            if not user_or_assistant:
+                user_or_assistant.append({"role": role, "content": content})
+            else:
+                if user_or_assistant[-1]["role"] == role:
+                    prev_content = user_or_assistant[-1]["content"]
+                    if isinstance(prev_content, str):
+                        user_or_assistant[-1]["content"] = f"{prev_content}\n\n{content}"
+                    else:
+                        user_or_assistant.append({"role": role, "content": content})
+                else:
+                    user_or_assistant.append({"role": role, "content": content})
+
+        while user_or_assistant and user_or_assistant[0]["role"] == "assistant":
+            user_or_assistant.pop(0)
+
+        if not user_or_assistant:
+            user_or_assistant.append({"role": "user", "content": "Please proceed."})
+
+        if user_or_assistant[-1]["role"] == "assistant":
+            user_or_assistant.append({"role": "user", "content": "Please proceed."})
+
+        messages.extend(user_or_assistant)
+        return messages
+
+    @classmethod
     def _call_chat_completions_fallback_sync(
         cls,
         vendor: VendorProfile,
@@ -461,14 +554,7 @@ class MultiVendorClient:
     ) -> Tuple[bool, str]:
         url = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
 
-        messages = [{"role": "system", "content": system_prompt}]
-        for item in history:
-            messages.append(
-                {
-                    "role": "assistant" if item.role == "assistant" else "user",
-                    "content": item.content,
-                }
-            )
+        messages = cls.prepare_chat_completions_messages(system_prompt, history)
 
         if media_items and messages:
             last_msg = None

@@ -36,6 +36,57 @@ def compute_diff_lines(search_block: str, replace_block: str) -> List[Dict[str, 
             diff_lines.append({"type": "ctx", "line": line})
     return diff_lines
 
+
+def get_language_for_ext(ext: str) -> str:
+    mapping = {
+        "py": "python",
+        "js": "javascript",
+        "ts": "typescript",
+        "tsx": "tsx",
+        "jsx": "jsx",
+        "rs": "rust",
+        "cpp": "cpp",
+        "cc": "cpp",
+        "c": "c",
+        "h": "c",
+        "hpp": "cpp",
+        "cs": "csharp",
+        "go": "go",
+        "java": "java",
+        "html": "html",
+        "htm": "html",
+        "css": "css",
+        "scss": "scss",
+        "json": "json",
+        "yaml": "yaml",
+        "yml": "yaml",
+        "toml": "toml",
+        "xml": "xml",
+        "sql": "sql",
+        "sh": "bash",
+        "bash": "bash",
+        "zsh": "bash",
+        "md": "markdown",
+        "markdown": "markdown",
+    }
+    return mapping.get(ext.lower(), ext.lower() if ext.isalnum() else "")
+
+
+def format_file_added_event(file_path: str, content: str) -> str:
+    ext = Path(file_path).suffix.lstrip(".")
+    lang = get_language_for_ext(ext)
+    return (
+        f"[Workspace Event] File added to workspace: `{file_path}`\n"
+        f"Content:\n"
+        f"```{lang}\n"
+        f"{content}\n"
+        f"```"
+    )
+
+
+def format_file_removed_event(file_path: str) -> str:
+    return f"[Workspace Event] File `{file_path}` has been removed from workspace."
+
 # Ensure local modules in src-python are importable and standard streams use UTF-8
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 if hasattr(sys.stdout, "reconfigure"):
@@ -299,31 +350,66 @@ class SidecarEngine:
             paths = data.get("paths", [])
             if isinstance(paths, list):
                 added = 0
+                active_session = self.session_store.get_active_session()
                 for p in paths:
                     if isinstance(p, str) and self.whitelist.add_file(p):
                         added += 1
+                        wf = self.whitelist.resolve_whitelisted_file(p)
+                        if wf is not None and active_session is not None and active_session.api_history:
+                            display_path = wf.relative_path or wf.file_name
+                            event_text = format_file_added_event(display_path, wf.last_saved_content)
+                            active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
                 self.broadcast_full_state(toast=f"Added {added} files to workspace.")
 
         elif action == "addDirectory":
             folder_path = str(data.get("path", ""))
             if folder_path:
+                active_session = self.session_store.get_active_session()
+                prev_paths = {f.full_path.lower() for f in self.whitelist.get_files()}
                 loaded, _ = self.whitelist.add_directory(folder_path)
+                if active_session is not None and active_session.api_history:
+                    for wf in self.whitelist.get_files():
+                        if wf.full_path.lower() not in prev_paths:
+                            display_path = wf.relative_path or wf.file_name
+                            event_text = format_file_added_event(display_path, wf.last_saved_content)
+                            active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
                 self.broadcast_full_state(toast=f"Mounted folder with {loaded} files.")
 
         elif action == "removeFile":
             path = str(data.get("path", ""))
             if path:
+                active_session = self.session_store.get_active_session()
+                wf = self.whitelist.resolve_whitelisted_file(path)
+                display_path = (wf.relative_path or wf.file_name) if wf else Path(path).name
                 self.whitelist.remove_file(path)
+                if active_session is not None and active_session.api_history:
+                    event_text = format_file_removed_event(display_path)
+                    active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
                 self.broadcast_full_state(toast="Removed file from chat.")
 
         elif action == "removeDirectory":
             path = str(data.get("path", ""))
             if path:
+                active_session = self.session_store.get_active_session()
+                norm_dir = path.lower()
+                removed_files = [f for f in self.whitelist.get_files() if f.full_path.lower().startswith(norm_dir)]
                 self.whitelist.remove_directory(path)
+                if active_session is not None and active_session.api_history:
+                    for wf in removed_files:
+                        display_path = wf.relative_path or wf.file_name
+                        event_text = format_file_removed_event(display_path)
+                        active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
                 self.broadcast_full_state(toast="Unmounted folder.")
 
         elif action == "clearWhitelist":
+            active_session = self.session_store.get_active_session()
+            all_files = list(self.whitelist.get_files())
             self.whitelist.clear()
+            if active_session is not None and active_session.api_history:
+                for wf in all_files:
+                    display_path = wf.relative_path or wf.file_name
+                    event_text = format_file_removed_event(display_path)
+                    active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
             self.broadcast_full_state(toast="Cleared all attached files.")
 
         elif action in ("pasteImage", "addMediaBlob"):
@@ -353,7 +439,14 @@ class SidecarEngine:
                     temp_dir.mkdir(parents=True, exist_ok=True)
                     target_path = temp_dir / file_name
                     target_path.write_bytes(raw_bytes)
-                    self.whitelist.add_file(str(target_path))
+                    if self.whitelist.add_file(str(target_path)):
+                        active_session = self.session_store.get_active_session()
+                        if active_session is not None and active_session.api_history:
+                            wf = self.whitelist.resolve_whitelisted_file(str(target_path))
+                            display_path = (wf.relative_path or wf.file_name) if wf else file_name
+                            content_str = wf.content if wf else f"[Attached Media: {file_name}]"
+                            event_text = format_file_added_event(display_path, content_str)
+                            active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
                     self.broadcast_full_state(toast=f"Attached media file: {file_name}")
                 except Exception:
                     pass
@@ -410,8 +503,14 @@ class SidecarEngine:
         elif action == "revertFile":
             path = str(data.get("path", ""))
             if path:
+                wf = self.whitelist.resolve_whitelisted_file(path)
+                display_path = (wf.relative_path or wf.file_name) if wf else Path(path).name
                 ok, msg = self.whitelist.revert_file_to_initial(path)
                 if ok:
+                    active_session = self.session_store.get_active_session()
+                    if active_session is not None and active_session.api_history:
+                        event_text = f"[Workspace Event] File `{display_path}` has been reverted to its initial content."
+                        active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
                     self.broadcast_full_state(toast=msg)
 
         elif action == "pauseLoop":
@@ -511,7 +610,28 @@ class SidecarEngine:
         if not target_session.api_history or is_default_title:
             needs_session_title = True
 
-        target_session.api_history.append(ChatHistoryItem(role="user", content=user_prompt))
+        # Append-Only Architecture:
+        # If this is the initial turn of the session, load the initial workspace snapshot
+        # to the very head of the event log. This snapshot is immutable and never updated in place.
+        if not target_session.api_history:
+            whitelist_snapshot = list(loop_whitelist.get_files())
+            initial_files_block = AgentLoop.build_file_snapshot(whitelist_snapshot)
+            target_session.api_history.append(
+                ChatHistoryItem(
+                    role="user",
+                    content=f"[Workspace Initial Files Snapshot]\n{initial_files_block}",
+                )
+            )
+
+        if needs_session_title:
+            user_msg_content = (
+                f"{user_prompt}\n\n"
+                "[System Instruction: Since this is the first turn of the chat, please summarize a concise chat title (2-6 words, in the same language as the user's request) at the very beginning of your reply wrapped in <metis_title>...</metis_title> tags, then provide your normal response.]"
+            )
+        else:
+            user_msg_content = user_prompt
+
+        target_session.api_history.append(ChatHistoryItem(role="user", content=user_msg_content))
         target_session.ui_events.append(UiStreamEvent(event_type="user", content=user_prompt))
         SessionManager.save(self.session_store)
 
@@ -582,16 +702,8 @@ class SidecarEngine:
                 history_snapshot = (
                     copy.deepcopy(target_session.api_history) if target_session is not None else []
                 )
-                if needs_session_title and current_round == 1 and history_snapshot:
-                    last_msg = history_snapshot[-1]
-                    if last_msg.role == "user":
-                        last_msg.content = (
-                            f"{last_msg.content}\n\n"
-                            "[System Instruction: Since this is the first turn of the chat, please summarize a concise chat title (2-6 words, in the same language as the user's request) at the very beginning of your reply wrapped in <metis_title>...</metis_title> tags, then provide your normal response.]"
-                        )
 
                 whitelist_snapshot = list(loop_whitelist.get_files())
-                files_block = AgentLoop.build_file_snapshot(whitelist_snapshot)
                 system_prompt = AgentLoop.build_system_prompt()
 
                 attempt = 0
@@ -623,7 +735,7 @@ class SidecarEngine:
                     ok, result_text = await MultiVendorClient.send_chat(
                         vendor=vendor,
                         system_prompt=system_prompt,
-                        files_snapshot=files_block,
+                        files_snapshot=None,
                         history=history_snapshot,
                         whitelist=whitelist_snapshot,
                         thinking_intensity=self.config.thinking_intensity,
@@ -796,7 +908,7 @@ class SidecarEngine:
                             target_session.api_history.append(
                                 ChatHistoryItem(
                                     role="user",
-                                    content=f"[File Edit Feedback]:\n{msg_or_err}",
+                                    content=f"[File Edit Feedback]: {msg_or_err}",
                                 )
                             )
                         else:

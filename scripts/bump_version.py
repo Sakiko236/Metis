@@ -50,6 +50,7 @@ def bump_semver(current: str, rule: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Bump and synchronize Metis version across components.")
     parser.add_argument("target", nargs="?", default="patch", help="patch | minor | major | X.Y.Z (default: patch)")
+    parser.add_argument("-m", "--message", default=None, help="Custom release message for commit and tag")
     parser.add_argument("--commit", action="store_true", help="Automatically git commit the version bump")
     parser.add_argument("--tag", action="store_true", help="Create git tag (e.g. vX.Y.Z)")
     parser.add_argument("--push", action="store_true", help="Push commit and tags to origin")
@@ -117,13 +118,15 @@ def main() -> int:
     if args.commit or args.push:
         print("\n[Git Commit & Tag]")
         subprocess.check_call(["git", "add", "-A"], cwd=str(repo_root))
-        subprocess.check_call(["git", "commit", "-m", f"release: v{new_ver}"], cwd=str(repo_root))
-        print(f"  [OK] Committed 'release: v{new_ver}'")
+        commit_msg = f"release: v{new_ver} - {args.message}" if args.message else f"release: v{new_ver}"
+        subprocess.check_call(["git", "commit", "-m", commit_msg], cwd=str(repo_root))
+        print(f"  [OK] Committed '{commit_msg}'")
 
     if args.tag or args.push:
         tag_name = f"v{new_ver}"
-        subprocess.check_call(["git", "tag", "-a", tag_name, "-m", tag_name], cwd=str(repo_root))
-        print(f"  [OK] Created git tag '{tag_name}'")
+        tag_msg = args.message if args.message else tag_name
+        subprocess.check_call(["git", "tag", "-a", tag_name, "-m", tag_msg], cwd=str(repo_root))
+        print(f"  [OK] Created git tag '{tag_name}' with message: {tag_msg}")
 
     if args.push:
         print("\n[Pushing to Remote]")

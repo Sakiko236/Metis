@@ -36,12 +36,13 @@ UNCLOSED_TITLE_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# 修复：锚定行首，强制要求 file 属性与必须闭合标签，移除容忍缺失闭合标签的 |$
 REPLACE_TAG_RE = re.compile(
-    r"<(?:metis|surgical|pinpoint)_replace(?:\s+(?:file|path|name)?\s*=?\s*[\"']?([^\"'>\r\n]+)[\"']?)?\s*>\r?\n?(.*?)(?:</(?:metis|surgical|pinpoint)_replace>|$)",
+    r"(?m)^[ \t]*<(?:metis|surgical|pinpoint)_replace\s+(?:file|path|name)\s*=\s*[\"']?([^\"'>\r\n]+)[\"']?\s*>\r?\n?(.*?)\r?\n^[ \t]*</(?:metis|surgical|pinpoint)_replace>[ \t]*$",
     re.IGNORECASE | re.DOTALL,
 )
 WRITE_TAG_RE = re.compile(
-    r"<(?:metis|surgical|pinpoint)_write(?:\s+(?:file|path|name)?\s*=?\s*[\"']?([^\"'>\r\n]+)[\"']?)?\s*>\r?\n?(.*?)(?:</(?:metis|surgical|pinpoint)_write>|$)",
+    r"(?m)^[ \t]*<(?:metis|surgical|pinpoint)_write\s+(?:file|path|name)\s*=\s*[\"']?([^\"'>\r\n]+)[\"']?\s*>\r?\n?(.*?)\r?\n^[ \t]*</(?:metis|surgical|pinpoint)_write>[ \t]*$",
     re.IGNORECASE | re.DOTALL,
 )
 SR_BLOCK_RE = re.compile(
@@ -1126,9 +1127,20 @@ class MultiVendorClient:
         cleaned_think = ORPHAN_THINK_RE.sub("", cleaned_think)
         cleaned = TITLE_STRIP_RE.sub("", cleaned_think)
 
+        # 构建白名单文件名快速匹配映射（统一忽略大小写）
+        valid_file_names = {f.file_name.lower(): f.file_name for f in whitelist} if whitelist else {}
+
         # 1. Parse <metis_replace file="...">
         for cap in REPLACE_TAG_RE.finditer(cleaned):
             file_attr = (cap.group(1) or "").strip()
+            if not file_attr:
+                continue
+
+            # 严格检查：file 属性必须属于白名单
+            matched_name = valid_file_names.get(file_attr.lower())
+            if not matched_name:
+                continue
+
             body = cap.group(2) or ""
             for sr in SR_BLOCK_RE.finditer(body):
                 search = sr.group(1) or ""
@@ -1136,7 +1148,7 @@ class MultiVendorClient:
                 parsed.file_edits.append(
                     SurgicalFileEdit(
                         action_type=SurgicalActionType.SearchReplace,
-                        target_file=file_attr,
+                        target_file=matched_name,
                         new_content="",
                         search_block=search,
                         replace_block=replace,
@@ -1146,12 +1158,21 @@ class MultiVendorClient:
         # 2. Parse <metis_write file="..."> (for empty files or complete rewrites)
         for cap in WRITE_TAG_RE.finditer(cleaned):
             file_attr = (cap.group(1) or "").strip()
+            # 严格拦截：必须有非空的文件名
+            if not file_attr:
+                continue
+
+            # 严格检查：file 属性必须属于白名单，禁止未验证文件名的自动推断
+            matched_name = valid_file_names.get(file_attr.lower())
+            if not matched_name:
+                continue
+
             body = cap.group(2) or ""
-            if not any(e.target_file.lower() == file_attr.lower() for e in parsed.file_edits):
+            if not any(e.target_file.lower() == matched_name.lower() for e in parsed.file_edits):
                 parsed.file_edits.append(
                     SurgicalFileEdit(
                         action_type=SurgicalActionType.WriteFull,
-                        target_file=file_attr,
+                        target_file=matched_name,
                         new_content=body,
                         search_block="",
                         replace_block="",
@@ -1159,23 +1180,25 @@ class MultiVendorClient:
                 )
 
         # 3. Parse raw SEARCH/REPLACE blocks outside tags
-        for sr in SR_BLOCK_RE.finditer(cleaned):
-            search = sr.group(1) or ""
-            replace = sr.group(2) or ""
-            already = any(
-                e.search_block == search and e.replace_block == replace for e in parsed.file_edits
-            )
-            if not already:
-                target_file = whitelist[0].file_name if whitelist else ""
-                parsed.file_edits.append(
-                    SurgicalFileEdit(
-                        action_type=SurgicalActionType.SearchReplace,
-                        target_file=target_file,
-                        new_content="",
-                        search_block=search,
-                        replace_block=replace,
-                    )
+        # 仅在存在唯一的白名单文件，且确信包含合法的精确 SEARCH/REPLACE 时才保留向下兼容
+        if len(whitelist) == 1:
+            for sr in SR_BLOCK_RE.finditer(cleaned):
+                search = sr.group(1) or ""
+                replace = sr.group(2) or ""
+                already = any(
+                    e.search_block == search and e.replace_block == replace for e in parsed.file_edits
                 )
+                if not already and search.strip():
+                    target_file = whitelist[0].file_name
+                    parsed.file_edits.append(
+                        SurgicalFileEdit(
+                            action_type=SurgicalActionType.SearchReplace,
+                            target_file=target_file,
+                            new_content="",
+                            search_block=search,
+                            replace_block=replace,
+                        )
+                    )
 
         parsed.explanation_text = cls.format_display_text(raw_output)
         return parsed

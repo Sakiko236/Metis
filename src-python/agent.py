@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import List
 from models import WhitelistedFile
 
@@ -23,7 +24,9 @@ class AgentController:
 class AgentLoop:
     @staticmethod
     def build_system_prompt() -> str:
+        current_date = datetime.now().strftime("%Y-%m-%d")
         return (
+            f"Current system date: {current_date}.\n"
             "You are Metis, a laser-focused, file-centric micro-agent designed for surgical code modifications with zero blast radius.\n"
             "You operate under strict security boundaries:\n"
             "1. You may ONLY modify files that are explicitly in the whitelist. You are strictly forbidden from creating new files or deleting existing files.\n"

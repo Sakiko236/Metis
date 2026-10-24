@@ -107,9 +107,9 @@ from models import (
     AppConfig,
     ChatHistoryItem,
     ChatSession,
+    FileEdit,
+    FileEditActionType,
     SessionStoreData,
-    SurgicalActionType,
-    SurgicalFileEdit,
     UiStreamEvent,
     VendorProfile,
     VendorType,
@@ -895,12 +895,12 @@ class SidecarEngine:
                         if ok_edit and wf is not None:
                             target_search = (
                                 edit.search_block
-                                if edit.action_type != SurgicalActionType.WriteFull
+                                if edit.action_type != FileEditActionType.WriteFull
                                 else prev_content
                             )
                             target_replace = (
                                 edit.replace_block
-                                if edit.action_type != SurgicalActionType.WriteFull
+                                if edit.action_type != FileEditActionType.WriteFull
                                 else edit.new_content
                             )
                             diff_lines = compute_diff_lines(target_search, target_replace)

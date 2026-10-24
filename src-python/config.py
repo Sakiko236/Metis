@@ -195,9 +195,7 @@ class ConfigManager:
         primary_path = cls.get_config_path()
         legacy_paths: List[Path] = [
             primary_path,
-            cls.get_base_config_dir() / "Pinpoint" / "config.json",
             Path("metis_config.json"),
-            Path("pinpoint_config.json"),
         ]
 
         for p in legacy_paths:

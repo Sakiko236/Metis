@@ -11,60 +11,61 @@ from typing import Callable, List, Optional, Tuple
 
 from models import (
     ChatHistoryItem,
+    FileEdit,
+    FileEditActionType,
     ParsedAgentResponse,
-    SurgicalActionType,
-    SurgicalFileEdit,
     VendorProfile,
     VendorType,
     WhitelistedFile,
 )
 
 
-THINK_RE = re.compile(r"<think\b[^>]*>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
-UNCLOSED_THINK_RE = re.compile(r"<think\b[^>]*>.*$", re.IGNORECASE | re.DOTALL)
-ORPHAN_THINK_RE = re.compile(r"<\/?(?:think|thought|reasoning)\b[^>]*>\s*", re.IGNORECASE)
-TITLE_EXTRACT_RE = re.compile(
-    r"<(?:metis|session|chat)_title\b[^>]*>(.*?)</(?:metis|session|chat)_title>",
+LEADING_THINK_OPEN_RE = re.compile(
+    r"^(\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<think\b[^>]*>",
     re.IGNORECASE | re.DOTALL,
 )
-TITLE_STRIP_RE = re.compile(
-    r"<(?:metis|session|chat)_title\b[^>]*>.*?</(?:metis|session|chat)_title>\s*",
-    re.IGNORECASE | re.DOTALL,
+THINK_CLOSE_BEFORE_TITLE_RE = re.compile(
+    r"</think>\s*(?=<(?:metis|session|chat)_title\b)",
+    re.IGNORECASE,
 )
-UNCLOSED_TITLE_RE = re.compile(
-    r"<(?:metis|session|chat)_title\b[^>]*>.*$",
-    re.IGNORECASE | re.DOTALL,
+THINK_CLOSE_LINE_RE = re.compile(
+    r"</think>[ \t]*(?:\r?\n|$)",
+    re.IGNORECASE,
+)
+THINK_CLOSE_ANY_RE = re.compile(
+    r"</think>\s*",
+    re.IGNORECASE,
 )
 
-# 修复：锚定行首，强制要求 file 属性与必须闭合标签，移除容忍缺失闭合标签的 |$
-REPLACE_TAG_RE = re.compile(
-    r"(?m)^[ \t]*<(?:metis|surgical|pinpoint)_replace\s+(?:file|path|name)\s*=\s*[\"']?([^\"'>\r\n]+)[\"']?\s*>\r?\n?(.*?)\r?\n^[ \t]*</(?:metis|surgical|pinpoint)_replace>[ \t]*$",
-    re.IGNORECASE | re.DOTALL,
+LEADING_TITLE_EXTRACT_RE = re.compile(
+    r"^(?:\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>([^\r\n<]{1,120})</(?:metis|session|chat)_title>",
+    re.IGNORECASE,
 )
-WRITE_TAG_RE = re.compile(
-    r"(?m)^[ \t]*<(?:metis|surgical|pinpoint)_write\s+(?:file|path|name)\s*=\s*[\"']?([^\"'>\r\n]+)[\"']?\s*>\r?\n?(.*?)\r?\n^[ \t]*</(?:metis|surgical|pinpoint)_write>[ \t]*$",
-    re.IGNORECASE | re.DOTALL,
+LEADING_TITLE_STRIP_RE = re.compile(
+    r"^(\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>[^\r\n<]*</(?:metis|session|chat)_title>[ \t]*\r?\n?",
+    re.IGNORECASE,
 )
+LEADING_UNCLOSED_TITLE_RE = re.compile(
+    r"^(\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>[^\r\n]*$",
+    re.IGNORECASE,
+)
+
+FENCE_OPEN_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
+SINGLE_LINE_TAG_RE = re.compile(
+    r"^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'>\s]+))\s*>(.*)</metis_\1>[ \t]*$",
+    re.IGNORECASE,
+)
+OPEN_TAG_RE = re.compile(
+    r"^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'>\s]+))\s*>[ \t]*$",
+    re.IGNORECASE,
+)
+CLOSE_REPLACE_RE = re.compile(r"^[ \t]*</metis_replace>[ \t]*$", re.IGNORECASE)
+CLOSE_WRITE_RE = re.compile(r"^[ \t]*</metis_write>[ \t]*$", re.IGNORECASE)
+STREAMING_PARTIAL_TAG_RE = re.compile(r"^[ \t]*<metis_(?:replace|write)\b[^>]*$", re.IGNORECASE)
+
 SR_BLOCK_RE = re.compile(
     r"<{5,}\s*SEARCH\r?\n((?:(?!={5,}|<{5,}\s*SEARCH)[\s\S])*?)\r?\n={5,}(?:\r?\n((?:(?!>{5,}\s*REPLACE|={5,})[\s\S])*?))?\r?\n>{5,}\s*REPLACE",
     re.IGNORECASE,
-)
-RAW_SR_STREAMING_RE = re.compile(r"<{5,}\s*SEARCH\b.*$", re.IGNORECASE | re.DOTALL)
-CMD_TAG_RE = re.compile(
-    r"<(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)[^>]*>\r?\n?(.*?)\r?\n?</(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)>\r?\n?",
-    re.IGNORECASE | re.DOTALL,
-)
-CMD_STREAMING_RE = re.compile(
-    r"<(?:metis|surgical|pinpoint)_(?:cmd|terminal|verify)[^>]*>.*$",
-    re.IGNORECASE | re.DOTALL,
-)
-DSML_CMD_RE = re.compile(
-    r'''<[｜|]{1,2}\s*DSML\s*[｜|]{1,2}\s*invoke\s+name=["']?(?:metis|pinpoint|surgical)?_?(?:cmd|terminal|verify)["']?[^>]*>([\s\S]*?)(?:<[｜|]{1,2}\s*/?\s*DSML|\Z)''',
-    re.IGNORECASE,
-)
-SEARCH_TAG_RE = re.compile(
-    r"<(?:metis|surgical|pinpoint)?_?search[^>]*>\r?\n?(.*?)\r?\n?</(?:metis|surgical|pinpoint)?_?search>",
-    re.IGNORECASE | re.DOTALL,
 )
 
 
@@ -111,9 +112,6 @@ class MultiVendorClient:
         chat_history = list(history) if history is not None else []
         file_list = list(whitelist) if whitelist is not None else []
         chunk_cb = on_chunk if on_chunk is not None else (lambda _: None)
-
-        if vendor.vendor_type == VendorType.LocalSandbox:
-            return await cls._run_local_sandbox(files_snapshot or "", chat_history, file_list, chunk_cb)
 
         # 1. Decouple System Prompt from mutable files_snapshot.
         # System prompt remains strictly static and deterministic as Prefix Cache Anchor.
@@ -384,7 +382,6 @@ class MultiVendorClient:
             return False, f"HTTP request error: {e}"
 
         output_parts: List[str] = []
-        is_in_reasoning = False
         has_shown_search = False
 
         try:
@@ -428,30 +425,16 @@ class MultiVendorClient:
                             on_chunk(notice)
 
                     # 2. Reasoning / Thinking deltas (DeepSeek-R1 / OpenAI o-series)
+                    # Do not mix structured reasoning into output_parts to prevent thought leakage.
                     if event_type in (
                         "response.reasoning_text.delta",
                         "response.reasoning_summary_text.delta",
                         "response.reasoning.delta",
-                    ):
-                        delta = v.get("delta")
-                        reasoning_txt = delta if isinstance(delta, str) else (delta.get("text") if isinstance(delta, dict) else "")
-                        if reasoning_txt:
-                            if not is_in_reasoning:
-                                is_in_reasoning = True
-                                output_parts.append("<think>")
-                                on_chunk("<think>")
-                            output_parts.append(reasoning_txt)
-                            on_chunk(reasoning_txt)
-
-                    elif event_type in (
                         "response.reasoning_text.done",
                         "response.reasoning_summary_text.done",
                         "response.reasoning.done",
                     ):
-                        if is_in_reasoning:
-                            is_in_reasoning = False
-                            output_parts.append("</think>\n")
-                            on_chunk("</think>\n")
+                        continue
 
                     # 3. Output text deltas
                     elif event_type in (
@@ -461,10 +444,6 @@ class MultiVendorClient:
                         delta = v.get("delta")
                         content_txt = delta if isinstance(delta, str) else (delta.get("text") if isinstance(delta, dict) else "")
                         if content_txt:
-                            if is_in_reasoning:
-                                is_in_reasoning = False
-                                output_parts.append("</think>\n")
-                                on_chunk("</think>\n")
                             output_parts.append(content_txt)
                             on_chunk(content_txt)
 
@@ -475,29 +454,13 @@ class MultiVendorClient:
                             c_delta = choices[0].get("delta", {})
                             if isinstance(c_delta, dict):
                                 content = c_delta.get("content")
-                                reasoning = c_delta.get("reasoning_content") or c_delta.get("reasoning")
                                 if isinstance(content, str) and content:
-                                    if is_in_reasoning:
-                                        is_in_reasoning = False
-                                        output_parts.append("</think>\n")
-                                        on_chunk("</think>\n")
                                     output_parts.append(content)
                                     on_chunk(content)
-                                elif isinstance(reasoning, str) and reasoning:
-                                    if not is_in_reasoning:
-                                        is_in_reasoning = True
-                                        output_parts.append("<think>")
-                                        on_chunk("<think>")
-                                    output_parts.append(reasoning)
-                                    on_chunk(reasoning)
 
                             finish_reason = choices[0].get("finish_reason")
                             if finish_reason and finish_reason in ("stop", "length", "tool_calls", "content_filter"):
                                 break
-
-            if is_in_reasoning:
-                output_parts.append("</think>\n")
-                on_chunk("</think>\n")
 
             return True, "".join(output_parts)
         except Exception as e:
@@ -611,7 +574,6 @@ class MultiVendorClient:
             req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=180, context=ctx) as stream_resp:
                 output_parts: List[str] = []
-                is_in_reasoning = False
 
                 for raw_line in stream_resp:
                     line = raw_line.decode("utf-8", errors="replace").strip()
@@ -633,29 +595,13 @@ class MultiVendorClient:
                         continue
 
                     content = delta.get("content")
-                    reasoning = delta.get("reasoning_content") or delta.get("reasoning")
                     if isinstance(content, str) and content:
-                        if is_in_reasoning:
-                            is_in_reasoning = False
-                            output_parts.append("</think>\n")
-                            on_chunk("</think>\n")
                         output_parts.append(content)
                         on_chunk(content)
-                    elif isinstance(reasoning, str) and reasoning:
-                        if not is_in_reasoning:
-                            is_in_reasoning = True
-                            output_parts.append("<think>")
-                            on_chunk("<think>")
-                        output_parts.append(reasoning)
-                        on_chunk(reasoning)
 
                     finish_reason = choices[0].get("finish_reason")
                     if finish_reason and finish_reason in ("stop", "length", "tool_calls", "content_filter"):
                         break
-
-                if is_in_reasoning:
-                    output_parts.append("</think>\n")
-                    on_chunk("</think>\n")
 
                 return True, "".join(output_parts)
         except urllib.error.HTTPError as he:
@@ -836,7 +782,7 @@ class MultiVendorClient:
             "User-Agent": "Metis-Agent/1.3",
         }
         if has_pdf:
-            headers["anthropic-beta"] = "pdfs-2024-09-25" 
+            headers["anthropic-beta"] = "pdfs-2024-09-25"
 
         ctx = ssl.create_default_context()
 
@@ -878,7 +824,6 @@ class MultiVendorClient:
         try:
             with resp:
                 full_output: List[str] = []
-                is_in_thought = False
 
                 for raw_line in resp:
                     line = raw_line.decode("utf-8", errors="replace").strip()
@@ -899,27 +844,11 @@ class MultiVendorClient:
                         if isinstance(delta, dict):
                             dtype = delta.get("type", "")
                             if dtype == "thinking_delta":
-                                thinking_txt = delta.get("thinking", "")
-                                if thinking_txt:
-                                    if not is_in_thought:
-                                        is_in_thought = True
-                                        full_output.append("<think>")
-                                        on_chunk("<think>")
-                                    full_output.append(thinking_txt)
-                                    on_chunk(thinking_txt)
-                            else:
-                                txt = delta.get("text", "")
-                                if txt:
-                                    if is_in_thought:
-                                        is_in_thought = False
-                                        full_output.append("</think>\n")
-                                        on_chunk("</think>\n")
-                                    full_output.append(txt)
-                                    on_chunk(txt)
-
-                if is_in_thought:
-                    full_output.append("</think>\n")
-                    on_chunk("</think>\n")
+                                continue
+                            txt = delta.get("text", "")
+                            if txt:
+                                full_output.append(txt)
+                                on_chunk(txt)
 
                 return True, "".join(full_output)
         except urllib.error.HTTPError as he:
@@ -1056,7 +985,6 @@ class MultiVendorClient:
         try:
             with resp:
                 full_output: List[str] = []
-                is_in_thought = False
 
                 for raw_line in resp:
                     line = raw_line.decode("utf-8", errors="replace").strip()
@@ -1081,18 +1009,10 @@ class MultiVendorClient:
                     for part in parts:
                         if not isinstance(part, dict):
                             continue
-                        is_thought = bool(part.get("thought", False))
+                        if bool(part.get("thought", False)):
+                            continue
                         txt = part.get("text")
-                        if isinstance(txt, str):
-                            if is_thought:
-                                if not is_in_thought:
-                                    is_in_thought = True
-                                    full_output.append("<think>")
-                                    on_chunk("<think>")
-                            elif is_in_thought:
-                                is_in_thought = False
-                                full_output.append("</think>\n")
-                                on_chunk("</think>\n")
+                        if isinstance(txt, str) and txt:
                             full_output.append(txt)
                             on_chunk(txt)
 
@@ -1100,129 +1020,201 @@ class MultiVendorClient:
                     if finish_reason and finish_reason in ("STOP", "MAX_TOKENS", "SAFETY", "RECITATION"):
                         break
 
-                if is_in_thought:
-                    full_output.append("</think>\n")
-                    on_chunk("</think>\n")
-
                 return True, "".join(full_output)
         except Exception as e:
             return False, f"Stream read error: {e}"
 
     @staticmethod
-    def extract_session_title(raw_output: str) -> Optional[str]:
-        m = TITLE_EXTRACT_RE.search(raw_output)
+    def strip_leading_think(text: str) -> str:
+        """
+        Strips a leading <think>...</think> block (or an unclosed leading <think>... during streaming)
+        anchored strictly to the start of the assistant response. Never strips inline <think> mentions
+        in the middle of the assistant's reply.
+        """
+        m_open = LEADING_THINK_OPEN_RE.match(text)
+        if not m_open:
+            return text
+
+        prefix = m_open.group(1) or ""
+        rest = text[m_open.end():]
+
+        m_close = THINK_CLOSE_BEFORE_TITLE_RE.search(rest)
+        if not m_close:
+            m_close = THINK_CLOSE_LINE_RE.search(rest)
+        if not m_close:
+            m_close = THINK_CLOSE_ANY_RE.search(rest)
+
+        if m_close:
+            return prefix + rest[m_close.end():]
+        # Still streaming the leading <think> block (unclosed)
+        return prefix
+
+    @staticmethod
+    def strip_leading_title(text: str) -> str:
+        """
+        Strips a leading <metis_title>...</metis_title> tag (or unclosed on the first line during streaming)
+        anchored strictly to the start of the assistant response.
+        """
+        cleaned = LEADING_TITLE_STRIP_RE.sub(r"\1", text, count=1)
+        cleaned = LEADING_UNCLOSED_TITLE_RE.sub(r"\1", cleaned, count=1)
+        return cleaned
+
+    @classmethod
+    def extract_session_title(cls, raw_output: str) -> Optional[str]:
+        cleaned = cls.strip_leading_think(raw_output)
+        m = LEADING_TITLE_EXTRACT_RE.match(cleaned)
         if m:
             first_line = m.group(1).strip().splitlines()[0] if m.group(1).strip() else ""
-            cleaned = first_line.strip().strip("\"'`#*").strip()
-            if cleaned:
-                return f"{cleaned[:40]}..." if len(cleaned) > 40 else cleaned
+            title = first_line.strip().strip("\"'`#*").strip()
+            if title:
+                return f"{title[:40]}..." if len(title) > 40 else title
         return None
+
+    @staticmethod
+    def _scan_agent_blocks(text: str) -> Tuple[str, List[Tuple[str, str, str]]]:
+        """
+        Fence-aware top-level line scanner for <metis_replace> and <metis_write>:
+        - Skips Markdown fenced code blocks (``` or ~~~) opened at top level so example tags
+          inside code blocks are neither executed as file edits nor stripped from display.
+        - Extracts only top-level closed <metis_replace file="...">...</metis_replace> and
+          <metis_write file="...">...</metis_write> blocks into `blocks`.
+        - Removes top-level edit blocks (including unclosed top-level blocks at EOF while streaming)
+          from `visible_text`.
+        """
+        lines = text.splitlines(keepends=True)
+        in_fence = False
+        fence_char = ""
+        fence_len = 0
+
+        active_tag: Optional[str] = None
+        active_file: str = ""
+        active_body: List[str] = []
+
+        visible_lines: List[str] = []
+        blocks: List[Tuple[str, str, str]] = []
+
+        for idx, line in enumerate(lines):
+            line_stripped = line.rstrip("\r\n")
+
+            if active_tag is not None:
+                if active_tag == "replace" and CLOSE_REPLACE_RE.match(line_stripped):
+                    body_str = "".join(active_body)
+                    if body_str.endswith("\r\n"):
+                        body_str = body_str[:-2]
+                    elif body_str.endswith("\n"):
+                        body_str = body_str[:-1]
+                    blocks.append(("replace", active_file, body_str))
+                    active_tag = None
+                    active_file = ""
+                    active_body = []
+                elif active_tag == "write" and CLOSE_WRITE_RE.match(line_stripped):
+                    body_str = "".join(active_body)
+                    if body_str.endswith("\r\n"):
+                        body_str = body_str[:-2]
+                    elif body_str.endswith("\n"):
+                        body_str = body_str[:-1]
+                    blocks.append(("write", active_file, body_str))
+                    active_tag = None
+                    active_file = ""
+                    active_body = []
+                else:
+                    active_body.append(line)
+                continue
+
+            if in_fence:
+                close_fence_re = re.compile(
+                    r"^[ \t]*" + re.escape(fence_char) + r"{" + str(fence_len) + r",}[ \t]*$"
+                )
+                if close_fence_re.match(line_stripped):
+                    in_fence = False
+                    fence_char = ""
+                    fence_len = 0
+                visible_lines.append(line)
+                continue
+
+            m_fence = FENCE_OPEN_RE.match(line_stripped)
+            if m_fence:
+                marker = m_fence.group(1)
+                in_fence = True
+                fence_char = marker[0]
+                fence_len = len(marker)
+                visible_lines.append(line)
+                continue
+
+            m_single = SINGLE_LINE_TAG_RE.match(line_stripped)
+            if m_single:
+                kind = m_single.group(1).lower()
+                file_attr = (m_single.group(2) or m_single.group(3) or m_single.group(4) or "").strip()
+                body_str = m_single.group(5) or ""
+                if file_attr:
+                    blocks.append((kind, file_attr, body_str))
+                continue
+
+            m_open = OPEN_TAG_RE.match(line_stripped)
+            if m_open:
+                file_attr = (m_open.group(2) or m_open.group(3) or m_open.group(4) or "").strip()
+                if file_attr:
+                    active_tag = m_open.group(1).lower()
+                    active_file = file_attr
+                    active_body = []
+                    continue
+
+            if idx == len(lines) - 1 and STREAMING_PARTIAL_TAG_RE.match(line_stripped):
+                continue
+
+            visible_lines.append(line)
+
+        return "".join(visible_lines), blocks
 
     @classmethod
     def parse_agent_output(cls, raw_output: str, whitelist: List[WhitelistedFile]) -> ParsedAgentResponse:
         parsed = ParsedAgentResponse(raw_text=raw_output)
 
-        cleaned_think = THINK_RE.sub("", raw_output)
-        cleaned_think = UNCLOSED_THINK_RE.sub("", cleaned_think)
-        cleaned_think = ORPHAN_THINK_RE.sub("", cleaned_think)
-        cleaned = TITLE_STRIP_RE.sub("", cleaned_think)
+        cleaned = cls.strip_leading_think(raw_output)
+        cleaned = cls.strip_leading_title(cleaned)
+        visible_text, blocks = cls._scan_agent_blocks(cleaned)
 
-        # 构建白名单文件名快速匹配映射（统一忽略大小写）
-        valid_file_names = {f.file_name.lower(): f.file_name for f in whitelist} if whitelist else {}
-
-        # 1. Parse <metis_replace file="...">
-        for cap in REPLACE_TAG_RE.finditer(cleaned):
-            file_attr = (cap.group(1) or "").strip()
+        for kind, file_attr, body in blocks:
             if not file_attr:
                 continue
-
-            # 严格检查：file 属性必须属于白名单
-            matched_name = valid_file_names.get(file_attr.lower())
-            if not matched_name:
-                continue
-
-            body = cap.group(2) or ""
-            for sr in SR_BLOCK_RE.finditer(body):
-                search = sr.group(1) or ""
-                replace = sr.group(2) or ""
-                parsed.file_edits.append(
-                    SurgicalFileEdit(
-                        action_type=SurgicalActionType.SearchReplace,
-                        target_file=matched_name,
-                        new_content="",
-                        search_block=search,
-                        replace_block=replace,
-                    )
-                )
-
-        # 2. Parse <metis_write file="..."> (for empty files or complete rewrites)
-        for cap in WRITE_TAG_RE.finditer(cleaned):
-            file_attr = (cap.group(1) or "").strip()
-            # 严格拦截：必须有非空的文件名
-            if not file_attr:
-                continue
-
-            # 严格检查：file 属性必须属于白名单，禁止未验证文件名的自动推断
-            matched_name = valid_file_names.get(file_attr.lower())
-            if not matched_name:
-                continue
-
-            body = cap.group(2) or ""
-            if not any(e.target_file.lower() == matched_name.lower() for e in parsed.file_edits):
-                parsed.file_edits.append(
-                    SurgicalFileEdit(
-                        action_type=SurgicalActionType.WriteFull,
-                        target_file=matched_name,
-                        new_content=body,
-                        search_block="",
-                        replace_block="",
-                    )
-                )
-
-        # 3. Parse raw SEARCH/REPLACE blocks outside tags
-        # 仅在存在唯一的白名单文件，且确信包含合法的精确 SEARCH/REPLACE 时才保留向下兼容
-        if len(whitelist) == 1:
-            for sr in SR_BLOCK_RE.finditer(cleaned):
-                search = sr.group(1) or ""
-                replace = sr.group(2) or ""
-                already = any(
-                    e.search_block == search and e.replace_block == replace for e in parsed.file_edits
-                )
-                if not already and search.strip():
-                    target_file = whitelist[0].file_name
+            if kind == "replace":
+                for sr in SR_BLOCK_RE.finditer(body):
+                    search = sr.group(1) or ""
+                    replace = sr.group(2) or ""
                     parsed.file_edits.append(
-                        SurgicalFileEdit(
-                            action_type=SurgicalActionType.SearchReplace,
-                            target_file=target_file,
+                        FileEdit(
+                            action_type=FileEditActionType.SearchReplace,
+                            target_file=file_attr,
                             new_content="",
                             search_block=search,
                             replace_block=replace,
                         )
                     )
+            elif kind == "write":
+                if not any(e.target_file.lower() == file_attr.lower() for e in parsed.file_edits):
+                    parsed.file_edits.append(
+                        FileEdit(
+                            action_type=FileEditActionType.WriteFull,
+                            target_file=file_attr,
+                            new_content=body,
+                            search_block="",
+                            replace_block="",
+                        )
+                    )
 
-        parsed.explanation_text = cls.format_display_text(raw_output)
+        cleaned_display = re.sub(r"<[｜|]{1,2}\s*DSML[\s\S]*$", "", visible_text)
+        cleaned_display = re.sub(r"\n{3,}", "\n\n", cleaned_display)
+        parsed.explanation_text = cleaned_display.strip()
         return parsed
 
-    @staticmethod
-    def format_display_text(text: str) -> str:
-        step1 = THINK_RE.sub("", text)
-        step2 = UNCLOSED_THINK_RE.sub("", step1)
-        step2 = ORPHAN_THINK_RE.sub("", step2)
-        step3 = TITLE_STRIP_RE.sub("", step2)
-        step4 = UNCLOSED_TITLE_RE.sub("", step3)
-        cleaned = SEARCH_TAG_RE.sub("", step4)
-        cleaned = REPLACE_TAG_RE.sub("", cleaned)
-        cleaned = WRITE_TAG_RE.sub("", cleaned)
-        cleaned = SR_BLOCK_RE.sub("", cleaned)
-        cleaned = RAW_SR_STREAMING_RE.sub("", cleaned)
-        cleaned = CMD_TAG_RE.sub("", cleaned)
-        cleaned = CMD_STREAMING_RE.sub("", cleaned)
-        cleaned = re.sub(r"<[｜|]{1,2}[\s\S]*?[｜|]{1,2}>", "", cleaned)
-        cleaned = re.sub(r"<[｜|]{1,2}[\s\S]*$", "", cleaned)
-        cleaned = re.sub(r"<result\b[^>]*>[\s\S]*?<\/result>", "", cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r"<result\b[^>]*>[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-        return cleaned.strip()
+    @classmethod
+    def format_display_text(cls, text: str) -> str:
+        cleaned = cls.strip_leading_think(text)
+        cleaned = cls.strip_leading_title(cleaned)
+        visible_text, _ = cls._scan_agent_blocks(cleaned)
+        cleaned_display = re.sub(r"<[｜|]{1,2}\s*DSML[\s\S]*$", "", visible_text)
+        cleaned_display = re.sub(r"\n{3,}", "\n\n", cleaned_display)
+        return cleaned_display.strip()
 
     @staticmethod
     async def fetch_ollama_models(base_url: str) -> List[str]:
@@ -1250,55 +1242,3 @@ class MultiVendorClient:
             return []
 
         return await asyncio.to_thread(_fetch)
-
-    @staticmethod
-    async def _run_local_sandbox(
-        _files_snapshot: str,
-        history: List[ChatHistoryItem],
-        whitelist: List[WhitelistedFile],
-        on_chunk: Callable[[str], None],
-    ) -> Tuple[bool, str]:
-        await asyncio.sleep(0.15)
-        last_user_msg = ""
-        for m in reversed(history):
-            if m.role == "user":
-                last_user_msg = m.content
-                break
-
-        if last_user_msg.startswith("[Terminal Execution Feedback") or "Exit Code: 0" in last_user_msg:
-            summary = "✅ Terminal execution completed (Exit Code 0). Output matches expectations, all tests verified successfully!"
-            on_chunk(summary)
-            return True, summary
-
-        if not whitelist:
-            msg = "<metis_title>Workspace File Setup</metis_title>\nNo files are currently attached to this workspace. Please drop files to edit."
-            on_chunk(msg)
-            return True, msg
-
-        target = whitelist[0]
-        p = Path(target.full_path)
-        if p.exists():
-            try:
-                code = p.read_text(encoding="utf-8", errors="replace")
-            except Exception:
-                code = target.last_saved_content
-        else:
-            code = target.last_saved_content
-
-        parts = ["<metis_title>Fix Token Expiration Bug</metis_title>\n"]
-        if "is_token_expired" in code:
-            parts.append(f"Inspected whitelisted file `{target.file_name}`:\n")
-            parts.append("- **Issue Identified**: Inverted operator in `is_token_expired`.\n")
-            parts.append(f"<metis_replace file=\"{target.file_name}\">\n")
-            parts.append("<<<<<<< SEARCH\n")
-            parts.append("    return current_time < expires_at\n")
-            parts.append("=======\n")
-            parts.append("    return current_time >= expires_at\n")
-            parts.append(">>>>>>> REPLACE\n")
-            parts.append("</metis_replace>\n")
-        else:
-            parts.append(f"[Mock Sandbox Engine] Inspected `{target.file_name}`.\n")
-
-        resp = "".join(parts)
-        on_chunk(resp)
-        return True, resp

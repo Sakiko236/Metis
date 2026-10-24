@@ -7,10 +7,6 @@ sessions.json
 config.json
 metis_config.json
 metis_sessions.json
-pinpoint_config.json
-pinpoint_sessions.json
-surgical_config.json
-surgical_sessions.json
 *.local.json
 .env
 .env.*

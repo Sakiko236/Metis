@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from config import ConfigManager
-from models import SurgicalActionType, SurgicalFileEdit, WhitelistedFile
+from models import FileEdit, FileEditActionType, WhitelistedFile
 
 
 IGNORED_DIRS = {
@@ -224,8 +224,6 @@ class WhitelistManager:
     def resolve_whitelisted_file(self, requested_name_or_path: str) -> Optional[WhitelistedFile]:
         cleaned = requested_name_or_path.strip().strip("\"'`<>")
         if not cleaned:
-            if len(self.files) == 1:
-                return self.files[0]
             return None
 
         try:
@@ -255,7 +253,7 @@ class WhitelistManager:
 
         return None
 
-    def apply_edit_in_place(self, edit: SurgicalFileEdit) -> Tuple[bool, str, Optional[WhitelistedFile]]:
+    def apply_edit_in_place(self, edit: FileEdit) -> Tuple[bool, str, Optional[WhitelistedFile]]:
         target_file = self.resolve_whitelisted_file(edit.target_file)
         if target_file is None:
             return (
@@ -275,7 +273,7 @@ class WhitelistManager:
 
         is_initially_empty = len(current_content.strip()) == 0
 
-        if edit.action_type == SurgicalActionType.WriteFull:
+        if edit.action_type == FileEditActionType.WriteFull:
             updated_content = edit.new_content
         else:
             if is_initially_empty:
@@ -315,6 +313,11 @@ class WhitelistManager:
                 f"Successfully populated empty file `{display_name}` in-place "
                 f"({line_count} lines / {byte_len} bytes)."
             )
+        elif edit.action_type == FileEditActionType.WriteFull:
+            status_message = (
+                f"Successfully wrote `{display_name}` in-place "
+                f"({line_count} lines / {byte_len} bytes)."
+            )
         else:
             status_message = (
                 f"Successfully replaced 1 occurrence in `{display_name}` "
@@ -346,7 +349,7 @@ class WhitelistManager:
         if not current.strip():
             return replace
 
-        if not search:
+        if not search or not search.strip():
             return None
 
         # 1. Exact match

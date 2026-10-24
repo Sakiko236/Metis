@@ -38,7 +38,7 @@
       "bin/metis-engine"
     ],
     "shortDescription": "The Laser-Focused File-Centric Micro-Agent",
-    "longDescription": "Metis is a laser-focused, file-centric micro-agent designed for surgical code modifications with zero blast radius.",
+    "longDescription": "Metis is a laser-focused, file-centric micro-agent designed for precise code modifications with zero blast radius.",
     "category": "DeveloperTool",
     "icon": [
       "icons/32x32.png",

@@ -17,7 +17,6 @@ class SessionManager:
         primary_path = cls.get_sessions_file_path()
         legacy_paths: List[Path] = [
             primary_path,
-            ConfigManager.get_base_config_dir() / "Pinpoint" / "sessions.json",
             Path("sessions.json"),
         ]
 

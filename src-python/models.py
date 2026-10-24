@@ -12,7 +12,6 @@ class VendorType(IntEnum):
     DeepSeek = 3
     Ollama = 4
     CustomOpenAI = 5
-    LocalSandbox = 6
 
     @classmethod
     def from_any(cls, val: Any) -> "VendorType":
@@ -43,8 +42,6 @@ class VendorType(IntEnum):
                 "openaicompatible": cls.CustomOpenAI,
                 "openai compatible": cls.CustomOpenAI,
                 "5": cls.CustomOpenAI,
-                "localsandbox": cls.LocalSandbox,
-                "6": cls.LocalSandbox,
             }
             return mapping.get(norm, cls.DeepSeek)
         return cls.DeepSeek
@@ -531,12 +528,12 @@ class SessionStoreData:
         return cls(active_session_id=active_id, sessions=sessions)
 
 
-class SurgicalActionType:
+class FileEditActionType:
     WriteFull = "WriteFull"
     SearchReplace = "SearchReplace"
 
 
-class SurgicalFileEdit:
+class FileEdit:
     def __init__(
         self,
         action_type: str,
@@ -557,7 +554,7 @@ class ParsedAgentResponse:
         self,
         raw_text: str = "",
         explanation_text: str = "",
-        file_edits: Optional[List[SurgicalFileEdit]] = None,
+        file_edits: Optional[List[FileEdit]] = None,
         terminal_commands: Optional[List[str]] = None,
         search_queries: Optional[List[str]] = None,
     ):

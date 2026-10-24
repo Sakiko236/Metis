@@ -9,13 +9,13 @@
 <script>
   (function() {
     try {
-      var saved = localStorage.getItem('metis_theme') || localStorage.getItem('pinpoint_theme') || localStorage.getItem('surgical_theme');
+      var saved = localStorage.getItem('metis_theme');
       if (saved === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       } else {
         document.documentElement.setAttribute('data-theme', 'light');
       }
-      var savedSize = localStorage.getItem('metis_font_size') || localStorage.getItem('pinpoint_font_size') || 'normal';
+      var savedSize = localStorage.getItem('metis_font_size') || 'normal';
       var sizeMap = {
         'small': '12.5px',
         'normal': '13.5px',
@@ -3970,7 +3970,6 @@
     const tierType = getThinkingTierTypeForVendor(vendor);
     try {
       localStorage.setItem('metis_thinking_intensity', val);
-      localStorage.setItem('pinpoint_thinking_intensity', val);
       if (vendor && vendor.Id) {
         localStorage.setItem('metis_thinking_pref_' + vendor.Id, val);
       }
@@ -4286,7 +4285,7 @@
 
   function getAppFontSize() {
     try {
-      return localStorage.getItem('metis_font_size') || localStorage.getItem('pinpoint_font_size') || 'normal';
+      return localStorage.getItem('metis_font_size') || 'normal';
     } catch(e) {
       return 'normal';
     }
@@ -4336,8 +4335,7 @@
     const t = (theme || 'dark').toLowerCase() === 'light' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', t);
     try {
-      localStorage.setItem('metis_theme', t); localStorage.setItem('pinpoint_theme', t);
-      localStorage.setItem('surgical_theme', t);
+      localStorage.setItem('metis_theme', t);
     } catch (e) {}
     updateThinkingGlider(currentThinkingIntensity);
   }
@@ -5104,21 +5102,103 @@
     return '<span class="md-math-inline">' + formatFallbackLatex(expr, false) + '</span>';
   }
 
+  function stripLeadingThinkAndTitle(raw) {
+    // 1. Strip leading <think>...</think> (or unclosed leading <think>... while streaming)
+    const thinkOpenMatch = raw.match(/^(\s*(?:(?:\uD83D\uDD0D\s*)?Searching web via vendor grounding\.\.\.\s*)?)<think\b[^>]*>/i);
+    if (thinkOpenMatch) {
+      const prefix = thinkOpenMatch[1] || '';
+      const rest = raw.slice(thinkOpenMatch[0].length);
+      let closeMatch = rest.match(/<\/think>\s*(?=<(?:metis|session|chat)_title\b)/i);
+      if (!closeMatch) {
+        closeMatch = rest.match(/<\/think>[ \t]*(?:\r?\n|$)/i);
+      }
+      if (!closeMatch) {
+        closeMatch = rest.match(/<\/think>\s*/i);
+      }
+      if (closeMatch) {
+        raw = prefix + rest.slice(closeMatch.index + closeMatch[0].length);
+      } else {
+        raw = prefix;
+      }
+    }
+    // 2. Strip leading <metis_title>...</metis_title> (or unclosed on first line while streaming)
+    raw = raw.replace(/^(\s*(?:(?:\uD83D\uDD0D\s*)?Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>[^\r\n<]*<\/(?:metis|session|chat)_title>[ \t]*\r?\n?/i, '$1');
+    raw = raw.replace(/^(\s*(?:(?:\uD83D\uDD0D\s*)?Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>[^\r\n]*$/i, '$1');
+    return raw;
+  }
+
+  function stripTopLevelMetisBlocks(raw) {
+    const lines = raw.split(/\r?\n/);
+    let inFence = false;
+    let fenceChar = '';
+    let fenceLen = 0;
+    let activeTag = null;
+    const visibleLines = [];
+
+    const fenceOpenRe = /^[ \t]*(`{3,}|~{3,})/;
+    const singleLineTagRe = /^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'>\s]+))\s*>.*<\/metis_\1>[ \t]*$/i;
+    const openTagRe = /^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'>\s]+))\s*>[ \t]*$/i;
+    const closeReplaceRe = /^[ \t]*<\/metis_replace>[ \t]*$/i;
+    const closeWriteRe = /^[ \t]*<\/metis_write>[ \t]*$/i;
+    const streamingPartialTagRe = /^[ \t]*<metis_(?:replace|write)\b[^>]*$/i;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (activeTag !== null) {
+        if (activeTag === 'replace' && closeReplaceRe.test(line)) {
+          activeTag = null;
+        } else if (activeTag === 'write' && closeWriteRe.test(line)) {
+          activeTag = null;
+        }
+        continue;
+      }
+
+      if (inFence) {
+        const closeFenceRe = new RegExp('^[ \\t]*' + fenceChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '{' + fenceLen + ',}[ \\t]*$');
+        if (closeFenceRe.test(line)) {
+          inFence = false;
+          fenceChar = '';
+          fenceLen = 0;
+        }
+        visibleLines.push(line);
+        continue;
+      }
+
+      const mFence = line.match(fenceOpenRe);
+      if (mFence) {
+        inFence = true;
+        fenceChar = mFence[1][0];
+        fenceLen = mFence[1].length;
+        visibleLines.push(line);
+        continue;
+      }
+
+      const mSingle = line.match(singleLineTagRe);
+      if (mSingle && (mSingle[2] || mSingle[3] || mSingle[4] || '').trim()) {
+        continue;
+      }
+
+      const mOpen = line.match(openTagRe);
+      if (mOpen && (mOpen[2] || mOpen[3] || mOpen[4] || '').trim()) {
+        activeTag = mOpen[1].toLowerCase();
+        continue;
+      }
+
+      if (i === lines.length - 1 && streamingPartialTagRe.test(line)) {
+        continue;
+      }
+
+      visibleLines.push(line);
+    }
+
+    return visibleLines.join('\n');
+  }
+
   function formatSimpleMarkdown(text) {
     let raw = String(text == null ? '' : text);
-    // Strip <metis_title>...</metis_title> and unclosed <metis_title>...
-    raw = raw.replace(/<(?:metis|session|chat)_title\b[^>]*>[\s\S]*?<\/(?:metis|session|chat)_title>/gi, '');
-    raw = raw.replace(/<(?:metis|session|chat)_title\b[^>]*>[\s\S]*$/gi, '');
-    // Strip chain-of-thought <think>...</think> and unclosed <think>...
-    raw = raw.replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '');
-    raw = raw.replace(/<think\b[^>]*>[\s\S]*$/gi, '');
-    // Strip stray or orphan thinking tags
-    raw = raw.replace(/<\/?(?:think|thought|reasoning)\b[^>]*>/gi, '');
-    // Strip DeepSeek DSML / special protocol tags
-    raw = raw.replace(/<[｜|]{1,2}[\s\S]*?[｜|]{1,2}>/g, '');
-    raw = raw.replace(/<[｜|]{1,2}[\s\S]*$/g, '');
-    raw = raw.replace(/<result\b[^>]*>[\s\S]*?<\/result>/gi, '');
-    raw = raw.replace(/<result\b[^>]*>[\s\S]*$/gi, '');
+    raw = stripLeadingThinkAndTitle(raw);
+    raw = raw.replace(/<[｜|]{1,2}\s*DSML[\s\S]*$/i, '');
     const trimmed = raw.trim();
     if (
       trimmed === 'Thinking' ||
@@ -5146,23 +5226,8 @@
       return '<span class="generating-placeholder"><span>' + baseLabel + '</span><span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>' + extra + '</span>';
     }
     if (!trimmed) return '';
-    // Strip any raw <metis_replace> and unclosed <metis_replace> blocks
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_replace\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)_replace>/gi, '');
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_replace\b[^>]*>[\s\S]*$/gi, '');
-    // Strip any raw <metis_write> and unclosed <metis_write> blocks
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_write\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)_write>/gi, '');
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_write\b[^>]*>[\s\S]*$/gi, '');
-    // Strip raw <<<<< SEARCH ... ===== ... >>>>> REPLACE blocks
-    raw = raw.replace(/<{5,}\s*SEARCH[\s\S]*?={5,}[\s\S]*?>{5,}\s*REPLACE/gi, '');
-    raw = raw.replace(/<{5,}\s*SEARCH\b[\s\S]*$/gi, '');
-    // Strip command tags and streaming command blocks
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_(?:cmd|terminal|verify)\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)_(?:cmd|terminal|verify)>/gi, '');
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)_(?:cmd|terminal|verify)\b[^>]*>[\s\S]*$/gi, '');
-    // Strip search tags
-    raw = raw.replace(/<(?:metis|pinpoint|surgical)?_?search\b[^>]*>[\s\S]*?<\/(?:metis|pinpoint|surgical)?_?search>/gi, '');
-    raw = raw.replace(/<\/?(?:metis_cmd|pinpoint_cmd|surgical_cmd|verify_cmd|metis_search|pinpoint_search|surgical_search|search)>/gi, '');
-    raw = raw.replace(/<\/?(?:think|thought|reasoning)\b[^>]*>/gi, '');
 
+    raw = stripTopLevelMetisBlocks(raw);
     const afterStrip = raw.trim();
     if (!afterStrip) return '';
     return renderMarkdownToHtml(afterStrip);
@@ -5504,7 +5569,7 @@
     setupTitlebarEvents();
     setupWindowResizeHandles();
     try {
-      const saved = localStorage.getItem('metis_thinking_intensity') || localStorage.getItem('pinpoint_thinking_intensity');
+      const saved = localStorage.getItem('metis_thinking_intensity');
       if (saved && saved !== 'off') currentThinkingIntensity = saved;
       else currentThinkingIntensity = 'high';
     } catch(e) {}

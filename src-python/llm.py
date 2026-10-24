@@ -161,6 +161,7 @@ class MultiVendorClient:
                 chat_history,
                 chunk_cb,
                 media_items,
+                thinking_intensity,
             )
 
     @staticmethod
@@ -248,6 +249,7 @@ class MultiVendorClient:
         history: List[ChatHistoryItem],
         on_chunk: Callable[[str], None],
         media_items: Optional[List[dict]] = None,
+        thinking_intensity: str = "high",
     ) -> Tuple[bool, str]:
         url = cls.resolve_responses_url(base_url)
 
@@ -322,6 +324,7 @@ class MultiVendorClient:
                     history,
                     on_chunk,
                     media_items,
+                    thinking_intensity,
                 )
 
             body_lower = body.lower()
@@ -342,6 +345,7 @@ class MultiVendorClient:
                             history,
                             on_chunk,
                             media_items,
+                            thinking_intensity,
                         )
                     body2 = ""
                     try:
@@ -357,6 +361,7 @@ class MultiVendorClient:
                             history,
                             on_chunk,
                             media_items,
+                            thinking_intensity,
                         )
                     return False, f"Responses API Error (HTTP {he2.code}): {body2}"
                 except Exception as e2:
@@ -370,6 +375,7 @@ class MultiVendorClient:
                     history,
                     on_chunk,
                     media_items,
+                    thinking_intensity,
                 )
             else:
                 return False, f"Responses API Error (HTTP {he.code}): {body}"
@@ -551,6 +557,7 @@ class MultiVendorClient:
         history: List[ChatHistoryItem],
         on_chunk: Callable[[str], None],
         media_items: Optional[List[dict]] = None,
+        thinking_intensity: str = "high",
     ) -> Tuple[bool, str]:
         url = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
 
@@ -797,12 +804,13 @@ class MultiVendorClient:
             if blocks:
                 last_msg["content"] = blocks
 
-        intensity = (thinking_intensity or "medium").lower()
+        intensity = (thinking_intensity or "high").lower()
         budget_tokens = {
             "low": 2048,
-            "medium": 6000,
+            "medium": 8000,
             "high": 16000,
-        }.get(intensity, 6000)
+            "max": 32000,
+        }.get(intensity, 16000)
 
         payload = {
             "model": vendor.selected_model,
@@ -930,6 +938,7 @@ class MultiVendorClient:
             "low": 2048,
             "medium": 8192,
             "high": 24576,
+            "max": 24576,
         }.get(intensity, 8192)
 
         gen_config: dict = {"temperature": 0.2}

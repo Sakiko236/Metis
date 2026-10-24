@@ -314,6 +314,13 @@ class SidecarEngine:
             cfg_val = data.get("config")
             if isinstance(cfg_val, dict):
                 self.config = AppConfig.from_dict(cfg_val)
+                active_v = next((v for v in self.config.vendors if v.id == self.config.active_vendor_id), None)
+                if active_v:
+                    if active_v.thinking_intensity:
+                        self.config.thinking_intensity = active_v.thinking_intensity
+                    else:
+                        self.config.thinking_intensity = AppConfig.sanitize_thinking_intensity(active_v, self.config.thinking_intensity)
+                        active_v.thinking_intensity = self.config.thinking_intensity
                 ConfigManager.save(self.config)
                 self.broadcast_full_state(toast="Settings saved.")
 
@@ -324,9 +331,14 @@ class SidecarEngine:
             self.broadcast_full_state()
 
         elif action == "setThinkingIntensity":
-            raw_intensity = str(data.get("intensity", "medium")).lower()
-            intensity = raw_intensity if raw_intensity in ("low", "medium", "high") else "medium"
+            raw_intensity = str(data.get("intensity", "high")).lower()
+            vendor_id = data.get("vendorId")
+            target_vendor_id = vendor_id or self.config.active_vendor_id
+            target_v = next((v for v in self.config.vendors if v.id == target_vendor_id), None)
+            intensity = AppConfig.sanitize_thinking_intensity(target_v, raw_intensity)
             self.config.thinking_intensity = intensity
+            if target_v:
+                target_v.thinking_intensity = intensity
             ConfigManager.save(self.config)
             self.broadcast_full_state()
 

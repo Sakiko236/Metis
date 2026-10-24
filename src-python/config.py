@@ -85,6 +85,7 @@ class ConfigManager:
                 "gemini-2.0-flash",
                 "gemini-1.5-pro",
             ],
+            thinking_intensity="medium",
         )
 
         claude = VendorProfile(
@@ -99,6 +100,7 @@ class ConfigManager:
                 "claude-3-5-haiku-20241022",
                 "claude-3-opus-20240229",
             ],
+            thinking_intensity="high",
         )
 
         openai_compat = VendorProfile(
@@ -113,6 +115,7 @@ class ConfigManager:
                 "deepseek-chat",
                 "deepseek-reasoner",
             ],
+            thinking_intensity="high",
         )
 
         return AppConfig(
@@ -120,7 +123,7 @@ class ConfigManager:
             max_verify_loops=0,
             command_timeout_seconds=60,
             theme="dark",
-            thinking_intensity="medium",
+            thinking_intensity="high",
             vendors=[gemini, claude, openai_compat],
         )
 

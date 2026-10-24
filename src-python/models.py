@@ -60,6 +60,7 @@ class VendorProfile:
         api_key: str = "",
         selected_model: str = "",
         preset_models: Optional[List[str]] = None,
+        thinking_intensity: Optional[str] = None,
     ):
         self.id = id
         self.display_name = display_name
@@ -68,9 +69,14 @@ class VendorProfile:
         self.api_key = api_key
         self.selected_model = selected_model
         self.preset_models = preset_models if preset_models is not None else ([selected_model] if selected_model else [])
+        self.thinking_intensity = (
+            thinking_intensity.lower()
+            if thinking_intensity and thinking_intensity.lower() in ("low", "medium", "high", "max")
+            else None
+        )
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data = {
             "Id": self.id,
             "DisplayName": self.display_name,
             "Type": int(self.vendor_type),
@@ -79,9 +85,18 @@ class VendorProfile:
             "SelectedModel": self.selected_model,
             "PresetModels": list(self.preset_models),
         }
+        if self.thinking_intensity:
+            data["ThinkingIntensity"] = self.thinking_intensity
+        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "VendorProfile":
+        raw_thinking = data.get("ThinkingIntensity", data.get("thinking_intensity"))
+        thinking_intensity = (
+            str(raw_thinking).lower()
+            if raw_thinking and str(raw_thinking).lower() in ("low", "medium", "high", "max")
+            else None
+        )
         return cls(
             id=str(data.get("Id", data.get("id", ""))),
             display_name=str(data.get("DisplayName", data.get("display_name", ""))),
@@ -90,10 +105,13 @@ class VendorProfile:
             api_key=str(data.get("ApiKey", data.get("api_key", ""))),
             selected_model=str(data.get("SelectedModel", data.get("selected_model", ""))),
             preset_models=list(data.get("PresetModels", data.get("preset_models", []))),
+            thinking_intensity=thinking_intensity,
         )
 
 
 class AppConfig:
+    VALID_INTENSITIES = ("low", "medium", "high", "max")
+
     def __init__(
         self,
         active_vendor_id: str = "deepseek",
@@ -109,10 +127,29 @@ class AppConfig:
         self.theme = theme
         self.thinking_intensity = (
             thinking_intensity.lower()
-            if thinking_intensity and thinking_intensity.lower() in ("low", "medium", "high")
+            if thinking_intensity and thinking_intensity.lower() in self.VALID_INTENSITIES
             else "medium"
         )
         self.vendors = vendors if vendors is not None else []
+
+    @classmethod
+    def sanitize_thinking_intensity(cls, vendor: Optional[VendorProfile], intensity: Optional[str]) -> str:
+        intensity_str = (intensity or "").lower()
+        is_gemini = vendor is not None and (
+            vendor.vendor_type == VendorType.Gemini or (vendor.id or "").lower() == "gemini"
+        )
+        if is_gemini:
+            if intensity_str in ("low", "medium", "high"):
+                return intensity_str
+            if intensity_str == "max":
+                return "high"
+            return "medium"
+        else:
+            if intensity_str in ("low", "high", "max"):
+                return intensity_str
+            if intensity_str == "medium":
+                return "high"
+            return "high"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -129,7 +166,7 @@ class AppConfig:
         raw_vendors = data.get("Vendors", data.get("vendors", []))
         vendors = [VendorProfile.from_dict(v) for v in raw_vendors if isinstance(v, dict)]
         raw_thinking = str(data.get("ThinkingIntensity", data.get("thinking_intensity", "medium"))).lower()
-        thinking_intensity = raw_thinking if raw_thinking in ("low", "medium", "high") else "medium"
+        thinking_intensity = raw_thinking if raw_thinking in cls.VALID_INTENSITIES else "medium"
         raw_verify_loops = int(data.get("MaxVerifyLoops", data.get("max_verify_loops", 0)))
         # Migrate legacy default 8-round limit to 0 (unlimited)
         max_verify_loops = 0 if raw_verify_loops == 8 else raw_verify_loops

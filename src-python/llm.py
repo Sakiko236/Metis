@@ -50,31 +50,18 @@ LEADING_UNCLOSED_TITLE_RE = re.compile(
 )
 
 FENCE_OPEN_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
-SINGLE_LINE_TAG_RE = re.compile(
-    r"^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'>\s]+))\s*>(.*)</metis_\1>[ \t]*$",
+# Single source of truth for action-tag syntax.
+# Invariant: one tag per line — the line, after trimming leading/trailing whitespace,
+# must consist of exactly the tag and nothing else. A tag mentioned inside a sentence
+# is plain text and is never executed.
+ACTION_OPEN_RE = re.compile(
+    r'^<metis_(?P<kind>replace|write|read)\s+(?:file|path|name)\s*=\s*"(?P<file>[^"]+)"\s*(?P<self>/?)>$',
     re.IGNORECASE,
 )
-OPEN_TAG_RE = re.compile(
-    r"^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'>\s]+))\s*>[ \t]*$",
+ACTION_CLOSE_RE = re.compile(
+    r'^</metis_(?P<kind>replace|write|read)\s*>$',
     re.IGNORECASE,
 )
-CLOSE_REPLACE_RE = re.compile(r"^[ \t]*</metis_replace>[ \t]*$", re.IGNORECASE)
-CLOSE_WRITE_RE = re.compile(r"^[ \t]*</metis_write>[ \t]*$", re.IGNORECASE)
-OPEN_READ_BLOCK_RE = re.compile(
-    r"^[ \t]*<metis_read(?:\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'/>\s]+)))?\s*>[ \t]*$",
-    re.IGNORECASE,
-)
-CLOSE_READ_RE = re.compile(r"^[ \t]*</metis_read>[ \t]*$", re.IGNORECASE)
-INLINE_READ_PAIRED_RE = re.compile(
-    r"<metis_read(?:\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'>\s]+)))?\s*>(.*?)</metis_read>",
-    re.IGNORECASE,
-)
-INLINE_READ_SELF_CLOSE_RE = re.compile(
-    r"<metis_read\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'/>\s]+))\s*/?>",
-    re.IGNORECASE,
-)
-STREAMING_PARTIAL_TAG_RE = re.compile(r"^[ \t]*<metis_(?:replace|write|read)\b[^>]*$", re.IGNORECASE)
-TRAILING_PARTIAL_READ_RE = re.compile(r"<metis_read\b[^>]*$", re.IGNORECASE)
 
 SR_BLOCK_RE = re.compile(
     r"<{5,}\s*SEARCH\r?\n((?:(?!={5,}|<{5,}\s*SEARCH)[\s\S])*?)\r?\n={5,}(?:\r?\n((?:(?!>{5,}\s*REPLACE|={5,})[\s\S])*?))?\r?\n>{5,}\s*REPLACE",
@@ -703,13 +690,15 @@ class MultiVendorClient:
     @staticmethod
     def _scan_agent_blocks(text: str) -> Tuple[str, List[Tuple[str, str, str]]]:
         """
-        Fence-aware top-level line scanner for <metis_replace>, <metis_write>, and <metis_read>:
-        - Skips Markdown fenced code blocks (``` or ~~~) opened at top level so example tags
-          inside code blocks are neither executed nor stripped from display.
-        - Extracts top-level <metis_replace file="...">...</metis_replace>,
-          <metis_write file="...">...</metis_write>, and <metis_read ...> blocks into `blocks`.
-        - Removes top-level action blocks (including unclosed top-level blocks at EOF while streaming)
-          from `visible_text`.
+        Line-oriented scanner for action tags. One tag per line: a line is an action tag only
+        when its entire content, after trimming surrounding whitespace, is exactly the tag.
+        - Markdown fenced code blocks (``` or ~~~) are never scanned, so example tags inside
+          them are neither executed nor stripped from display.
+        - A tag mentioned inside a sentence is plain text, never an action.
+        - Extracts <metis_replace file="...">...</metis_replace>, <metis_write file="...">
+          ...</metis_write> blocks, and <metis_read file="..." /> one-liners into `blocks`,
+          and removes the tag lines themselves from `visible_text`.
+        - A block left unterminated at EOF is discarded entirely (never half-applied).
         """
         lines = text.splitlines(keepends=True)
         in_fence = False
@@ -727,38 +716,19 @@ class MultiVendorClient:
             line_stripped = line.rstrip("\r\n")
 
             if active_tag is not None:
-                if active_tag == "replace" and CLOSE_REPLACE_RE.match(line_stripped):
+                m_close = ACTION_CLOSE_RE.match(line_stripped.strip())
+                if m_close and m_close.group("kind").lower() == active_tag:
                     body_str = "".join(active_body)
                     if body_str.endswith("\r\n"):
                         body_str = body_str[:-2]
                     elif body_str.endswith("\n"):
                         body_str = body_str[:-1]
-                    blocks.append(("replace", active_file, body_str))
-                    active_tag = None
-                    active_file = ""
-                    active_body = []
-                elif active_tag == "write" and CLOSE_WRITE_RE.match(line_stripped):
-                    body_str = "".join(active_body)
-                    if body_str.endswith("\r\n"):
-                        body_str = body_str[:-2]
-                    elif body_str.endswith("\n"):
-                        body_str = body_str[:-1]
-                    blocks.append(("write", active_file, body_str))
-                    active_tag = None
-                    active_file = ""
-                    active_body = []
-                elif active_tag == "read" and CLOSE_READ_RE.match(line_stripped):
-                    body_str = "".join(active_body)
-                    if active_file:
-                        blocks.append(("read", active_file, ""))
-                    for raw_item in body_str.splitlines():
-                        cleaned_item = raw_item.strip().strip("\"'`,-*")
-                        if cleaned_item:
-                            blocks.append(("read", cleaned_item, ""))
+                    blocks.append((active_tag, active_file, body_str))
                     active_tag = None
                     active_file = ""
                     active_body = []
                 else:
+                    # Body lines are taken verbatim; nested tag-like text is file content.
                     active_body.append(line)
                 continue
 
@@ -782,83 +752,41 @@ class MultiVendorClient:
                 visible_lines.append(line)
                 continue
 
-            m_single = SINGLE_LINE_TAG_RE.match(line_stripped)
-            if m_single:
-                kind = m_single.group(1).lower()
-                file_attr = (m_single.group(2) or m_single.group(3) or m_single.group(4) or "").strip()
-                body_str = m_single.group(5) or ""
-                if file_attr:
-                    blocks.append((kind, file_attr, body_str))
-                continue
-
-            m_open = OPEN_TAG_RE.match(line_stripped)
+            m_open = ACTION_OPEN_RE.match(line_stripped.strip())
             if m_open:
-                file_attr = (m_open.group(2) or m_open.group(3) or m_open.group(4) or "").strip()
-                if file_attr:
-                    active_tag = m_open.group(1).lower()
-                    active_file = file_attr
-                    active_body = []
+                kind = m_open.group("kind").lower()
+                file_attr = (m_open.group("file") or "").strip()
+                is_self_closing = m_open.group("self") == "/"
+                if kind == "read":
+                    if file_attr:
+                        blocks.append(("read", file_attr, ""))
                     continue
-
-            # Check multi-line <metis_read> block opener (only when no attribute is given and not self-closing)
-            m_open_read = OPEN_READ_BLOCK_RE.match(line_stripped)
-            if m_open_read and not line_stripped.rstrip().endswith("/>"):
-                read_attr = (m_open_read.group(1) or m_open_read.group(2) or m_open_read.group(3) or "").strip()
-                if not read_attr:
-                    active_tag = "read"
-                    active_file = ""
-                    active_body = []
+                if is_self_closing:
+                    # <metis_write .../> carries no body -> not an action, render as text.
+                    visible_lines.append(line)
                     continue
-
-            if CLOSE_READ_RE.match(line_stripped):
+                active_tag = kind
+                active_file = file_attr
+                active_body = []
                 continue
 
-            # Check inline/single-line <metis_read ...> tags (paired or self-closing)
-            if "<metis_read" in line_stripped.lower():
-                had_read_tag = False
-                working_line = line_stripped
-
-                for m_rp in INLINE_READ_PAIRED_RE.finditer(working_line):
-                    had_read_tag = True
-                    r_attr = (m_rp.group(1) or m_rp.group(2) or m_rp.group(3) or "").strip()
-                    r_body = (m_rp.group(4) or "").strip()
-                    if r_attr:
-                        blocks.append(("read", r_attr, ""))
-                    if r_body:
-                        for part in re.split(r"[\r\n,]+", r_body):
-                            c_part = part.strip().strip("\"'`")
-                            if c_part:
-                                blocks.append(("read", c_part, ""))
-                working_line = INLINE_READ_PAIRED_RE.sub("", working_line)
-
-                for m_rs in INLINE_READ_SELF_CLOSE_RE.finditer(working_line):
-                    had_read_tag = True
-                    r_attr = (m_rs.group(1) or m_rs.group(2) or m_rs.group(3) or "").strip()
-                    if r_attr:
-                        blocks.append(("read", r_attr, ""))
-                working_line = INLINE_READ_SELF_CLOSE_RE.sub("", working_line)
-
-                if idx == len(lines) - 1:
-                    working_line = TRAILING_PARTIAL_READ_RE.sub("", working_line)
-
-                if had_read_tag:
-                    if working_line.strip():
-                        line_ending = line[len(line_stripped):]
-                        visible_lines.append(working_line + line_ending)
-                    continue
-
-            if idx == len(lines) - 1 and STREAMING_PARTIAL_TAG_RE.match(line_stripped):
+            if ACTION_CLOSE_RE.match(line_stripped.strip()):
+                # Stray closing tag outside any block: drop from display, do nothing.
                 continue
 
-            if idx == len(lines) - 1 and "<metis_read" in line_stripped.lower():
-                cleaned_partial = TRAILING_PARTIAL_READ_RE.sub("", line_stripped)
-                if not cleaned_partial.strip():
+            if idx == len(lines) - 1:
+                pending = line_stripped.strip()
+                if pending.startswith("<metis_") and not pending.endswith(">"):
+                    # Half-written tag during streaming: show nothing, execute nothing.
                     continue
-                line_ending = line[len(line_stripped):]
-                visible_lines.append(cleaned_partial + line_ending)
-                continue
 
             visible_lines.append(line)
+
+        if active_tag is not None:
+            # Unterminated block at EOF: discard entirely, never half-apply.
+            active_tag = None
+            active_file = ""
+            active_body = []
 
         return "".join(visible_lines), blocks
 

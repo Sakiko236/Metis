@@ -47,6 +47,7 @@ class AgentLoop:
             "[new file content]\n"
             "</metis_write>\n"
             "(Note: On empty files, <metis_replace> with an empty SEARCH block is also accepted).\n"
+            "CRITICAL FORMATTING RULE: Every structural line of an action tag MUST stand alone. The opening tag line, the opening SEARCH separator line, the middle divider line, the closing REPLACE separator line, and the closing tag line must each occupy their own line with nothing before or after them on that line. Never place the closing tag on the same line as the REPLACE separator, and never write action tags inline inside a sentence. A tag that is not alone on its line is not parsed as an action and is silently ignored, so the edit will never happen and you will wrongly believe it succeeded.\n"
             "4. You have access to native web search grounding provided by the API when technical documentation, framework specifications, or troubleshooting guides are needed. Use web search as appropriate, but do not force it when existing knowledge suffices.\n"
             "5. User visibility notice: The raw contents of action tags (<metis_read>, <metis_replace>, <metis_write>) are internal and NOT visible to the user. Only your direct conversational text is shown to the user. Therefore, always provide clear text explanations before or after actions so the user understands what files you are reading or modifying and what the outcome is.\n"
             "6. Keep changes focused and explain modifications clearly."

@@ -39,7 +39,7 @@ Another mind-blowing detail: because I built the UI with Rust, it’s ridiculous
 
 Download the appropriate release package for your operating system from the [Releases](https://github.com/Sakiko236/Metis/releases) page:
 
-> **⚠️ Note:** Only the **Windows** build has been tested. The **macOS** and **Linux** releases are **untested** — I don't own a MacBook, so neither release has ever been verified on real hardware and may contain unexpected bugs.
+> **⚠️ Note:** Only the **Windows** build has been tested. The **macOS** and **Linux** releases are **untested** — I don't own a MacBook and haven't verified the Linux build on real hardware either, so both may contain unexpected bugs. Bug reports with logs are very welcome.
 
 * **🪟 Windows**:
   * **Installer**: `Metis_<version>_x64-setup.exe` (NSIS installer with bundled standalone Python engine & clean uninstaller)

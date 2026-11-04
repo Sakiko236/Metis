@@ -1895,6 +1895,8 @@
     max-width: none;
     width: 100%;
     margin: 0;
+    container-type: inline-size;
+    container-name: composer;
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
@@ -1932,14 +1934,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     margin-top: 6px;
     padding-top: 6px;
     border-top: 1px solid var(--border-subtle);
+    min-width: 0;
   }
   .composer-tools {
     display: flex;
     align-items: center;
-    gap: 4px;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .tool-btn {
@@ -1954,6 +1961,8 @@
     font-size: 12px;
     cursor: pointer;
     transition: all 0.12s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
   .tool-btn:hover {
     background: var(--bg-hover);
@@ -1970,6 +1979,7 @@
     border-radius: 999px;
     background: var(--bg-hover);
     border: 1px solid var(--border-subtle);
+    flex-shrink: 0;
   }
   .thinking-label-wrap {
     display: inline-flex;
@@ -2039,6 +2049,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+    margin-left: auto;
   }
 
   .btn-action-icon {
@@ -2089,6 +2101,55 @@
     opacity: 0.35;
     cursor: not-allowed;
     transform: none;
+  }
+
+  /* Responsive Composer: keep the send button inside the box; hide the
+     thinking-level selector as soon as the composer gets narrow. */
+  @media (max-width: 900px) {
+    .composer-container {
+      padding: 8px 14px 14px 14px;
+    }
+    .composer-box {
+      padding: 10px 11px 8px 11px;
+    }
+    .workspace-header {
+      padding: 0 14px;
+    }
+    .whitelist-strip {
+      padding: 6px 14px 7px 14px;
+    }
+    .chat-stream {
+      padding: 18px 16px;
+    }
+    .msg-user {
+      max-width: 88%;
+    }
+    .titlebar-session-name {
+      max-width: 220px;
+    }
+  }
+
+  @media (max-width: 780px) {
+    .sidebar {
+      width: 232px;
+      min-width: 232px;
+    }
+  }
+
+  /* Container queries keyed on the composer's own width */
+  @container composer (max-width: 480px) {
+    .thinking-control-group {
+      display: none !important;
+    }
+  }
+
+  @container composer (max-width: 400px) {
+    .tool-btn span {
+      display: none;
+    }
+    .tool-btn {
+      padding: 5px 7px;
+    }
   }
 
   /* Modals (Settings & Code Inspector) */

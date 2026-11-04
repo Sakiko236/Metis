@@ -476,9 +476,17 @@ class WhitelistManager:
 
     def remove_directory(self, dir_path: str) -> bool:
         prev_len = len(self.directories)
-        norm_dir = dir_path.lower()
-        self.directories = [x for x in self.directories if x.lower() != norm_dir]
-        self.files = [x for x in self.files if not x.full_path.lower().startswith(norm_dir)]
+        norm_dir = dir_path.lower().rstrip("\\/")
+        prefix_slash = norm_dir + "/"
+        prefix_bslash = norm_dir + "\\"
+        self.directories = [x for x in self.directories if x.lower().rstrip("\\/") != norm_dir]
+        self.files = [
+            x for x in self.files
+            if not (
+                x.full_path.lower().startswith(prefix_slash)
+                or x.full_path.lower().startswith(prefix_bslash)
+            )
+        ]
         self.update_all_relative_paths()
         return len(self.directories) < prev_len
 
@@ -546,9 +554,17 @@ class WhitelistManager:
         if edit.action_type == FileEditActionType.WriteFull:
             updated_content = edit.new_content
         else:
-            if is_initially_empty:
+            if is_initially_empty and edit.replace_block:
                 updated_content = edit.replace_block
             else:
+                if not edit.search_block and not edit.replace_block:
+                    return (
+                        False,
+                        f"Malformed edit block for `{target_file.file_name}`: no search block and no replacement "
+                        f"content were parsed, so nothing was changed. Please resend the edit with the complete "
+                        f"three-line delimiter structure (search start line, divider line, replace end line).",
+                        None,
+                    )
                 res = self.try_apply_search_replace(
                     current_content,
                     edit.search_block,

@@ -19,54 +19,49 @@ from models import (
 )
 
 
-LEADING_THINK_OPEN_RE = re.compile(
-    r"^(\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<think\b[^>]*>",
-    re.IGNORECASE | re.DOTALL,
-)
-THINK_CLOSE_BEFORE_TITLE_RE = re.compile(
-    r"</think>\s*(?=<(?:metis|session|chat)_title\b)",
-    re.IGNORECASE,
-)
-THINK_CLOSE_LINE_RE = re.compile(
-    r"</think>[ \t]*(?:\r?\n|$)",
-    re.IGNORECASE,
-)
-THINK_CLOSE_ANY_RE = re.compile(
-    r"</think>\s*",
+# 匹配开头可选的联网搜索提示前缀
+LEADING_PREFIX_RE = re.compile(
+    r"^(\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)",
     re.IGNORECASE,
 )
 
-LEADING_TITLE_EXTRACT_RE = re.compile(
-    r"^(?:\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>([^\r\n<]{1,120})</(?:metis|session|chat)_title>",
-    re.IGNORECASE,
-)
-LEADING_TITLE_STRIP_RE = re.compile(
-    r"^(\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>[^\r\n<]*</(?:metis|session|chat)_title>[ \t]*\r?\n?",
-    re.IGNORECASE,
-)
-LEADING_UNCLOSED_TITLE_RE = re.compile(
-    r"^(\s*(?:🔍 Searching web via vendor grounding\.\.\.\s*)?)<(?:metis|session|chat)_title\b[^>]*>[^\r\n]*$",
+# 匹配开头的 <think>...</think>（支持流式未闭合状态）
+# 注意：不加行尾 $ 锚点，否则闭合块后若紧跟正文会回退到未闭合分支而吞掉正文。
+LEADING_THINK_RE = re.compile(
+    r"^<think\b[^>]*>(?:(?P<closed>[\s\S]*?)</think>|(?P<unclosed>[\s\S]*))[ \t]*(?:\r?\n)?",
     re.IGNORECASE,
 )
 
-FENCE_OPEN_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
-# Single source of truth for action-tag syntax.
-# Invariant: one tag per line — the line, after trimming leading/trailing whitespace,
-# must consist of exactly the tag and nothing else. A tag mentioned inside a sentence
-# is plain text and is never executed.
+# 匹配开头的标题标签 <metis_title>...</metis_title>（支持流式未闭合状态）
+LEADING_TITLE_RE = re.compile(
+    r"^<(?P<tag>metis|session|chat)_title\b[^>]*>(?:(?P<title>[^\r\n<]*)</(?P=tag)_title>|[^\r\n]*)[ \t]*(?:\r?\n)?",
+    re.IGNORECASE,
+)
+
+# Markdown 围栏代码块（``` 或 ~~~），info 用于区分开/闭（闭合围栏必须无语言标识）
+FENCE_RE = re.compile(r"^[ \t]*(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
+
+# 动作标签（整行独立匹配，兼容双引号/单引号、可选属性名、自闭合）
 ACTION_OPEN_RE = re.compile(
-    r'^<metis_(?P<kind>replace|write|read)\s+(?:file|path|name)\s*=\s*"(?P<file>[^"]+)"\s*(?P<self>/?)>$',
+    r"""^<metis_(?P<kind>replace|write|read)\s+(?:file|path|name)\s*=\s*(?:"(?P<dq>[^"]+)"|'(?P<sq>[^']+)')\s*(?P<self>/?)>$""",
     re.IGNORECASE,
 )
 ACTION_CLOSE_RE = re.compile(
-    r'^</metis_(?P<kind>replace|write|read)\s*>$',
+    r"^</metis_(?P<kind>replace|write|read)\s*>$",
     re.IGNORECASE,
 )
 
-SR_BLOCK_RE = re.compile(
-    r"<{5,}\s*SEARCH\r?\n((?:(?!={5,}|<{5,}\s*SEARCH)[\s\S])*?)\r?\n={5,}(?:\r?\n((?:(?!>{5,}\s*REPLACE|={5,})[\s\S])*?))?\r?\n>{5,}\s*REPLACE",
+# 流式输出末尾可能出现的未闭合残缺标签前缀（如 <、<<、</、<metis、</metis_write...）
+# 注意：末尾 [^>]* 保证完整的标签行（含 '>'）永远不会被隐藏。
+STREAMING_PARTIAL_TAG_RE = re.compile(
+    r"^(?:<+|</|<{0,2}/?(?:m(?:e(?:t(?:i(?:s(?:_[a-z]*)?)?)?)?)?|think|session_title|chat_title)[^>]*)$",
     re.IGNORECASE,
 )
+
+# Search / Replace 分隔符行匹配（状态机按行解析，彻底避免复杂正则回溯）
+SR_SEARCH_START_RE = re.compile(r"^[ \t]*<{5,}\s*SEARCH[ \t]*$", re.IGNORECASE)
+SR_DIVIDER_RE = re.compile(r"^[ \t]*={5,}[ \t]*$")
+SR_REPLACE_END_RE = re.compile(r"^[ \t]*>{5,}\s*REPLACE[ \t]*$", re.IGNORECASE)
 
 
 class MultiVendorClient:
@@ -642,70 +637,102 @@ class MultiVendorClient:
     _call_openai_compatible_sync = _call_responses_api_sync
 
     @staticmethod
-    def strip_leading_think(text: str) -> str:
-        """
-        Strips a leading <think>...</think> block (or an unclosed leading <think>... during streaming)
-        anchored strictly to the start of the assistant response. Never strips inline <think> mentions
-        in the middle of the assistant's reply.
-        """
-        m_open = LEADING_THINK_OPEN_RE.match(text)
-        if not m_open:
+    def _split_leading_prefix(text: str) -> Tuple[str, str]:
+        """分离文本开头的联网提示前缀与正文。"""
+        m = LEADING_PREFIX_RE.match(text)
+        if m:
+            return m.group(1), text[m.end():]
+        return "", text
+
+    @classmethod
+    def strip_leading_think(cls, text: str) -> str:
+        """剥离紧贴开头的 <think>...</think> 块（流式未闭合时隐藏思考内容），绝不误删正文中的 <think> 提及。"""
+        prefix, rest = cls._split_leading_prefix(text)
+        m = LEADING_THINK_RE.match(rest)
+        if not m:
             return text
-
-        prefix = m_open.group(1) or ""
-        rest = text[m_open.end():]
-
-        m_close = THINK_CLOSE_BEFORE_TITLE_RE.search(rest)
-        if not m_close:
-            m_close = THINK_CLOSE_LINE_RE.search(rest)
-        if not m_close:
-            m_close = THINK_CLOSE_ANY_RE.search(rest)
-
-        if m_close:
-            return prefix + rest[m_close.end():]
-        # Still streaming the leading <think> block (unclosed)
+        if m.group("closed") is not None:
+            return prefix + rest[m.end():]
+        # 仍在流式输出、尚未闭合的思考块：只保留前缀（隐藏思考内容）
         return prefix
 
-    @staticmethod
-    def strip_leading_title(text: str) -> str:
-        """
-        Strips a leading <metis_title>...</metis_title> tag (or unclosed on the first line during streaming)
-        anchored strictly to the start of the assistant response.
-        """
-        cleaned = LEADING_TITLE_STRIP_RE.sub(r"\1", text, count=1)
-        cleaned = LEADING_UNCLOSED_TITLE_RE.sub(r"\1", cleaned, count=1)
-        return cleaned
+    @classmethod
+    def strip_leading_title(cls, text: str) -> str:
+        """剥离紧贴开头的 <metis_title>...</metis_title> 标签（包含流式未闭合状态）。"""
+        prefix, rest = cls._split_leading_prefix(text)
+        m = LEADING_TITLE_RE.match(rest)
+        if not m:
+            return text
+        return prefix + rest[m.end():]
 
     @classmethod
     def extract_session_title(cls, raw_output: str) -> Optional[str]:
+        """从模型响应开头提取会话标题。"""
         cleaned = cls.strip_leading_think(raw_output)
-        m = LEADING_TITLE_EXTRACT_RE.match(cleaned)
-        if m:
-            first_line = m.group(1).strip().splitlines()[0] if m.group(1).strip() else ""
-            title = first_line.strip().strip("\"'`#*").strip()
+        _, rest = cls._split_leading_prefix(cleaned)
+        m = LEADING_TITLE_RE.match(rest)
+        if m and m.group("title") is not None:
+            raw_title = (m.group("title") or "").strip()
+            first_line = raw_title.splitlines()[0] if raw_title else ""
+            title = first_line.strip().strip("\"'`#* \t")
             if title:
                 return f"{title[:40]}..." if len(title) > 40 else title
         return None
 
+
+    @staticmethod
+    def _parse_search_replace_blocks(body: str) -> List[Tuple[str, str]]:
+        """
+        基于状态机的逐行解析器，从 <metis_replace> 块内容中提取 (search_block, replace_block) 列表。
+        """
+        results: List[Tuple[str, str]] = []
+        state = "OUTSIDE"  # 状态: OUTSIDE -> IN_SEARCH -> IN_REPLACE
+        search_lines: List[str] = []
+        replace_lines: List[str] = []
+
+        for line in body.splitlines(keepends=True):
+            stripped = line.rstrip("\r\n")
+
+            if state == "OUTSIDE":
+                if SR_SEARCH_START_RE.match(stripped):
+                    state = "IN_SEARCH"
+                    search_lines = []
+                    replace_lines = []
+            elif state == "IN_SEARCH":
+                if SR_DIVIDER_RE.match(stripped):
+                    state = "IN_REPLACE"
+                elif SR_SEARCH_START_RE.match(stripped):
+                    search_lines = []
+                else:
+                    search_lines.append(line)
+            elif state == "IN_REPLACE":
+                if SR_REPLACE_END_RE.match(stripped):
+                    s_text = re.sub(r"\r?\n$", "", "".join(search_lines))
+                    r_text = re.sub(r"\r?\n$", "", "".join(replace_lines))
+                    results.append((s_text, r_text))
+                    state = "OUTSIDE"
+                else:
+                    replace_lines.append(line)
+
+        return results
+
+
     @staticmethod
     def _scan_agent_blocks(text: str) -> Tuple[str, List[Tuple[str, str, str]]]:
         """
-        Line-oriented scanner for action tags. One tag per line: a line is an action tag only
-        when its entire content, after trimming surrounding whitespace, is exactly the tag.
-        - Markdown fenced code blocks (``` or ~~~) are never scanned, so example tags inside
-          them are neither executed nor stripped from display.
-        - A tag mentioned inside a sentence is plain text, never an action.
-        - Extracts <metis_replace file="...">...</metis_replace>, <metis_write file="...">
-          ...</metis_write> blocks, and <metis_read file="..." /> one-liners into `blocks`,
-          and removes the tag lines themselves from `visible_text`.
-        - A block left unterminated at EOF is discarded entirely (never half-applied).
+        基于行状态机的动作标签扫描器：
+        1. 围栏代码块（``` 或 ~~~）内的任何标签均视为普通示例文本，不执行也不剔除。
+        2. 闭合围栏要求：同种字符、长度不小于开启围栏、且行尾无其它非空字符（遵循 CommonMark 规范）。
+        3. 标签必须独立占一行；句中提及的标签原样保留。
+        4. 在块内部时，除匹配的闭合标签外，所有内容原样收集（允许被写入的代码里包含其它标签字符串）。
+        5. 末尾未闭合的块或流式半截标签自动隐藏并丢弃，绝不半途执行。
         """
         lines = text.splitlines(keepends=True)
         in_fence = False
         fence_char = ""
         fence_len = 0
 
-        active_tag: Optional[str] = None
+        active_kind: Optional[str] = None
         active_file: str = ""
         active_body: List[str] = []
 
@@ -713,82 +740,87 @@ class MultiVendorClient:
         blocks: List[Tuple[str, str, str]] = []
 
         for idx, line in enumerate(lines):
-            line_stripped = line.rstrip("\r\n")
+            stripped = line.strip()
 
-            if active_tag is not None:
-                m_close = ACTION_CLOSE_RE.match(line_stripped.strip())
-                if m_close and m_close.group("kind").lower() == active_tag:
-                    body_str = "".join(active_body)
-                    if body_str.endswith("\r\n"):
-                        body_str = body_str[:-2]
-                    elif body_str.endswith("\n"):
-                        body_str = body_str[:-1]
-                    blocks.append((active_tag, active_file, body_str))
-                    active_tag = None
+            # 状态 1：处于 <metis_write> 或 <metis_replace> 块内部
+            if active_kind is not None:
+                m_close = ACTION_CLOSE_RE.match(stripped)
+                if m_close and m_close.group("kind").lower() == active_kind:
+                    body_str = re.sub(r"\r?\n$", "", "".join(active_body))
+                    blocks.append((active_kind, active_file, body_str))
+                    active_kind = None
                     active_file = ""
                     active_body = []
                 else:
-                    # Body lines are taken verbatim; nested tag-like text is file content.
                     active_body.append(line)
                 continue
 
+            # 状态 2：处于 Markdown 代码块内部（忽略所有标签）
             if in_fence:
-                close_fence_re = re.compile(
-                    r"^[ \t]*" + re.escape(fence_char) + r"{" + str(fence_len) + r",}[ \t]*$"
-                )
-                if close_fence_re.match(line_stripped):
-                    in_fence = False
-                    fence_char = ""
-                    fence_len = 0
+                m_fence = FENCE_RE.match(line.rstrip("\r\n"))
+                if m_fence:
+                    marker = m_fence.group("fence")
+                    info = m_fence.group("info").strip()
+                    if marker[0] == fence_char and len(marker) >= fence_len and not info:
+                        in_fence = False
+                        fence_char = ""
+                        fence_len = 0
                 visible_lines.append(line)
                 continue
 
-            m_fence = FENCE_OPEN_RE.match(line_stripped)
+            # 检查是否进入 Markdown 代码块
+            m_fence = FENCE_RE.match(line.rstrip("\r\n"))
             if m_fence:
-                marker = m_fence.group(1)
+                marker = m_fence.group("fence")
                 in_fence = True
                 fence_char = marker[0]
                 fence_len = len(marker)
                 visible_lines.append(line)
                 continue
 
-            m_open = ACTION_OPEN_RE.match(line_stripped.strip())
+            # 状态 3：普通文本行，检测动作开启标签
+            m_open = ACTION_OPEN_RE.match(stripped)
             if m_open:
                 kind = m_open.group("kind").lower()
-                file_attr = (m_open.group("file") or "").strip()
-                is_self_closing = m_open.group("self") == "/"
-                if kind == "read":
-                    if file_attr:
-                        blocks.append(("read", file_attr, ""))
+                file_attr = (m_open.group("dq") or m_open.group("sq") or "").strip()
+                is_self_closing = bool(m_open.group("self"))
+
+                if not file_attr:
                     continue
+
+                if kind == "read":
+                    blocks.append(("read", file_attr, ""))
+                    continue
+
                 if is_self_closing:
-                    # <metis_write .../> carries no body -> not an action, render as text.
+                    # 自闭合的 write/replace 没有内容体，直接作为普通文本展示或忽略
                     visible_lines.append(line)
                     continue
-                active_tag = kind
+
+                active_kind = kind
                 active_file = file_attr
                 active_body = []
                 continue
 
-            if ACTION_CLOSE_RE.match(line_stripped.strip()):
-                # Stray closing tag outside any block: drop from display, do nothing.
+            # 过滤游离的闭合标签
+            if ACTION_CLOSE_RE.match(stripped):
                 continue
 
-            if idx == len(lines) - 1:
-                pending = line_stripped.strip()
-                if pending.startswith("<metis_") and not pending.endswith(">"):
-                    # Half-written tag during streaming: show nothing, execute nothing.
-                    continue
+            # 流式输出保护：如果最后一行是正在生成中的半截标签，暂不显示
+            if idx == len(lines) - 1 and STREAMING_PARTIAL_TAG_RE.match(stripped):
+                continue
 
             visible_lines.append(line)
 
-        if active_tag is not None:
-            # Unterminated block at EOF: discard entirely, never half-apply.
-            active_tag = None
-            active_file = ""
-            active_body = []
-
         return "".join(visible_lines), blocks
+
+
+    @classmethod
+    def _clean_visible_text(cls, visible_text: str) -> str:
+        """清理模型底层泄漏标记与多余空行。"""
+        cleaned = re.sub(r"<[｜|]{1,2}\s*DSML[\s\S]*$", "", visible_text)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
 
     @classmethod
     def parse_agent_output(cls, raw_output: str, whitelist: List[WhitelistedFile]) -> ParsedAgentResponse:
@@ -798,27 +830,38 @@ class MultiVendorClient:
         cleaned = cls.strip_leading_title(cleaned)
         visible_text, blocks = cls._scan_agent_blocks(cleaned)
 
+        seen_reads = set()
+        seen_writes = set()
+
         for kind, file_attr, body in blocks:
-            if not file_attr:
-                continue
+            file_key = file_attr.lower()
+
             if kind == "read":
-                if not any(r.lower() == file_attr.lower() for r in parsed.file_reads):
+                if file_key not in seen_reads:
+                    seen_reads.add(file_key)
                     parsed.file_reads.append(file_attr)
+
             elif kind == "replace":
-                for sr in SR_BLOCK_RE.finditer(body):
-                    search = sr.group(1) or ""
-                    replace = sr.group(2) or ""
+                sr_pairs = cls._parse_search_replace_blocks(body)
+                if not sr_pairs:
+                    # 标签内容缺少分隔行，未解析出任何 SEARCH/REPLACE 对。
+                    # 主动塞入一个空块，交由下游 apply_edit_in_place 给出格式错误反馈并触发下一轮重试，
+                    # 避免"标签被剥离、文件未改、界面无提示"的静默失败。
+                    sr_pairs = [("", "")]
+                for search_str, replace_str in sr_pairs:
                     parsed.file_edits.append(
                         FileEdit(
                             action_type=FileEditActionType.SearchReplace,
                             target_file=file_attr,
                             new_content="",
-                            search_block=search,
-                            replace_block=replace,
+                            search_block=search_str,
+                            replace_block=replace_str,
                         )
                     )
+
             elif kind == "write":
-                if not any(e.target_file.lower() == file_attr.lower() for e in parsed.file_edits):
+                if file_key not in seen_writes:
+                    seen_writes.add(file_key)
                     parsed.file_edits.append(
                         FileEdit(
                             action_type=FileEditActionType.WriteFull,
@@ -829,9 +872,7 @@ class MultiVendorClient:
                         )
                     )
 
-        cleaned_display = re.sub(r"<[｜|]{1,2}\s*DSML[\s\S]*$", "", visible_text)
-        cleaned_display = re.sub(r"\n{3,}", "\n\n", cleaned_display)
-        parsed.explanation_text = cleaned_display.strip()
+        parsed.explanation_text = cls._clean_visible_text(visible_text)
         return parsed
 
     @classmethod
@@ -839,9 +880,7 @@ class MultiVendorClient:
         cleaned = cls.strip_leading_think(text)
         cleaned = cls.strip_leading_title(cleaned)
         visible_text, _ = cls._scan_agent_blocks(cleaned)
-        cleaned_display = re.sub(r"<[｜|]{1,2}\s*DSML[\s\S]*$", "", visible_text)
-        cleaned_display = re.sub(r"\n{3,}", "\n\n", cleaned_display)
-        return cleaned_display.strip()
+        return cls._clean_visible_text(visible_text)
 
     @staticmethod
     async def fetch_ollama_models(base_url: str) -> List[str]:

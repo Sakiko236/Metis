@@ -452,8 +452,12 @@ class SidecarEngine:
             path = str(data.get("path", ""))
             if path:
                 active_session = self.session_store.get_active_session()
-                norm_dir = path.lower()
-                removed_files = [f for f in self.whitelist.get_files() if f.full_path.lower().startswith(norm_dir)]
+                norm_dir = path.lower().rstrip("\\/")
+                removed_files = [
+                    f for f in self.whitelist.get_files()
+                    if f.full_path.lower().startswith(norm_dir + "/")
+                    or f.full_path.lower().startswith(norm_dir + "\\")
+                ]
                 self.whitelist.remove_directory(path)
                 if active_session is not None and active_session.api_history:
                     active_session.api_history.append(
@@ -513,7 +517,7 @@ class SidecarEngine:
                         if active_session is not None and active_session.api_history:
                             wf = self.whitelist.resolve_whitelisted_file(str(target_path))
                             display_path = (wf.relative_path or wf.file_name) if wf else file_name
-                            content_str = wf.content if wf else f"[Attached Media: {file_name}]"
+                            content_str = wf.last_saved_content if wf else f"[Attached Media: {file_name}]"
                             event_text = format_file_added_event(display_path, content_str)
                             active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
                     self.broadcast_full_state(toast=f"Attached media file: {file_name}")

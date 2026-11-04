@@ -141,7 +141,6 @@ from models import (
     SessionStoreData,
     UiStreamEvent,
     VendorProfile,
-    VendorType,
 )
 from session import SessionManager
 from whitelist import WhitelistManager
@@ -342,6 +341,7 @@ class SidecarEngine:
             cfg_val = data.get("config")
             if isinstance(cfg_val, dict):
                 self.config = AppConfig.from_dict(cfg_val)
+                ConfigManager.prune_removed_providers(self.config)
                 active_v = next((v for v in self.config.vendors if v.id == self.config.active_vendor_id), None)
                 if active_v:
                     if active_v.thinking_intensity:

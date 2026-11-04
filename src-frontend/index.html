@@ -3727,11 +3727,6 @@
 
   // Thinking Intensity Slider Logic (Dual-Tier Automatic Provider Switching)
   const THINKING_TIERS = {
-    gemini: [
-      { val: 'low', label: 'Low', title: 'Low reasoning budget (~2,048 tokens)' },
-      { val: 'medium', label: 'Med', title: 'Medium reasoning budget (~8,192 tokens)' },
-      { val: 'high', label: 'High', title: 'High reasoning budget (~24,576 tokens)' }
-    ],
     deepseek: [
       { val: 'low', label: 'Low', title: 'Low reasoning effort' },
       { val: 'high', label: 'High', title: 'High reasoning effort' },
@@ -3742,32 +3737,16 @@
   let currentThinkingIntensity = 'medium';
 
   function getThinkingTierTypeForVendor(vendor) {
-    if (!vendor) return 'deepseek';
-    const vid = (vendor.Id || '').toLowerCase();
-    const vType = Number(vendor.Type);
-    if (vid === 'gemini' || vType === 0) {
-      return 'gemini';
-    }
-    const model = (vendor.SelectedModel || '').toLowerCase();
-    if (model.startsWith('gemini') && !vid.includes('deepseek') && !vid.includes('claude')) {
-      return 'gemini';
-    }
+    // The Gemini-specific tier set has been retired; a single tier type remains.
     return 'deepseek';
   }
 
   function sanitizeThinkingIntensity(vendor, val) {
-    const tierType = getThinkingTierTypeForVendor(vendor);
     val = (val || '').toLowerCase();
     if (val === 'off') val = '';
-    if (tierType === 'gemini') {
-      if (val === 'low' || val === 'medium' || val === 'high') return val;
-      if (val === 'max') return 'high';
-      return 'medium';
-    } else {
-      if (val === 'low' || val === 'high' || val === 'max') return val;
-      if (val === 'medium') return 'high';
-      return 'high';
-    }
+    if (val === 'low' || val === 'high' || val === 'max') return val;
+    if (val === 'medium') return 'high';
+    return 'high';
   }
 
   function renderThinkingControls(preferredVal) {

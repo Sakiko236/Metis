@@ -6,9 +6,10 @@ from typing import Any, Dict, List, Optional, Set
 
 
 class VendorType(IntEnum):
-    Gemini = 0
+    # NOTE: 0 (Gemini) and 2 (Claude) are retired.
+    # The remaining members keep their explicit numeric values so that
+    # existing config.json files still deserialize correctly.
     OpenAI = 1
-    Claude = 2
     DeepSeek = 3
     Ollama = 4
     CustomOpenAI = 5
@@ -25,12 +26,8 @@ class VendorType(IntEnum):
         if isinstance(val, str):
             norm = val.strip().lower()
             mapping = {
-                "gemini": cls.Gemini,
-                "0": cls.Gemini,
                 "openai": cls.OpenAI,
                 "1": cls.OpenAI,
-                "claude": cls.Claude,
-                "2": cls.Claude,
                 "deepseek": cls.DeepSeek,
                 "3": cls.DeepSeek,
                 "ollama": cls.Ollama,
@@ -111,7 +108,7 @@ class AppConfig:
 
     def __init__(
         self,
-        active_vendor_id: str = "deepseek",
+        active_vendor_id: str = "openai_compatible",
         max_verify_loops: int = 0,
         theme: str = "dark",
         thinking_intensity: str = "medium",
@@ -130,21 +127,11 @@ class AppConfig:
     @classmethod
     def sanitize_thinking_intensity(cls, vendor: Optional[VendorProfile], intensity: Optional[str]) -> str:
         intensity_str = (intensity or "").lower()
-        is_gemini = vendor is not None and (
-            vendor.vendor_type == VendorType.Gemini or (vendor.id or "").lower() == "gemini"
-        )
-        if is_gemini:
-            if intensity_str in ("low", "medium", "high"):
-                return intensity_str
-            if intensity_str == "max":
-                return "high"
-            return "medium"
-        else:
-            if intensity_str in ("low", "high", "max"):
-                return intensity_str
-            if intensity_str == "medium":
-                return "high"
+        if intensity_str in ("low", "high", "max"):
+            return intensity_str
+        if intensity_str == "medium":
             return "high"
+        return "high"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -165,7 +152,7 @@ class AppConfig:
         # Migrate legacy default 8-round limit to 0 (unlimited)
         max_verify_loops = 0 if raw_verify_loops == 8 else raw_verify_loops
         return cls(
-            active_vendor_id=str(data.get("ActiveVendorId", data.get("active_vendor_id", "deepseek"))),
+            active_vendor_id=str(data.get("ActiveVendorId", data.get("active_vendor_id", "openai_compatible"))),
             max_verify_loops=max_verify_loops,
             theme=str(data.get("Theme", data.get("theme", "dark"))),
             thinking_intensity=thinking_intensity,

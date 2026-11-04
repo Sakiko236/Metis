@@ -30,8 +30,6 @@
     "active": true,
     "targets": [
       "nsis",
-      "deb",
-      "appimage",
       "dmg"
     ],
     "externalBin": [

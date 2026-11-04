@@ -4,7 +4,7 @@
   <h3> Metis Agent </h3>
   <p><b>File-Centric Micro Coding Agent</b></p>
 
-  [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)](https://github.com/Sakiko236/Metis)
+  [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-0078D6)](https://github.com/Sakiko236/Metis)
   [![Architecture](https://img.shields.io/badge/Architecture-Tauri%202.0%20%2B%20Python%20Sidecar-blue?logo=tauri&logoColor=white)](https://tauri.app)
   [![Python](https://img.shields.io/badge/Engine-Python%203.10%2B-yellow?logo=python&logoColor=white)](https://python.org)
   [![License](https://img.shields.io/badge/License-MIT-emerald)](LICENSE)
@@ -39,15 +39,12 @@ Another mind-blowing detail: because I built the UI with Rust, it’s ridiculous
 
 Download the appropriate release package for your operating system from the [Releases](https://github.com/Sakiko236/Metis/releases) page:
 
-> **⚠️ Note:** Only the **Windows** build has been tested. The **macOS** and **Linux** releases are **untested** — I don't own a MacBook and haven't verified the Linux build on real hardware either, so both may contain unexpected bugs. Bug reports with logs are very welcome.
+> **⚠️ Note:** Only the **Windows** build has been tested. The **macOS** release is **untested** — I don't own a MacBook, so it may contain unexpected bugs. Bug reports with logs are very welcome.
 
 * **🪟 Windows**:
-  * **Installer**: `Metis_<version>_x64-setup.exe` (NSIS installer with bundled standalone Python engine & clean uninstaller)
+  * **Installer**: `Metis_<version>_windows_x64.exe` (NSIS installer with bundled standalone Python engine & clean uninstaller)
 * **🍎 macOS**:
-  * **Apple Silicon (M1/M2/M3/M4)**: `Metis_<version>_aarch64.dmg`
-* **🐧 Linux**:
-  * **Debian / Ubuntu**: `metis_<version>_amd64.deb`
-  * **Universal Linux**: `Metis_<version>_amd64.AppImage`
+  * **Apple Silicon (M1/M2/M3/M4)**: `Metis_<version>_macos_apple_silicon.dmg`
 
 ---
 

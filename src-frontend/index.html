@@ -3411,6 +3411,10 @@
             <span class="file-list-row-path" title="${escapeHtml(d)}">${escapeHtml(d)}</span>
           </div>
           <div class="file-list-row-actions">
+            <button class="btn-row-action" title="View Directory Tree Structure" onclick="hostPost({ action: 'inspectDirectory', path: '${safeDir}' })">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Tree</span>
+            </button>
             <button class="btn-row-action" title="Reveal in Explorer" onclick="hostPost({ action: 'revealFile', path: '${safeDir}' })">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               <span>Reveal</span>
@@ -3595,6 +3599,20 @@
               </button>
               ${ev.Timestamp ? `<span style="font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums;">${escapeHtml(ev.Timestamp)}</span>` : ''}
             </div>
+          </div>
+        </div>
+      `;
+    }
+    if (ev.Type === 'file_read') {
+      const safeFilePath = escapeJsStr(ev.FilePath || '');
+      return `
+        <div class="msg-row" id="msg-row-${evId}">
+          <div class="event-file-edit" style="border-color:rgba(99,102,241,0.32);background:rgba(99,102,241,0.08);">
+            <div class="event-file-left" style="color:#A5B4FC;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span class="${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>${escapeHtml(ev.Content || 'Read files from workspace')}</span>
+            </div>
+            ${ev.FilePath ? `<button class="btn-secondary" style="padding:3px 9px;font-size:11.5px;" onclick="hostPost({ action: 'inspectFile', path: '${safeFilePath}' })">Inspect File</button>` : ''}
           </div>
         </div>
       `;
@@ -5140,7 +5158,12 @@
     const openTagRe = /^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'>\s]+))\s*>[ \t]*$/i;
     const closeReplaceRe = /^[ \t]*<\/metis_replace>[ \t]*$/i;
     const closeWriteRe = /^[ \t]*<\/metis_write>[ \t]*$/i;
-    const streamingPartialTagRe = /^[ \t]*<metis_(?:replace|write)\b[^>]*$/i;
+    const singleLineReadAttrRe = /^[ \t]*<metis_read\s+(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'/>\s]+))\s*(?:\/?>|>.*?<\/metis_read>)[ \t]*$/i;
+    const singleLineReadBodyRe = /^[ \t]*<metis_read\s*>([^<\r\n]+)<\/metis_read>[ \t]*$/i;
+    const openReadRe = /^[ \t]*<metis_read\s*>[ \t]*$/i;
+    const closeReadRe = /^[ \t]*<\/metis_read>[ \t]*$/i;
+    const inlineReadStripRe = /<metis_read\s+(?:file|path|name)\s*=\s*(?:"[^">]+"|'[^'>]+'|[^"'/>\s]+)\s*(?:\/?>|>.*?<\/metis_read>)|<metis_read\s*>[^<\r\n]+<\/metis_read>/gi;
+    const streamingPartialTagRe = /^[ \t]*<metis_(?:replace|write|read)\b[^>]*$/i;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -5149,6 +5172,8 @@
         if (activeTag === 'replace' && closeReplaceRe.test(line)) {
           activeTag = null;
         } else if (activeTag === 'write' && closeWriteRe.test(line)) {
+          activeTag = null;
+        } else if (activeTag === 'read' && closeReadRe.test(line)) {
           activeTag = null;
         }
         continue;
@@ -5179,9 +5204,18 @@
         continue;
       }
 
+      if (singleLineReadAttrRe.test(line) || singleLineReadBodyRe.test(line) || closeReadRe.test(line)) {
+        continue;
+      }
+
       const mOpen = line.match(openTagRe);
       if (mOpen && (mOpen[2] || mOpen[3] || mOpen[4] || '').trim()) {
         activeTag = mOpen[1].toLowerCase();
+        continue;
+      }
+
+      if (openReadRe.test(line)) {
+        activeTag = 'read';
         continue;
       }
 
@@ -5189,7 +5223,11 @@
         continue;
       }
 
-      visibleLines.push(line);
+      const cleanedLine = line.replace(inlineReadStripRe, '');
+      if (cleanedLine.trim() === '' && line.trim() !== '') {
+        continue;
+      }
+      visibleLines.push(cleanedLine);
     }
 
     return visibleLines.join('\n');

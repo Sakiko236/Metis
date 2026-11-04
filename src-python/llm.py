@@ -61,7 +61,21 @@ OPEN_TAG_RE = re.compile(
 )
 CLOSE_REPLACE_RE = re.compile(r"^[ \t]*</metis_replace>[ \t]*$", re.IGNORECASE)
 CLOSE_WRITE_RE = re.compile(r"^[ \t]*</metis_write>[ \t]*$", re.IGNORECASE)
-STREAMING_PARTIAL_TAG_RE = re.compile(r"^[ \t]*<metis_(?:replace|write)\b[^>]*$", re.IGNORECASE)
+OPEN_READ_BLOCK_RE = re.compile(
+    r"^[ \t]*<metis_read(?:\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'/>\s]+)))?\s*>[ \t]*$",
+    re.IGNORECASE,
+)
+CLOSE_READ_RE = re.compile(r"^[ \t]*</metis_read>[ \t]*$", re.IGNORECASE)
+INLINE_READ_PAIRED_RE = re.compile(
+    r"<metis_read(?:\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'>\s]+)))?\s*>(.*?)</metis_read>",
+    re.IGNORECASE,
+)
+INLINE_READ_SELF_CLOSE_RE = re.compile(
+    r"<metis_read\s+(?:file|path|name)\s*=\s*(?:\"([^\">]+)\"|'([^'>]+)'|([^\"'/>\s]+))\s*/?>",
+    re.IGNORECASE,
+)
+STREAMING_PARTIAL_TAG_RE = re.compile(r"^[ \t]*<metis_(?:replace|write|read)\b[^>]*$", re.IGNORECASE)
+TRAILING_PARTIAL_READ_RE = re.compile(r"<metis_read\b[^>]*$", re.IGNORECASE)
 
 SR_BLOCK_RE = re.compile(
     r"<{5,}\s*SEARCH\r?\n((?:(?!={5,}|<{5,}\s*SEARCH)[\s\S])*?)\r?\n={5,}(?:\r?\n((?:(?!>{5,}\s*REPLACE|={5,})[\s\S])*?))?\r?\n>{5,}\s*REPLACE",
@@ -89,6 +103,7 @@ class MultiVendorClient:
                     mime = "application/pdf" if f.media_kind == "pdf" else "image/png"
                 items.append({
                     "fileName": f.file_name,
+                    "relativePath": f.relative_path or f.file_name,
                     "mediaKind": f.media_kind,
                     "mimeType": mime,
                     "base64": b64,
@@ -269,12 +284,27 @@ class MultiVendorClient:
                 if raw_user_content:
                     content_blocks.append({"type": "input_text", "text": raw_user_content})
                 for m in media_items:
+                    rel_label = m.get("relativePath") or m["fileName"]
                     if m["mediaKind"] == "image":
+                        content_blocks.append({
+                            "type": "input_text",
+                            "text": f"[Attached Base64 Image: {rel_label}]",
+                        })
                         content_blocks.append({
                             "type": "input_image",
                             "image_url": f"data:{m['mimeType']};base64,{m['base64']}",
                         })
-                if any(b.get("type") == "input_image" for b in content_blocks):
+                    elif m["mediaKind"] == "pdf":
+                        content_blocks.append({
+                            "type": "input_text",
+                            "text": f"[Attached Base64 PDF: {rel_label}]",
+                        })
+                        content_blocks.append({
+                            "type": "input_file",
+                            "filename": m["fileName"],
+                            "file_data": f"data:application/pdf;base64,{m['base64']}",
+                        })
+                if any(b.get("type") in ("input_image", "input_file") for b in content_blocks):
                     last_user["content"] = content_blocks
 
         payload: dict = {
@@ -542,14 +572,31 @@ class MultiVendorClient:
                 if raw_text:
                     content_blocks.append({"type": "text", "text": raw_text})
                 for m in media_items:
+                    rel_label = m.get("relativePath") or m["fileName"]
                     if m["mediaKind"] == "image":
+                        content_blocks.append({
+                            "type": "text",
+                            "text": f"[Attached Base64 Image: {rel_label}]",
+                        })
                         content_blocks.append({
                             "type": "image_url",
                             "image_url": {
                                 "url": f"data:{m['mimeType']};base64,{m['base64']}"
                             }
                         })
-                if any(b.get("type") == "image_url" for b in content_blocks):
+                    elif m["mediaKind"] == "pdf":
+                        content_blocks.append({
+                            "type": "text",
+                            "text": f"[Attached Base64 PDF: {rel_label}]",
+                        })
+                        content_blocks.append({
+                            "type": "file",
+                            "file": {
+                                "filename": m["fileName"],
+                                "file_data": f"data:application/pdf;base64,{m['base64']}",
+                            }
+                        })
+                if any(b.get("type") in ("image_url", "file") for b in content_blocks):
                     last_msg["content"] = content_blocks
 
         payload: dict = {
@@ -569,10 +616,24 @@ class MultiVendorClient:
 
         ctx = ssl.create_default_context()
 
-        try:
-            data_bytes = json.dumps(payload).encode("utf-8")
+        def open_chat_stream(req_payload: dict):
+            data_bytes = json.dumps(req_payload).encode("utf-8")
             req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=180, context=ctx) as stream_resp:
+            return urllib.request.urlopen(req, timeout=180, context=ctx)
+
+        try:
+            try:
+                stream_resp = open_chat_stream(payload)
+            except urllib.error.HTTPError as he_first:
+                if media_items and he_first.code in (400, 415, 422):
+                    # If the OpenAI-compatible provider does not support multimodal/PDF blocks, fallback to text messages
+                    plain_messages = cls.prepare_chat_completions_messages(system_prompt, history)
+                    payload["messages"] = plain_messages
+                    stream_resp = open_chat_stream(payload)
+                else:
+                    raise he_first
+
+            with stream_resp:
                 output_parts: List[str] = []
 
                 for raw_line in stream_resp:
@@ -729,7 +790,12 @@ class MultiVendorClient:
                 blocks.extend(raw_text)
 
             for item in media_items:
+                rel_label = item.get("relativePath") or item["fileName"]
                 if item["mediaKind"] == "image":
+                    blocks.append({
+                        "type": "text",
+                        "text": f"[Attached Base64 Image: {rel_label}]",
+                    })
                     blocks.append({
                         "type": "image",
                         "source": {
@@ -740,6 +806,10 @@ class MultiVendorClient:
                     })
                 elif item["mediaKind"] == "pdf":
                     has_pdf = True
+                    blocks.append({
+                        "type": "text",
+                        "text": f"[Attached Base64 PDF: {rel_label}]",
+                    })
                     blocks.append({
                         "type": "document",
                         "source": {
@@ -912,6 +982,11 @@ class MultiVendorClient:
         contents = cls.prepare_gemini_contents(history)
         if media_items and contents:
             for item in media_items:
+                rel_label = item.get("relativePath") or item["fileName"]
+                kind_lbl = "PDF" if item["mediaKind"] == "pdf" else "Image"
+                contents[-1]["parts"].append({
+                    "text": f"[Attached Base64 {kind_lbl}: {rel_label}]",
+                })
                 contents[-1]["parts"].append({
                     "inlineData": {
                         "mimeType": item["mimeType"],
@@ -1073,12 +1148,12 @@ class MultiVendorClient:
     @staticmethod
     def _scan_agent_blocks(text: str) -> Tuple[str, List[Tuple[str, str, str]]]:
         """
-        Fence-aware top-level line scanner for <metis_replace> and <metis_write>:
+        Fence-aware top-level line scanner for <metis_replace>, <metis_write>, and <metis_read>:
         - Skips Markdown fenced code blocks (``` or ~~~) opened at top level so example tags
-          inside code blocks are neither executed as file edits nor stripped from display.
-        - Extracts only top-level closed <metis_replace file="...">...</metis_replace> and
-          <metis_write file="...">...</metis_write> blocks into `blocks`.
-        - Removes top-level edit blocks (including unclosed top-level blocks at EOF while streaming)
+          inside code blocks are neither executed nor stripped from display.
+        - Extracts top-level <metis_replace file="...">...</metis_replace>,
+          <metis_write file="...">...</metis_write>, and <metis_read ...> blocks into `blocks`.
+        - Removes top-level action blocks (including unclosed top-level blocks at EOF while streaming)
           from `visible_text`.
         """
         lines = text.splitlines(keepends=True)
@@ -1114,6 +1189,17 @@ class MultiVendorClient:
                     elif body_str.endswith("\n"):
                         body_str = body_str[:-1]
                     blocks.append(("write", active_file, body_str))
+                    active_tag = None
+                    active_file = ""
+                    active_body = []
+                elif active_tag == "read" and CLOSE_READ_RE.match(line_stripped):
+                    body_str = "".join(active_body)
+                    if active_file:
+                        blocks.append(("read", active_file, ""))
+                    for raw_item in body_str.splitlines():
+                        cleaned_item = raw_item.strip().strip("\"'`,-*")
+                        if cleaned_item:
+                            blocks.append(("read", cleaned_item, ""))
                     active_tag = None
                     active_file = ""
                     active_body = []
@@ -1159,7 +1245,62 @@ class MultiVendorClient:
                     active_body = []
                     continue
 
+            # Check multi-line <metis_read> block opener (only when no attribute is given and not self-closing)
+            m_open_read = OPEN_READ_BLOCK_RE.match(line_stripped)
+            if m_open_read and not line_stripped.rstrip().endswith("/>"):
+                read_attr = (m_open_read.group(1) or m_open_read.group(2) or m_open_read.group(3) or "").strip()
+                if not read_attr:
+                    active_tag = "read"
+                    active_file = ""
+                    active_body = []
+                    continue
+
+            if CLOSE_READ_RE.match(line_stripped):
+                continue
+
+            # Check inline/single-line <metis_read ...> tags (paired or self-closing)
+            if "<metis_read" in line_stripped.lower():
+                had_read_tag = False
+                working_line = line_stripped
+
+                for m_rp in INLINE_READ_PAIRED_RE.finditer(working_line):
+                    had_read_tag = True
+                    r_attr = (m_rp.group(1) or m_rp.group(2) or m_rp.group(3) or "").strip()
+                    r_body = (m_rp.group(4) or "").strip()
+                    if r_attr:
+                        blocks.append(("read", r_attr, ""))
+                    if r_body:
+                        for part in re.split(r"[\r\n,]+", r_body):
+                            c_part = part.strip().strip("\"'`")
+                            if c_part:
+                                blocks.append(("read", c_part, ""))
+                working_line = INLINE_READ_PAIRED_RE.sub("", working_line)
+
+                for m_rs in INLINE_READ_SELF_CLOSE_RE.finditer(working_line):
+                    had_read_tag = True
+                    r_attr = (m_rs.group(1) or m_rs.group(2) or m_rs.group(3) or "").strip()
+                    if r_attr:
+                        blocks.append(("read", r_attr, ""))
+                working_line = INLINE_READ_SELF_CLOSE_RE.sub("", working_line)
+
+                if idx == len(lines) - 1:
+                    working_line = TRAILING_PARTIAL_READ_RE.sub("", working_line)
+
+                if had_read_tag:
+                    if working_line.strip():
+                        line_ending = line[len(line_stripped):]
+                        visible_lines.append(working_line + line_ending)
+                    continue
+
             if idx == len(lines) - 1 and STREAMING_PARTIAL_TAG_RE.match(line_stripped):
+                continue
+
+            if idx == len(lines) - 1 and "<metis_read" in line_stripped.lower():
+                cleaned_partial = TRAILING_PARTIAL_READ_RE.sub("", line_stripped)
+                if not cleaned_partial.strip():
+                    continue
+                line_ending = line[len(line_stripped):]
+                visible_lines.append(cleaned_partial + line_ending)
                 continue
 
             visible_lines.append(line)
@@ -1177,7 +1318,10 @@ class MultiVendorClient:
         for kind, file_attr, body in blocks:
             if not file_attr:
                 continue
-            if kind == "replace":
+            if kind == "read":
+                if not any(r.lower() == file_attr.lower() for r in parsed.file_reads):
+                    parsed.file_reads.append(file_attr)
+            elif kind == "replace":
                 for sr in SR_BLOCK_RE.finditer(body):
                     search = sr.group(1) or ""
                     replace = sr.group(2) or ""

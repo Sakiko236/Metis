@@ -555,12 +555,14 @@ class ParsedAgentResponse:
         raw_text: str = "",
         explanation_text: str = "",
         file_edits: Optional[List[FileEdit]] = None,
+        file_reads: Optional[List[str]] = None,
         terminal_commands: Optional[List[str]] = None,
         search_queries: Optional[List[str]] = None,
     ):
         self.raw_text = raw_text
         self.explanation_text = explanation_text
         self.file_edits = file_edits if file_edits is not None else []
+        self.file_reads = file_reads if file_reads is not None else []
         self.terminal_commands = terminal_commands if terminal_commands is not None else []
         self.search_queries = search_queries if search_queries is not None else []
 

@@ -21,6 +21,14 @@ IGNORED_DIRS = {
     "target",
     ".vscode",
     ".idea",
+    ".venv",
+    "venv",
+    "dist",
+    "build",
+    ".next",
+    ".nuxt",
+    ".pytest_cache",
+    ".mypy_cache",
 }
 
 IGNORED_EXTS = {
@@ -36,7 +44,21 @@ IGNORED_EXTS = {
     "gz",
     "7z",
     "pyc",
+    "pyo",
+    "pyd",
+    "class",
+    "jar",
+    "war",
+    "ear",
+    "woff",
+    "woff2",
+    "ttf",
+    "eot",
+    "ico",
 }
+
+IMAGE_EXTS = {"png", "jpg", "jpeg", "webp", "gif", "bmp"}
+PDF_EXTS = {"pdf"}
 
 
 class WhitelistManager:
@@ -182,8 +204,8 @@ class WhitelistManager:
         if not any(d.lower() == canonical_dir.lower() for d in self.directories):
             self.directories.append(canonical_dir)
 
-        loaded = 0
-        stack = [p]
+        file_count = 0
+        stack = [Path(canonical_dir)]
         while stack:
             current_dir = stack.pop()
             try:
@@ -195,13 +217,256 @@ class WhitelistManager:
                     elif entry.is_file(follow_symlinks=False):
                         ext = Path(name).suffix.lstrip(".").lower()
                         if ext not in IGNORED_EXTS:
-                            if self.add_file(entry.path):
-                                loaded += 1
+                            file_count += 1
             except Exception:
                 continue
 
         self.update_all_relative_paths()
-        return loaded, None
+        return file_count, None
+
+    @staticmethod
+    def format_size_label(size_bytes: int) -> str:
+        if size_bytes <= 0:
+            return "0 B [EMPTY]"
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        if size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        return f"{size_bytes / (1024 * 1024):.2f} MB"
+
+    @classmethod
+    def build_directory_tree(cls, folder_path: str, max_files: int = 2000) -> str:
+        p = Path(folder_path)
+        if not p.is_dir():
+            return f"(Directory not found: {folder_path})"
+
+        try:
+            root_path = p.resolve()
+        except Exception:
+            root_path = p
+
+        root_name = root_path.name or str(root_path)
+        lines: List[str] = [
+            f"Directory Root: `{root_name}/` (Full Path: `{root_path}`)",
+            f"{root_name}/",
+        ]
+
+        total_files = 0
+        total_dirs = 0
+        truncated = False
+
+        def _walk(curr_dir: Path, prefix: str) -> None:
+            nonlocal total_files, total_dirs, truncated
+            if truncated:
+                return
+            try:
+                entries = list(os.scandir(curr_dir))
+            except Exception:
+                return
+
+            dirs = []
+            files = []
+            for entry in entries:
+                name = entry.name
+                try:
+                    if entry.is_dir(follow_symlinks=False):
+                        if name.lower() not in IGNORED_DIRS:
+                            dirs.append(entry)
+                    elif entry.is_file(follow_symlinks=False):
+                        ext = Path(name).suffix.lstrip(".").lower()
+                        if ext not in IGNORED_EXTS:
+                            files.append(entry)
+                except Exception:
+                    continue
+
+            dirs.sort(key=lambda e: e.name.lower())
+            files.sort(key=lambda e: e.name.lower())
+
+            combined = [("dir", d) for d in dirs] + [("file", f) for f in files]
+            count = len(combined)
+
+            for idx, (kind, entry) in enumerate(combined):
+                if truncated:
+                    break
+                is_last = idx == count - 1
+                connector = "└── " if is_last else "├── "
+                child_prefix = prefix + ("    " if is_last else "│   ")
+
+                if kind == "dir":
+                    total_dirs += 1
+                    lines.append(f"{prefix}{connector}{entry.name}/")
+                    _walk(Path(entry.path), child_prefix)
+                else:
+                    if total_files >= max_files:
+                        truncated = True
+                        lines.append(f"{prefix}└── ... (truncated after {max_files} files)")
+                        break
+                    total_files += 1
+                    entry_path = Path(entry.path)
+                    try:
+                        rel_str = str(entry_path.relative_to(root_path)).replace("\\", "/")
+                    except Exception:
+                        rel_str = entry.name
+                    try:
+                        sz = entry.stat(follow_symlinks=False).st_size
+                    except Exception:
+                        sz = 0
+
+                    ext = entry_path.suffix.lstrip(".").lower()
+                    size_lbl = cls.format_size_label(sz)
+                    if ext in IMAGE_EXTS:
+                        tag_lbl = " | Image (Base64 upload on read)"
+                    elif ext in PDF_EXTS:
+                        tag_lbl = " | PDF (Base64 upload on read)"
+                    else:
+                        tag_lbl = ""
+
+                    lines.append(
+                        f"{prefix}{connector}{entry.name}  [path: \"{rel_str}\" | {size_lbl}{tag_lbl}]"
+                    )
+
+        _walk(root_path, "")
+        lines.append(
+            f"\nSummary: {total_files} {'file' if total_files == 1 else 'files'}, "
+            f"{total_dirs} {'subdirectory' if total_dirs == 1 else 'subdirectories'}."
+        )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _is_path_within_dir(target_path: Path, base_dir: Path) -> bool:
+        try:
+            t_res = target_path.resolve()
+            b_res = base_dir.resolve()
+            if hasattr(t_res, "is_relative_to"):
+                return t_res.is_relative_to(b_res)
+            t_str = str(t_res).lower().rstrip("\\/")
+            b_str = str(b_res).lower().rstrip("\\/")
+            return t_str == b_str or t_str.startswith(b_str + os.sep)
+        except Exception:
+            return False
+
+    def resolve_file_in_directories(self, requested_name_or_path: str) -> Optional[Path]:
+        cleaned = requested_name_or_path.strip().strip("\"'`<>")
+        if not cleaned:
+            return None
+
+        norm_clean = cleaned.replace("\\", "/").lstrip("./")
+
+        # 1. Check direct relative paths or absolute paths within allowed directories
+        for d in self.directories:
+            dir_path = Path(d)
+            if not dir_path.is_dir():
+                continue
+            try:
+                dir_resolved = dir_path.resolve()
+            except Exception:
+                dir_resolved = dir_path
+
+            candidates: List[Path] = []
+            req_p = Path(cleaned)
+            if req_p.is_absolute():
+                candidates.append(req_p)
+            candidates.append(dir_resolved / norm_clean)
+
+            dir_name_prefix = f"{dir_resolved.name.lower()}/"
+            if norm_clean.lower().startswith(dir_name_prefix):
+                stripped_sub = norm_clean[len(dir_name_prefix):]
+                if stripped_sub:
+                    candidates.append(dir_resolved / stripped_sub)
+
+            for cand in candidates:
+                try:
+                    if cand.exists() and cand.is_file():
+                        if self._is_path_within_dir(cand, dir_resolved):
+                            return cand.resolve()
+                except Exception:
+                    continue
+
+        # 2. Fallback: Search mounted directories for matching relative suffix or filename
+        suffix_matches: List[Path] = []
+        fname_matches: List[Path] = []
+        target_fname = Path(norm_clean).name.lower()
+        norm_clean_lower = norm_clean.lower()
+
+        for d in self.directories:
+            dir_path = Path(d)
+            if not dir_path.is_dir():
+                continue
+            try:
+                dir_resolved = dir_path.resolve()
+            except Exception:
+                dir_resolved = dir_path
+
+            stack = [dir_resolved]
+            while stack:
+                curr = stack.pop()
+                try:
+                    for entry in os.scandir(curr):
+                        if entry.is_dir(follow_symlinks=False):
+                            if entry.name.lower() not in IGNORED_DIRS:
+                                stack.append(Path(entry.path))
+                        elif entry.is_file(follow_symlinks=False):
+                            ext = Path(entry.name).suffix.lstrip(".").lower()
+                            if ext in IGNORED_EXTS:
+                                continue
+                            entry_p = Path(entry.path)
+                            try:
+                                rel = str(entry_p.relative_to(dir_resolved)).replace("\\", "/").lower()
+                            except Exception:
+                                rel = entry.name.lower()
+                            if rel == norm_clean_lower or rel.endswith("/" + norm_clean_lower):
+                                suffix_matches.append(entry_p.resolve())
+                            elif entry.name.lower() == target_fname:
+                                fname_matches.append(entry_p.resolve())
+                except Exception:
+                    continue
+
+        if len(suffix_matches) >= 1:
+            return suffix_matches[0]
+        if len(fname_matches) == 1:
+            return fname_matches[0]
+
+        return None
+
+    def read_and_attach_file(self, requested_name_or_path: str) -> Tuple[bool, str, Optional[WhitelistedFile]]:
+        existing = self.resolve_whitelisted_file(requested_name_or_path)
+        if existing is not None:
+            p = Path(existing.full_path)
+            if p.exists() and p.is_file() and not existing.is_binary_media and existing.media_kind not in ("image", "pdf"):
+                try:
+                    latest = p.read_text(encoding="utf-8", errors="replace")
+                    existing.last_saved_content = latest
+                    existing.current_size_bytes = len(latest.encode("utf-8", errors="replace"))
+                except Exception:
+                    pass
+            display_name = existing.relative_path or existing.file_name
+            return True, f"Attached file `{display_name}` to conversation.", existing
+
+        resolved_path = self.resolve_file_in_directories(requested_name_or_path)
+        if resolved_path is None:
+            return (
+                False,
+                f"[File Read Error] Target file '{requested_name_or_path}' was not found in any mounted folder or the whitelist.",
+                None,
+            )
+
+        if not self.add_file(str(resolved_path)):
+            return (
+                False,
+                f"[File Read Error] Failed to read file '{requested_name_or_path}'.",
+                None,
+            )
+
+        wf = self.resolve_whitelisted_file(str(resolved_path))
+        if wf is None:
+            return (
+                False,
+                f"[File Read Error] Failed to resolve attached file '{requested_name_or_path}'.",
+                None,
+            )
+
+        display_name = wf.relative_path or wf.file_name
+        return True, f"Attached file `{display_name}` to conversation.", wf
 
     def remove_file(self, full_path: str) -> bool:
         prev_len = len(self.files)
@@ -256,9 +521,14 @@ class WhitelistManager:
     def apply_edit_in_place(self, edit: FileEdit) -> Tuple[bool, str, Optional[WhitelistedFile]]:
         target_file = self.resolve_whitelisted_file(edit.target_file)
         if target_file is None:
+            dir_candidate = self.resolve_file_in_directories(edit.target_file)
+            if dir_candidate is not None and self.add_file(str(dir_candidate)):
+                target_file = self.resolve_whitelisted_file(str(dir_candidate))
+
+        if target_file is None:
             return (
                 False,
-                f"[Security Block - File Creation Prohibited] Target file '{edit.target_file}' is not in the whitelist. Metis strictly forbids creating or deleting files; in-place edits on existing files only!",
+                f"[Security Block - File Creation Prohibited] Target file '{edit.target_file}' is not in the whitelist or mounted folders. Metis strictly forbids creating or deleting files; in-place edits on existing files only!",
                 None,
             )
 
@@ -287,7 +557,7 @@ class WhitelistManager:
                 if res is None:
                     return (
                         False,
-                        f"SEARCH block failed to match original code in `{target_file.file_name}`. Please ensure the SEARCH block matches the file's current content verbatim.",
+                        f"SEARCH block failed to match original code in `{target_file.file_name}`. If you have not read this file yet, please read it first using <metis_read file=\"{target_file.relative_path or target_file.file_name}\" /> and ensure the SEARCH block matches the file's current content verbatim.",
                         None,
                     )
                 updated_content = res
@@ -391,9 +661,22 @@ class WhitelistManager:
     def update_all_relative_paths(self) -> None:
         ws_dir = self.get_active_workspace_directory()
         ws_path = Path(ws_dir)
+        dir_paths = [Path(d) for d in self.directories if d and d.strip()]
         for f in self.files:
+            fp = Path(f.full_path)
+            matched_rel: Optional[str] = None
+            for dp in dir_paths:
+                try:
+                    rel = fp.relative_to(dp)
+                    matched_rel = str(rel).replace("\\", "/")
+                    break
+                except Exception:
+                    continue
+            if matched_rel is not None:
+                f.relative_path = matched_rel
+                continue
             try:
-                rel = Path(f.full_path).relative_to(ws_path)
+                rel = fp.relative_to(ws_path)
                 f.relative_path = str(rel).replace("\\", "/")
             except Exception:
                 f.relative_path = f.file_name

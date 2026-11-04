@@ -87,6 +87,35 @@ def format_file_added_event(file_path: str, content: str) -> str:
 def format_file_removed_event(file_path: str) -> str:
     return f"[Workspace Event] File `{file_path}` has been removed from workspace."
 
+
+def format_directory_added_event(folder_path: str, tree_text: str) -> str:
+    return (
+        f"[Workspace Event] Folder added to workspace: `{folder_path}`\n"
+        f"Detailed Directory Tree Structure:\n"
+        f"```text\n"
+        f"{tree_text}\n"
+        f"```\n"
+        f"(Note: Files inside this folder are NOT pre-loaded into context. "
+        f"Output `<metis_read file=\"relative/path/to/file\" />` for any file you want to read, "
+        f"and the Harness will attach its full content — or Base64 multimodal data for images and PDFs — to the conversation.)"
+    )
+
+
+def format_directory_removed_event(folder_path: str) -> str:
+    return f"[Workspace Event] Folder `{folder_path}` has been unmounted from workspace."
+
+
+def format_file_read_event(file_path: str, content: str) -> str:
+    ext = Path(file_path).suffix.lstrip(".")
+    lang = get_language_for_ext(ext)
+    body = content if content else "[EMPTY FILE - 0 bytes]"
+    return (
+        f"[Harness File Attachment] Requested file `{file_path}` attached to conversation:\n"
+        f"```{lang}\n"
+        f"{body}\n"
+        f"```"
+    )
+
 # Ensure local modules in src-python are importable and standard streams use UTF-8
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 if hasattr(sys.stdout, "reconfigure"):
@@ -361,31 +390,52 @@ class SidecarEngine:
         elif action == "addFiles":
             paths = data.get("paths", [])
             if isinstance(paths, list):
-                added = 0
+                added_files = 0
+                added_dirs = 0
                 active_session = self.session_store.get_active_session()
                 for p in paths:
-                    if isinstance(p, str) and self.whitelist.add_file(p):
-                        added += 1
+                    if not isinstance(p, str) or not p.strip():
+                        continue
+                    p_obj = Path(p)
+                    if p_obj.is_dir():
+                        loaded, _ = self.whitelist.add_directory(p)
+                        added_dirs += 1
+                        if active_session is not None and active_session.api_history:
+                            tree_text = self.whitelist.build_directory_tree(p)
+                            event_text = format_directory_added_event(p, tree_text)
+                            active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
+                    elif self.whitelist.add_file(p):
+                        added_files += 1
                         wf = self.whitelist.resolve_whitelisted_file(p)
                         if wf is not None and active_session is not None and active_session.api_history:
                             display_path = wf.relative_path or wf.file_name
-                            event_text = format_file_added_event(display_path, wf.last_saved_content)
+                            if wf.media_kind in ("image", "pdf") or wf.is_binary_media:
+                                media_label = "PDF document" if wf.media_kind == "pdf" else "Image"
+                                event_text = (
+                                    f"[Workspace Event] {media_label} added to workspace: `{display_path}` "
+                                    f"(MIME: {wf.mime_type}, uploaded as Base64 multimodal attachment)."
+                                )
+                            else:
+                                event_text = format_file_added_event(display_path, wf.last_saved_content)
                             active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
-                self.broadcast_full_state(toast=f"Added {added} files to workspace.")
+                if added_dirs > 0 and added_files > 0:
+                    toast_msg = f"Mounted {added_dirs} folder(s) (tree indexed) and added {added_files} file(s)."
+                elif added_dirs > 0:
+                    toast_msg = f"Mounted {added_dirs} folder(s) (detailed tree indexed)."
+                else:
+                    toast_msg = f"Added {added_files} files to workspace."
+                self.broadcast_full_state(toast=toast_msg)
 
         elif action == "addDirectory":
             folder_path = str(data.get("path", ""))
             if folder_path:
                 active_session = self.session_store.get_active_session()
-                prev_paths = {f.full_path.lower() for f in self.whitelist.get_files()}
                 loaded, _ = self.whitelist.add_directory(folder_path)
                 if active_session is not None and active_session.api_history:
-                    for wf in self.whitelist.get_files():
-                        if wf.full_path.lower() not in prev_paths:
-                            display_path = wf.relative_path or wf.file_name
-                            event_text = format_file_added_event(display_path, wf.last_saved_content)
-                            active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
-                self.broadcast_full_state(toast=f"Mounted folder with {loaded} files.")
+                    tree_text = self.whitelist.build_directory_tree(folder_path)
+                    event_text = format_directory_added_event(folder_path, tree_text)
+                    active_session.api_history.append(ChatHistoryItem(role="user", content=event_text))
+                self.broadcast_full_state(toast=f"Mounted folder ({loaded} files indexed in tree).")
 
         elif action == "removeFile":
             path = str(data.get("path", ""))
@@ -407,6 +457,9 @@ class SidecarEngine:
                 removed_files = [f for f in self.whitelist.get_files() if f.full_path.lower().startswith(norm_dir)]
                 self.whitelist.remove_directory(path)
                 if active_session is not None and active_session.api_history:
+                    active_session.api_history.append(
+                        ChatHistoryItem(role="user", content=format_directory_removed_event(path))
+                    )
                     for wf in removed_files:
                         display_path = wf.relative_path or wf.file_name
                         event_text = format_file_removed_event(display_path)
@@ -416,8 +469,13 @@ class SidecarEngine:
         elif action == "clearWhitelist":
             active_session = self.session_store.get_active_session()
             all_files = list(self.whitelist.get_files())
+            all_dirs = list(self.whitelist.get_directories())
             self.whitelist.clear()
             if active_session is not None and active_session.api_history:
+                for d in all_dirs:
+                    active_session.api_history.append(
+                        ChatHistoryItem(role="user", content=format_directory_removed_event(d))
+                    )
                 for wf in all_files:
                     display_path = wf.relative_path or wf.file_name
                     event_text = format_file_removed_event(display_path)
@@ -511,6 +569,26 @@ class SidecarEngine:
                             "dataUrl": data_url,
                         }
                     )
+
+        elif action == "inspectDirectory":
+            path = str(data.get("path", ""))
+            if path:
+                tree_text = self.whitelist.build_directory_tree(path)
+                folder_name = Path(path).name or path
+                emit_host_message(
+                    {
+                        "type": "fileContentPreview",
+                        "fileName": f"📁 {folder_name} (Directory Tree)",
+                        "fullPath": path,
+                        "editCount": 0,
+                        "mediaKind": "text",
+                        "mimeType": "text/plain",
+                        "isBinaryMedia": False,
+                        "content": tree_text,
+                        "diffLines": [],
+                        "dataUrl": "",
+                    }
+                )
 
         elif action == "revertFile":
             path = str(data.get("path", ""))
@@ -624,10 +702,12 @@ class SidecarEngine:
 
         # Append-Only Architecture:
         # If this is the initial turn of the session, load the initial workspace snapshot
+        # (including detailed directory trees for mounted folders and content for individual files)
         # to the very head of the event log. This snapshot is immutable and never updated in place.
         if not target_session.api_history:
             whitelist_snapshot = list(loop_whitelist.get_files())
-            initial_files_block = AgentLoop.build_file_snapshot(whitelist_snapshot)
+            dirs_snapshot = list(loop_whitelist.get_directories())
+            initial_files_block = AgentLoop.build_file_snapshot(whitelist_snapshot, dirs_snapshot)
             target_session.api_history.append(
                 ChatHistoryItem(
                     role="user",
@@ -662,6 +742,7 @@ class SidecarEngine:
 
         current_round = 1
         retry_delays_secs = [2, 4, 8]
+        read_files_in_loop: set[str] = {f.full_path.lower() for f in loop_whitelist.get_files()}
 
         try:
             while True:
@@ -871,6 +952,90 @@ class SidecarEngine:
                 parsed = MultiVendorClient.parse_agent_output(raw_response, whitelist_snapshot)
                 had_actions = False
                 any_edit_failed = False
+                any_file_read = False
+                any_file_read_failed = False
+
+                # 0. Process Agent On-Demand File Reads (<metis_read file="..." />)
+                read_files_summary: List[Dict[str, Any]] = []
+                for req_file in (parsed.file_reads or []):
+                    had_actions = True
+                    ok_read, read_msg, wf_read = loop_whitelist.read_and_attach_file(req_file)
+                    target_session = self.session_store.get_session(session_id)
+                    if ok_read and wf_read is not None:
+                        canon_key = wf_read.full_path.lower()
+                        already_loaded = canon_key in read_files_in_loop
+                        read_files_in_loop.add(canon_key)
+                        display_path = wf_read.relative_path or wf_read.file_name
+                        read_files_summary.append(
+                            {
+                                "filePath": wf_read.full_path,
+                                "fileName": wf_read.file_name,
+                                "relativePath": display_path,
+                                "mediaKind": wf_read.media_kind,
+                                "mimeType": wf_read.mime_type,
+                                "isBinaryMedia": wf_read.is_binary_media,
+                            }
+                        )
+                        if target_session is not None:
+                            if wf_read.media_kind in ("image", "pdf") or wf_read.is_binary_media:
+                                media_label = "PDF document" if wf_read.media_kind == "pdf" else "Image"
+                                attach_note = (
+                                    f"[Harness File Attachment] Requested {media_label} `{display_path}` "
+                                    f"(MIME: {wf_read.mime_type}) has been read, converted to Base64, "
+                                    f"and attached to the conversation as multimodal input."
+                                )
+                                target_session.api_history.append(
+                                    ChatHistoryItem(role="user", content=attach_note)
+                                )
+                            else:
+                                target_session.api_history.append(
+                                    ChatHistoryItem(
+                                        role="user",
+                                        content=format_file_read_event(display_path, wf_read.last_saved_content),
+                                    )
+                                )
+                        if not already_loaded:
+                            any_file_read = True
+                        elif not parsed.file_edits:
+                            # Even if already in whitelist, if the agent only issued a read request this turn,
+                            # provide the content and continue one round so it can answer.
+                            any_file_read = True
+                    else:
+                        any_file_read_failed = True
+                        if target_session is not None:
+                            target_session.ui_events.append(
+                                UiStreamEvent(event_type="notice", content=read_msg)
+                            )
+                            target_session.api_history.append(
+                                ChatHistoryItem(
+                                    role="user",
+                                    content=f"[File Read Error]: {read_msg}",
+                                )
+                            )
+
+                if read_files_summary and target_session is not None:
+                    unique_reads = list(dict.fromkeys(r["relativePath"] for r in read_files_summary))
+                    read_count = len(unique_reads)
+                    if read_count == 1:
+                        r0 = read_files_summary[0]
+                        kind_badge = (
+                            " (PDF → Base64)"
+                            if r0["mediaKind"] == "pdf"
+                            else (" (Image → Base64)" if r0["mediaKind"] == "image" else "")
+                        )
+                        read_label = f"Read file: {r0['relativePath']}{kind_badge}"
+                    else:
+                        read_label = f"Read {read_count} files: {', '.join(unique_reads[:4])}{'...' if read_count > 4 else ''}"
+                    first_read = read_files_summary[0]
+                    target_session.ui_events.append(
+                        UiStreamEvent(
+                            event_type="file_read",
+                            content=read_label,
+                            file_name=first_read["fileName"],
+                            file_path=first_read["filePath"],
+                            line_count=read_count,
+                        )
+                    )
 
                 # 1. Process File Edits
                 successful_edits: List[Dict[str, Any]] = []
@@ -965,7 +1130,7 @@ class SidecarEngine:
 
                 self.broadcast_full_state()
 
-                needs_followup_round = bool(any_edit_failed)
+                needs_followup_round = bool(any_edit_failed or any_file_read or any_file_read_failed)
                 if not needs_followup_round:
                     break
 

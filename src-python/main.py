@@ -144,7 +144,6 @@ from models import (
     VendorType,
 )
 from session import SessionManager
-from shell import ShellRunner
 from whitelist import WhitelistManager
 
 
@@ -728,7 +727,6 @@ class SidecarEngine:
         SessionManager.save(self.session_store)
 
         max_rounds = self.config.max_verify_loops
-        timeout_sec = self.config.command_timeout_seconds
         vendor = next(
             (v for v in self.config.vendors if v.id == self.config.active_vendor_id),
             self.config.vendors[0] if self.config.vendors else None,

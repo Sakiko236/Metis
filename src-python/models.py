@@ -113,14 +113,12 @@ class AppConfig:
         self,
         active_vendor_id: str = "deepseek",
         max_verify_loops: int = 0,
-        command_timeout_seconds: int = 60,
         theme: str = "dark",
         thinking_intensity: str = "medium",
         vendors: Optional[List[VendorProfile]] = None,
     ):
         self.active_vendor_id = active_vendor_id
         self.max_verify_loops = max_verify_loops
-        self.command_timeout_seconds = command_timeout_seconds
         self.theme = theme
         self.thinking_intensity = (
             thinking_intensity.lower()
@@ -152,7 +150,6 @@ class AppConfig:
         return {
             "ActiveVendorId": self.active_vendor_id,
             "MaxVerifyLoops": self.max_verify_loops,
-            "CommandTimeoutSeconds": self.command_timeout_seconds,
             "Theme": self.theme,
             "ThinkingIntensity": self.thinking_intensity,
             "Vendors": [v.to_dict() for v in self.vendors],
@@ -170,7 +167,6 @@ class AppConfig:
         return cls(
             active_vendor_id=str(data.get("ActiveVendorId", data.get("active_vendor_id", "deepseek"))),
             max_verify_loops=max_verify_loops,
-            command_timeout_seconds=int(data.get("CommandTimeoutSeconds", data.get("command_timeout_seconds", 60))),
             theme=str(data.get("Theme", data.get("theme", "dark"))),
             thinking_intensity=thinking_intensity,
             vendors=vendors,
@@ -306,16 +302,9 @@ class UiStreamEvent:
         file_name: str = "",
         line_count: int = 0,
         edit_count: int = 0,
-        command: str = "",
-        working_directory: str = "",
-        exit_code: int = 0,
-        duration_seconds: float = 0.0,
-        succeeded: bool = True,
-        terminal_output: str = "",
         search_query: str = "",
         search_results: Optional[List[SearchResultItem]] = None,
         file_edits: Optional[List[Dict[str, Any]]] = None,
-        is_running: bool = False,
     ):
         self.id = id if id else uuid.uuid4().hex
         self.event_type = event_type
@@ -329,16 +318,9 @@ class UiStreamEvent:
         self.file_name = file_name
         self.line_count = line_count
         self.edit_count = edit_count
-        self.command = command
-        self.working_directory = working_directory
-        self.exit_code = exit_code
-        self.duration_seconds = duration_seconds
-        self.succeeded = succeeded
-        self.terminal_output = terminal_output
         self.search_query = search_query
         self.search_results = search_results if search_results is not None else []
         self.file_edits = file_edits if file_edits is not None else []
-        self.is_running = is_running
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -354,16 +336,9 @@ class UiStreamEvent:
             "FileName": self.file_name,
             "LineCount": self.line_count,
             "EditCount": self.edit_count,
-            "Command": self.command,
-            "WorkingDirectory": self.working_directory,
-            "ExitCode": self.exit_code,
-            "DurationSeconds": self.duration_seconds,
-            "Succeeded": self.succeeded,
-            "TerminalOutput": self.terminal_output,
             "SearchQuery": self.search_query,
             "SearchResults": [r.to_dict() for r in self.search_results],
             "FileEdits": self.file_edits,
-            "IsRunning": self.is_running,
         }
 
     @classmethod
@@ -384,16 +359,9 @@ class UiStreamEvent:
             file_name=str(data.get("FileName", "")),
             line_count=int(data.get("LineCount", 0)),
             edit_count=int(data.get("EditCount", 0)),
-            command=str(data.get("Command", "")),
-            working_directory=str(data.get("WorkingDirectory", "")),
-            exit_code=int(data.get("ExitCode", 0)),
-            duration_seconds=float(data.get("DurationSeconds", 0.0)),
-            succeeded=bool(data.get("Succeeded", True)),
-            terminal_output=str(data.get("TerminalOutput", "")),
             search_query=str(data.get("SearchQuery", "")),
             search_results=sr,
             file_edits=raw_edits if isinstance(raw_edits, list) else [],
-            is_running=bool(data.get("IsRunning", False)),
         )
 
 
@@ -556,46 +524,11 @@ class ParsedAgentResponse:
         explanation_text: str = "",
         file_edits: Optional[List[FileEdit]] = None,
         file_reads: Optional[List[str]] = None,
-        terminal_commands: Optional[List[str]] = None,
         search_queries: Optional[List[str]] = None,
     ):
         self.raw_text = raw_text
         self.explanation_text = explanation_text
         self.file_edits = file_edits if file_edits is not None else []
         self.file_reads = file_reads if file_reads is not None else []
-        self.terminal_commands = terminal_commands if terminal_commands is not None else []
         self.search_queries = search_queries if search_queries is not None else []
 
-
-class VerifyExecutionResult:
-    def __init__(
-        self,
-        command: str = "",
-        working_directory: str = "",
-        exit_code: int = 0,
-        stdout: str = "",
-        stderr: str = "",
-        duration_seconds: float = 0.0,
-        timed_out: bool = False,
-        cancelled: bool = False,
-    ):
-        self.command = command
-        self.working_directory = working_directory
-        self.exit_code = exit_code
-        self.stdout = stdout
-        self.stderr = stderr
-        self.duration_seconds = duration_seconds
-        self.timed_out = timed_out
-        self.cancelled = cancelled
-
-    def succeeded(self) -> bool:
-        return not self.timed_out and not self.cancelled and self.exit_code == 0
-
-    def combined_output(self) -> str:
-        parts: List[str] = []
-        if self.stdout and self.stdout.strip():
-            parts.append(self.stdout.rstrip())
-        if self.stderr and self.stderr.strip():
-            parts.append(self.stderr.rstrip())
-        out = "\n".join(parts)
-        return out if out.strip() else "(No terminal standard output)"

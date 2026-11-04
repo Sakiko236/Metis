@@ -121,7 +121,6 @@ class ConfigManager:
         return AppConfig(
             active_vendor_id="openai_compatible",
             max_verify_loops=0,
-            command_timeout_seconds=60,
             theme="dark",
             thinking_intensity="high",
             vendors=[gemini, claude, openai_compat],

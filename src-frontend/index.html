@@ -132,8 +132,6 @@
   .msg-body *,
   .md-code pre,
   .md-code pre *,
-  .terminal-body,
-  .terminal-body *,
   .event-notice,
   .event-notice *,
   .event-security,
@@ -147,8 +145,7 @@
 
   .msg-user-text,
   .msg-body,
-  .md-code pre,
-  .terminal-body {
+  .md-code pre {
     cursor: text;
   }
 
@@ -159,9 +156,7 @@
   .md-code-header,
   .md-code-header *,
   .msg-assistant-header,
-  .msg-assistant-header *,
-  .terminal-header,
-  .terminal-header * {
+  .msg-assistant-header * {
     user-select: none !important;
     -webkit-user-select: none !important;
   }
@@ -422,16 +417,6 @@
   }
   [data-theme="light"] .msg-body .md-table tr:nth-child(even) td {
     background: rgba(0, 0, 0, 0.02);
-  }
-  [data-theme="light"] .terminal-card {
-    background: #0F172A;
-    border-color: #334155;
-  }
-  [data-theme="light"] .terminal-header {
-    background: #1E293B;
-  }
-  [data-theme="light"] .terminal-body {
-    color: #E2E8F0;
   }
   [data-theme="light"] .search-summary-card {
     background: #F0F9FF;
@@ -1702,155 +1687,6 @@
     background: rgba(56, 189, 248, 0.1);
     white-space: nowrap;
     flex-shrink: 0;
-  }
-
-  /* Command Execution Status Card */
-  .cmd-status-card {
-    display: inline-flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 7px 14px;
-    border-radius: 9px;
-    background: #0D1017;
-    border: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    font-size: 12.5px;
-    max-width: 100%;
-  }
-  .cmd-status-card.running {
-    border-color: rgba(56, 189, 248, 0.45);
-    background: rgba(56, 189, 248, 0.06);
-  }
-  .cmd-status-card.pass {
-    border-color: rgba(16, 185, 129, 0.35);
-  }
-  .cmd-status-card.fail {
-    border-color: rgba(239, 68, 68, 0.45);
-  }
-  .cmd-status-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    flex-wrap: wrap;
-  }
-  .cmd-status-icon {
-    flex-shrink: 0;
-    color: var(--accent-cyan, #38BDF8);
-  }
-  .cmd-status-card.pass .cmd-status-icon {
-    color: var(--accent-emerald, #10B981);
-  }
-  .cmd-status-card.fail .cmd-status-icon {
-    color: #F87171;
-  }
-  .cmd-status-icon.pulse {
-    animation: pulse-dot-glow 1.5s ease-in-out infinite;
-  }
-  .cmd-status-text {
-    font-size: 12.5px;
-    color: var(--text-secondary);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .cmd-status-code {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.06);
-    padding: 1px 7px;
-    border-radius: 5px;
-    word-break: break-all;
-  }
-  .cmd-status-badge {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 1px 7px;
-    border-radius: 5px;
-    flex-shrink: 0;
-  }
-  .cmd-status-badge.fail {
-    background: rgba(239, 68, 68, 0.15);
-    color: #F87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-  }
-  [data-theme="light"] .cmd-status-card {
-    background: #F8FAFC;
-    border-color: #E2E8F0;
-  }
-  [data-theme="light"] .cmd-status-card.running {
-    background: rgba(56, 189, 248, 0.08);
-  }
-  [data-theme="light"] .cmd-status-card.pass {
-    border-color: rgba(16, 185, 129, 0.4);
-  }
-  [data-theme="light"] .cmd-status-card.fail {
-    border-color: rgba(239, 68, 68, 0.4);
-  }
-  [data-theme="light"] .cmd-status-code {
-    background: #EDF2F7;
-    color: #0F172A;
-  }
-
-  /* Terminal Verification Loop Card */
-  .terminal-card {
-    background: #07090E;
-    border: 1px solid var(--border-strong);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .terminal-card.pass {
-    border-color: rgba(16, 185, 129, 0.45);
-  }
-  .terminal-card.fail {
-    border-color: rgba(239, 68, 68, 0.45);
-  }
-  .terminal-header {
-    padding: 9px 14px;
-    background: #0D1017;
-    border-bottom: 1px solid var(--border-subtle);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .terminal-cmd {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .terminal-status {
-    font-size: 11.5px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 5px;
-    font-variant-numeric: tabular-nums;
-  }
-  .terminal-status.pass {
-    background: var(--accent-emerald-dim);
-    color: #38BDF8;
-  }
-  .terminal-status.fail {
-    background: var(--accent-red-dim);
-    color: #F87171;
-  }
-  .terminal-body {
-    padding: 11px 14px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.55;
-    color: #D1D5DB;
-    max-height: 220px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
   }
 
   .event-notice {
@@ -3691,47 +3527,6 @@
         </div>
       `;
     }
-    if (ev.Type === 'verify_result') {
-      const isRunning = !!ev.IsRunning;
-      const cmdRaw = ev.Command || (ev.Content || '').replace(/^(?:Executing|Executed)\s*`?/, '').replace(/`?\s*\.{0,3}$/, '') || 'command';
-      const cmdText = escapeHtml(cmdRaw);
-      const statusClass = isRunning ? 'running' : (ev.Succeeded ? 'pass' : 'fail');
-      const termOutput = (ev.TerminalOutput || '').trim();
-      const hasOutput = !isRunning && termOutput.length > 0;
-      const autoExpand = !isRunning && !ev.Succeeded && hasOutput;
-      return `
-        <div class="msg-row" id="msg-row-${evId}">
-          <div class="cmd-status-card ${statusClass}" style="flex-direction:column;align-items:stretch;width:100%;max-width:100%;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;cursor:${hasOutput ? 'pointer' : 'default'};" ${hasOutput ? `onclick="toggleTerminalOutput('${evId}')"` : ''}>
-              <div class="cmd-status-left">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="cmd-status-icon ${isRunning ? 'pulse' : ''}">
-                  <polyline points="4 17 10 11 4 5"/>
-                  <line x1="12" y1="19" x2="20" y2="19"/>
-                </svg>
-                <span class="cmd-status-text ${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>
-                  ${isRunning ? 'Executing' : 'Executed'} <code class="cmd-status-code">${cmdText}</code>${isRunning ? '...' : ''}
-                </span>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                ${!isRunning && !ev.Succeeded ? '<span class="cmd-status-badge fail">Failed</span>' : ''}
-                ${!isRunning && ev.Succeeded && hasOutput ? '<span class="cmd-status-badge" style="background:rgba(16,185,129,0.12);color:var(--accent-emerald,#10B981);">Passed</span>' : ''}
-                ${hasOutput ? `
-                  <button class="icon-btn-sm" title="Toggle Terminal Output" onclick="event.stopPropagation();toggleTerminalOutput('${evId}')">
-                    <svg id="term-chevron-${evId}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform 0.2s;${autoExpand ? 'transform:rotate(180deg);' : ''}"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                  <button class="icon-btn-sm" title="Copy Output" onclick="event.stopPropagation();copyTerminalOutput(this, '${evId}')">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  </button>
-                ` : ''}
-              </div>
-            </div>
-            ${hasOutput ? `
-              <div id="term-body-${evId}" class="terminal-body" style="display:${autoExpand ? 'block' : 'none'};margin-top:8px;border-top:1px solid var(--border-subtle);background:#07090E;border-radius:6px;padding:8px 12px;max-height:260px;overflow-y:auto;font-family:var(--font-mono);font-size:11.5px;line-height:1.5;color:#D1D5DB;white-space:pre-wrap;word-break:break-all;">${escapeHtml(termOutput)}</div>
-            ` : ''}
-          </div>
-        </div>
-      `;
-    }
     if (ev.Type === 'search_result') {
       const results = ev.SearchResults || [];
       const count = results.length;
@@ -4161,14 +3956,6 @@
           }
         }
       }
-    } else if (editingVendorId === 'appearance') {
-      const timeoutEl = document.getElementById('settingTimeoutInput');
-      if (timeoutEl) {
-        const val = parseInt(timeoutEl.value, 10);
-        if (!isNaN(val) && val >= 5) {
-          appState.config.CommandTimeoutSeconds = val;
-        }
-      }
     }
   }
 
@@ -4223,13 +4010,12 @@
   function renderAppearancePane(pane) {
     const currentTheme = (appState.config && appState.config.Theme ? appState.config.Theme : 'dark').toLowerCase() === 'light' ? 'light' : 'dark';
     const currentFontSize = getAppFontSize();
-    const timeoutVal = appState.config.CommandTimeoutSeconds || 60;
 
     pane.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">
         <div>
           <div style="font-size:15px;font-weight:700;color:var(--text-primary);">Appearance & Display</div>
-          <div style="font-size:12px;color:var(--text-secondary);">Manage application visual styling, font scaling, and execution timeouts</div>
+          <div style="font-size:12px;color:var(--text-secondary);">Manage application visual styling and font scaling</div>
         </div>
       </div>
 
@@ -4265,13 +4051,6 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <div class="form-label"><span>Command Execution Timeout</span></div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <input type="number" id="settingTimeoutInput" class="form-input selectable" style="max-width:130px;" min="5" max="600" value="${timeoutVal}" oninput="syncCurrentInputs(); triggerAutoSave();" onchange="saveSettingsSilent();" />
-          <span style="font-size:12px;color:var(--text-secondary);">seconds (range: 5 - 600)</span>
-        </div>
-      </div>
     `;
   }
 
@@ -4993,37 +4772,6 @@
     }
     if (!rawText) return;
     copyTextWithFeedback(btn, rawText, 'Copied conversation');
-  }
-
-  function toggleTerminalOutput(eventId) {
-    const body = document.getElementById('term-body-' + eventId);
-    const chevron = document.getElementById('term-chevron-' + eventId);
-    if (!body) return;
-    const isHidden = (body.style.display === 'none');
-    body.style.display = isHidden ? 'block' : 'none';
-    if (chevron) {
-      chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-  }
-
-  function copyTerminalOutput(btn, eventId) {
-    let rawText = '';
-    const sess = getActiveSession();
-    if (sess && sess.UiEvents) {
-      const ev = sess.UiEvents.find(x => (x.Id || '') === eventId);
-      if (ev && ev.TerminalOutput) {
-        rawText = ev.TerminalOutput;
-      }
-    }
-    if (!rawText && eventId) {
-      const rowEl = document.getElementById('msg-row-' + eventId);
-      if (rowEl) {
-        const termBody = rowEl.querySelector('.terminal-body');
-        if (termBody) rawText = termBody.innerText || termBody.textContent || '';
-      }
-    }
-    if (!rawText) return;
-    copyTextWithFeedback(btn, rawText, 'Copied terminal output');
   }
 
   function highlightCode(code, lang) {

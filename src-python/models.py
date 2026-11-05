@@ -359,7 +359,6 @@ class ChatSession:
         title: str = "Default Chat",
         created_at: Optional[str] = None,
         updated_at: Optional[str] = None,
-        allowed_directories: Optional[List[str]] = None,
         whitelist: Optional[List[WhitelistedFile]] = None,
         api_history: Optional[List[ChatHistoryItem]] = None,
         ui_events: Optional[List[UiStreamEvent]] = None,
@@ -369,7 +368,6 @@ class ChatSession:
         self.title = title
         self.created_at = created_at if created_at else now
         self.updated_at = updated_at if updated_at else now
-        self.allowed_directories = allowed_directories if allowed_directories is not None else []
         self.whitelist = whitelist if whitelist is not None else []
         self.api_history = api_history if api_history is not None else []
         self.ui_events = ui_events if ui_events is not None else []
@@ -383,7 +381,6 @@ class ChatSession:
             "Title": self.title,
             "CreatedAt": self.created_at,
             "UpdatedAt": self.updated_at,
-            "AllowedDirectories": list(self.allowed_directories),
             "Whitelist": [f.to_dict() for f in self.whitelist],
             "ApiHistory": [h.to_dict() for h in self.api_history],
             "UiEvents": [e.to_dict() for e in self.ui_events],
@@ -396,7 +393,6 @@ class ChatSession:
             title=str(data.get("Title", "Default Chat")),
             created_at=str(data.get("CreatedAt", "")),
             updated_at=str(data.get("UpdatedAt", "")),
-            allowed_directories=list(data.get("AllowedDirectories", [])),
             whitelist=[WhitelistedFile.from_dict(x) for x in data.get("Whitelist", []) if isinstance(x, dict)],
             api_history=[ChatHistoryItem.from_dict(x) for x in data.get("ApiHistory", []) if isinstance(x, dict)],
             ui_events=[UiStreamEvent.from_dict(x) for x in data.get("UiEvents", []) if isinstance(x, dict)],
@@ -504,18 +500,40 @@ class FileEdit:
         self.replace_block = replace_block
 
 
+class FileReadRequest:
+    def __init__(
+        self,
+        target_file: str,
+        start_line: Optional[int] = None,
+        end_line: Optional[int] = None,
+    ):
+        self.target_file = target_file
+        self.start_line = start_line
+        self.end_line = end_line
+
+
+class FileSearchRequest:
+    def __init__(
+        self,
+        pattern: str,
+        target_file: str = "",
+    ):
+        self.pattern = pattern
+        self.target_file = target_file
+
+
 class ParsedAgentResponse:
     def __init__(
         self,
         raw_text: str = "",
         explanation_text: str = "",
         file_edits: Optional[List[FileEdit]] = None,
-        file_reads: Optional[List[str]] = None,
-        search_queries: Optional[List[str]] = None,
+        file_reads: Optional[List[FileReadRequest]] = None,
+        file_searches: Optional[List[FileSearchRequest]] = None,
     ):
         self.raw_text = raw_text
         self.explanation_text = explanation_text
         self.file_edits = file_edits if file_edits is not None else []
         self.file_reads = file_reads if file_reads is not None else []
-        self.search_queries = search_queries if search_queries is not None else []
+        self.file_searches = file_searches if file_searches is not None else []
 

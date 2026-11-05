@@ -7,12 +7,14 @@ import ssl
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from models import (
     ChatHistoryItem,
     FileEdit,
     FileEditActionType,
+    FileReadRequest,
+    FileSearchRequest,
     ParsedAgentResponse,
     VendorProfile,
     WhitelistedFile,
@@ -41,20 +43,23 @@ LEADING_TITLE_RE = re.compile(
 # Markdown 围栏代码块（``` 或 ~~~），info 用于区分开/闭（闭合围栏必须无语言标识）
 FENCE_RE = re.compile(r"^[ \t]*(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 
-# 动作标签（整行独立匹配，兼容双引号/单引号、可选属性名、自闭合）
+# 动作标签（整行独立匹配，兼容双引号/单引号、多属性、自闭合与单行闭合）
 ACTION_OPEN_RE = re.compile(
-    r"""^<metis_(?P<kind>replace|write|read)\s+(?:file|path|name)\s*=\s*(?:"(?P<dq>[^"]+)"|'(?P<sq>[^']+)')\s*(?P<self>/?)>$""",
+    r"""^<(?P<tag>metis_(?:replace|write|read|search|grep)|read_file|search_file|write_file|replace_file|grep)\b(?P<attrs>(?:"[^"]*"|'[^']*'|[^>"'])*?)(?P<self>/?)>(?:(?P<inline_body>.*)</(?P=tag)\s*>)?$""",
     re.IGNORECASE,
 )
 ACTION_CLOSE_RE = re.compile(
-    r"^</metis_(?P<kind>replace|write|read)\s*>$",
+    r"""^</(?P<tag>metis_(?:replace|write|read|search|grep)|read_file|search_file|write_file|replace_file|grep)\s*>$""",
     re.IGNORECASE,
+)
+ATTR_PAIR_RE = re.compile(
+    r"""([a-zA-Z_][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`/]+))"""
 )
 
 # 流式输出末尾可能出现的未闭合残缺标签前缀（如 <、<<、</、<metis、</metis_write...）
-# 注意：末尾 [^>]* 保证完整的标签行（含 '>'）永远不会被隐藏。
+# 注意：末尾保证完整的标签行（含 '>'）永远不会被隐藏。
 STREAMING_PARTIAL_TAG_RE = re.compile(
-    r"^(?:<+|</|<{0,2}/?(?:m(?:e(?:t(?:i(?:s(?:_[a-z]*)?)?)?)?)?|think|session_title|chat_title)[^>]*)$",
+    r"""^(?:<+|</|<{0,2}/?(?:m(?:e(?:t(?:i(?:s(?:_[a-z]*)?)?)?)?)?|r(?:e(?:a(?:d(?:_file)?)?)?)?|s(?:e(?:a(?:r(?:c(?:h(?:_file)?)?)?)?)?)?|w(?:r(?:i(?:t(?:e(?:_file)?)?)?)?)?|g(?:r(?:e(?:p)?)?)?|think|session_title|chat_title)(?:\s+(?:"[^"]*"|'[^']*'|[^>])*)?)$""",
     re.IGNORECASE,
 )
 
@@ -141,17 +146,6 @@ class MultiVendorClient:
         """
         OpenAI and DeepSeek standard Responses API tool specification for live web search.
         Allows models to dynamically evaluate search on the provider cluster without forcing it.
-        """
-        return [
-            {
-                "type": "web_search",
-            }
-        ]
-
-    @staticmethod
-    def build_deepseek_tools() -> List[dict]:
-        """
-        DeepSeek live web search specification for Responses API & Chat Completions fallback.
         """
         return [
             {
@@ -633,9 +627,6 @@ class MultiVendorClient:
         except Exception as e:
             return False, f"Stream read error: {e}"
 
-    # Backward compatibility alias
-    _call_openai_compatible_sync = _call_responses_api_sync
-
     @staticmethod
     def _split_leading_prefix(text: str) -> Tuple[str, str]:
         """分离文本开头的联网提示前缀与正文。"""
@@ -718,7 +709,42 @@ class MultiVendorClient:
 
 
     @staticmethod
-    def _scan_agent_blocks(text: str) -> Tuple[str, List[Tuple[str, str, str]]]:
+    def _normalize_action_kind(raw_tag: str) -> str:
+        t = (raw_tag or "").strip().lower()
+        if t in ("metis_read", "read_file"):
+            return "read"
+        if t in ("metis_search", "metis_grep", "search_file", "grep"):
+            return "search"
+        if t in ("metis_write", "write_file"):
+            return "write"
+        if t in ("metis_replace", "replace_file"):
+            return "replace"
+        return t
+
+    @staticmethod
+    def _parse_tag_attrs(attr_str: str) -> Dict[str, str]:
+        attrs: Dict[str, str] = {}
+        for m in ATTR_PAIR_RE.finditer(attr_str or ""):
+            key = m.group(1).lower().replace("-", "_")
+            val = (
+                m.group(2)
+                if m.group(2) is not None
+                else (m.group(3) if m.group(3) is not None else (m.group(4) or ""))
+            )
+            attrs[key] = val.strip()
+        return attrs
+
+    @staticmethod
+    def _parse_optional_int(val: Optional[str]) -> Optional[int]:
+        if val is None or not str(val).strip():
+            return None
+        try:
+            return int(str(val).strip())
+        except Exception:
+            return None
+
+    @classmethod
+    def _scan_agent_blocks(cls, text: str) -> Tuple[str, List[Tuple[str, Dict[str, Any], str]]]:
         """
         基于行状态机的动作标签扫描器：
         1. 围栏代码块（``` 或 ~~~）内的任何标签均视为普通示例文本，不执行也不剔除。
@@ -733,23 +759,23 @@ class MultiVendorClient:
         fence_len = 0
 
         active_kind: Optional[str] = None
-        active_file: str = ""
+        active_attrs: Dict[str, Any] = {}
         active_body: List[str] = []
 
         visible_lines: List[str] = []
-        blocks: List[Tuple[str, str, str]] = []
+        blocks: List[Tuple[str, Dict[str, Any], str]] = []
 
         for idx, line in enumerate(lines):
             stripped = line.strip()
 
-            # 状态 1：处于 <metis_write> 或 <metis_replace> 块内部
+            # 状态 1：处于多行块内部（write / replace / 多行 search）
             if active_kind is not None:
                 m_close = ACTION_CLOSE_RE.match(stripped)
-                if m_close and m_close.group("kind").lower() == active_kind:
+                if m_close and cls._normalize_action_kind(m_close.group("tag")) == active_kind:
                     body_str = re.sub(r"\r?\n$", "", "".join(active_body))
-                    blocks.append((active_kind, active_file, body_str))
+                    blocks.append((active_kind, active_attrs, body_str))
                     active_kind = None
-                    active_file = ""
+                    active_attrs = {}
                     active_body = []
                 else:
                     active_body.append(line)
@@ -781,24 +807,61 @@ class MultiVendorClient:
             # 状态 3：普通文本行，检测动作开启标签
             m_open = ACTION_OPEN_RE.match(stripped)
             if m_open:
-                kind = m_open.group("kind").lower()
-                file_attr = (m_open.group("dq") or m_open.group("sq") or "").strip()
+                kind = cls._normalize_action_kind(m_open.group("tag"))
+                attrs = cls._parse_tag_attrs(m_open.group("attrs") or "")
                 is_self_closing = bool(m_open.group("self"))
+                inline_body = m_open.group("inline_body")
+
+                file_attr = (
+                    attrs.get("file")
+                    or attrs.get("path")
+                    or attrs.get("name")
+                    or attrs.get("target")
+                    or ""
+                ).strip()
+
+                if kind == "read":
+                    target_f = file_attr or (inline_body or "").strip()
+                    if target_f:
+                        attrs["file"] = target_f
+                        blocks.append(("read", attrs, ""))
+                    continue
+
+                if kind == "search":
+                    pattern_val = (
+                        attrs.get("pattern")
+                        or attrs.get("regex")
+                        or attrs.get("query")
+                        or (inline_body if inline_body is not None else "")
+                    ).strip()
+                    if pattern_val or is_self_closing or inline_body is not None:
+                        if pattern_val:
+                            attrs["pattern"] = pattern_val
+                            blocks.append(("search", attrs, pattern_val))
+                        continue
+                    active_kind = "search"
+                    active_attrs = attrs
+                    active_body = []
+                    continue
 
                 if not file_attr:
                     continue
 
-                if kind == "read":
-                    blocks.append(("read", file_attr, ""))
+                attrs["file"] = file_attr
+
+                if inline_body is not None:
+                    blocks.append((kind, attrs, inline_body))
                     continue
 
                 if is_self_closing:
-                    # 自闭合的 write/replace 没有内容体，直接作为普通文本展示或忽略
-                    visible_lines.append(line)
+                    if kind == "write":
+                        blocks.append(("write", attrs, ""))
+                    else:
+                        visible_lines.append(line)
                     continue
 
                 active_kind = kind
-                active_file = file_attr
+                active_attrs = attrs
                 active_body = []
                 continue
 
@@ -831,15 +894,42 @@ class MultiVendorClient:
         visible_text, blocks = cls._scan_agent_blocks(cleaned)
 
         seen_reads = set()
+        seen_searches = set()
         seen_writes = set()
 
-        for kind, file_attr, body in blocks:
+        for kind, attrs, body in blocks:
+            file_attr = str(attrs.get("file", "")).strip()
             file_key = file_attr.lower()
 
             if kind == "read":
-                if file_key not in seen_reads:
-                    seen_reads.add(file_key)
-                    parsed.file_reads.append(file_attr)
+                s_line = cls._parse_optional_int(
+                    attrs.get("start_line") or attrs.get("start") or attrs.get("from_line")
+                )
+                e_line = cls._parse_optional_int(
+                    attrs.get("end_line") or attrs.get("end") or attrs.get("to_line")
+                )
+                read_key = (file_key, s_line, e_line)
+                if file_attr and read_key not in seen_reads:
+                    seen_reads.add(read_key)
+                    parsed.file_reads.append(
+                        FileReadRequest(
+                            target_file=file_attr,
+                            start_line=s_line,
+                            end_line=e_line,
+                        )
+                    )
+
+            elif kind == "search":
+                pattern_str = str(attrs.get("pattern") or body or "").strip()
+                search_key = (file_key, pattern_str)
+                if pattern_str and search_key not in seen_searches:
+                    seen_searches.add(search_key)
+                    parsed.file_searches.append(
+                        FileSearchRequest(
+                            pattern=pattern_str,
+                            target_file=file_attr,
+                        )
+                    )
 
             elif kind == "replace":
                 sr_pairs = cls._parse_search_replace_blocks(body)

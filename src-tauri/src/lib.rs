@@ -256,7 +256,7 @@ pub mod commands {
             "windowDrag" => {
                 let _ = window.start_dragging();
             }
-            // Native OS file/folder pickers bridge selected paths to Python sidecar
+            // Native OS file pickers bridge selected paths to Python sidecar
             "pickFiles" => {
                 let bridge = state.inner().clone();
                 tokio::spawn(async move {
@@ -298,24 +298,6 @@ pub mod commands {
                             .send_json(&serde_json::json!({
                                 "action": "addFiles",
                                 "paths": paths
-                            }))
-                            .await;
-                    }
-                });
-            }
-            "pickFolder" => {
-                let bridge = state.inner().clone();
-                tokio::spawn(async move {
-                    if let Some(folder) = rfd::AsyncFileDialog::new()
-                        .set_title("Select folder to attach")
-                        .pick_folder()
-                        .await
-                    {
-                        let folder_path = folder.path().to_string_lossy().to_string();
-                        let _ = bridge
-                            .send_json(&serde_json::json!({
-                                "action": "addDirectory",
-                                "path": folder_path
                             }))
                             .await;
                     }
@@ -386,16 +368,19 @@ pub fn run() {
                 let b = bridge_window.clone();
                 let file_paths: Vec<String> = paths
                     .iter()
+                    .filter(|p| p.is_file())
                     .map(|p| p.to_string_lossy().to_string())
                     .collect();
-                tauri::async_runtime::spawn(async move {
-                    let _ = b
-                        .send_json(&serde_json::json!({
-                            "action": "addFiles",
-                            "paths": file_paths
-                        }))
-                        .await;
-                });
+                if !file_paths.is_empty() {
+                    tauri::async_runtime::spawn(async move {
+                        let _ = b
+                            .send_json(&serde_json::json!({
+                                "action": "addFiles",
+                                "paths": file_paths
+                            }))
+                            .await;
+                    });
+                }
             }
             _ => {}
         })

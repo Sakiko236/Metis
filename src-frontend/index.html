@@ -2682,7 +2682,7 @@
       </div>
     </header>
 
-    <!-- Controlled File & Folder Whitelist Strip -->
+    <!-- Controlled File Whitelist Strip -->
     <section class="whitelist-strip" id="whitelistStripContainer"></section>
 
     <!-- Chat & Autonomous Verification Stream -->
@@ -2705,9 +2705,9 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span>Files</span>
             </button>
-            <button class="tool-btn" onclick="hostPost({ action: 'pickFolder' })" title="Add folder">
+            <template style="display:none;"><button class="tool-btn" title="Removed">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-              <span>Folder</span>
+              <span>Folder</span></button></template><button style="display:none;">
             </button>
             <input type="file" id="mediaFileInput" accept="image/*,.pdf,application/pdf" multiple style="display:none;" onchange="handleMediaFileInput(this)">
             <button class="tool-btn" onclick="triggerMediaPicker()" title="Add image or PDF">
@@ -2746,7 +2746,7 @@
 <!-- Full-Window Drag Overlay -->
 <div class="drag-overlay" id="dragOverlay">
   <div style="background:var(--bg-sidebar);padding:18px 28px;border-radius:12px;border:1px solid var(--accent-emerald);text-align:center;box-shadow:0 16px 40px rgba(0,0,0,0.6);">
-    <div style="font-size:15px;font-weight:600;color:#38BDF8;">Drop files or folders to add to whitelist</div>
+    <div style="font-size:15px;font-weight:600;color:#38BDF8;">Drop files to add to whitelist</div>
   </div>
 </div>
 
@@ -3284,7 +3284,7 @@
   function renderWhitelistStrip() {
     const container = document.getElementById('whitelistStripContainer');
     const sess = getActiveSession();
-    const dirs = sess ? (sess.AllowedDirectories || []) : [];
+    const dirs = [];
     const files = sess ? (sess.Whitelist || []) : [];
 
     if (dirs.length === 0 && files.length === 0) {
@@ -3508,6 +3508,20 @@
             <div class="event-file-left" style="color:#A5B4FC;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               <span class="${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>${escapeHtml(ev.Content || 'Read files from workspace')}</span>
+            </div>
+            ${ev.FilePath ? `<button class="btn-secondary" style="padding:3px 9px;font-size:11.5px;" onclick="hostPost({ action: 'inspectFile', path: '${safeFilePath}' })">Inspect File</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    if (ev.Type === 'file_search') {
+      const safeFilePath = escapeJsStr(ev.FilePath || '');
+      return `
+        <div class="msg-row" id="msg-row-${evId}">
+          <div class="event-file-edit" style="border-color:rgba(56,189,248,0.32);background:rgba(56,189,248,0.08);">
+            <div class="event-file-left" style="color:#7DD3FC;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span class="${isNew ? 'text-mist-emerge' : ''}" ${animStyle}>${escapeHtml(ev.Content || 'Searched workspace files')}</span>
             </div>
             ${ev.FilePath ? `<button class="btn-secondary" style="padding:3px 9px;font-size:11.5px;" onclick="hostPost({ action: 'inspectFile', path: '${safeFilePath}' })">Inspect File</button>` : ''}
           </div>
@@ -4942,16 +4956,16 @@
     const visibleLines = [];
 
     const fenceOpenRe = /^[ \t]*(`{3,}|~{3,})/;
-    const singleLineTagRe = /^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'>\s]+))\s*>.*<\/metis_\1>[ \t]*$/i;
-    const openTagRe = /^[ \t]*<metis_(replace|write)\s+(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'>\s]+))\s*>[ \t]*$/i;
-    const closeReplaceRe = /^[ \t]*<\/metis_replace>[ \t]*$/i;
-    const closeWriteRe = /^[ \t]*<\/metis_write>[ \t]*$/i;
-    const singleLineReadAttrRe = /^[ \t]*<metis_read\s+(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'/>\s]+))\s*(?:\/?>|>.*?<\/metis_read>)[ \t]*$/i;
-    const singleLineReadBodyRe = /^[ \t]*<metis_read\s*>([^<\r\n]+)<\/metis_read>[ \t]*$/i;
-    const openReadRe = /^[ \t]*<metis_read\s*>[ \t]*$/i;
-    const closeReadRe = /^[ \t]*<\/metis_read>[ \t]*$/i;
-    const inlineReadStripRe = /<metis_read\s+(?:file|path|name)\s*=\s*(?:"[^">]+"|'[^'>]+'|[^"'/>\s]+)\s*(?:\/?>|>.*?<\/metis_read>)|<metis_read\s*>[^<\r\n]+<\/metis_read>/gi;
-    const streamingPartialTagRe = /^[ \t]*<metis_(?:replace|write|read)\b[^>]*$/i;
+    const singleLineTagRe = /^[ \t]*<(?:metis_)?(replace|write)(?:_file)?\b[^>]*?(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'>\s]+))[^>]*>.*<\/(?:metis_)?\1(?:_file)?>[ \t]*$/i;
+    const openTagRe = /^[ \t]*<(?:metis_)?(replace|write)(?:_file)?\b[^>]*?(?:file|path|name)\s*=\s*(?:"([^">]+)"|'([^'>]+)'|([^"'>\s]+))[^>]*>[ \t]*$/i;
+    const closeReplaceRe = /^[ \t]*<\/(?:metis_replace|replace_file)>[ \t]*$/i;
+    const closeWriteRe = /^[ \t]*<\/(?:metis_write|write_file)>[ \t]*$/i;
+    const singleLineReadAttrRe = /^[ \t]*<(?:metis_(?:read|search|grep)|read_file|search_file|grep)\b[^>]*?(?:\/?>|>.*?<\/(?:metis_(?:read|search|grep)|read_file|search_file|grep)>)[ \t]*$/i;
+    const singleLineReadBodyRe = /^[ \t]*<(?:metis_(?:read|search|grep)|read_file|search_file|grep)\b[^>]*>([^<\r\n]+)<\/(?:metis_(?:read|search|grep)|read_file|search_file|grep)>[ \t]*$/i;
+    const openReadRe = /^[ \t]*<(?:metis_(?:read|search|grep)|read_file|search_file|grep)\b[^>]*>[ \t]*$/i;
+    const closeReadRe = /^[ \t]*<\/(?:metis_(?:read|search|grep)|read_file|search_file|grep)>[ \t]*$/i;
+    const inlineReadStripRe = /<(?:metis_(?:read|search|grep)|read_file|search_file|grep)\b[^>]*?(?:\/>|>[^<\r\n]*<\/(?:metis_(?:read|search|grep)|read_file|search_file|grep)>)/gi;
+    const streamingPartialTagRe = /^[ \t]*<(?:metis_(?:replace|write|read|search|grep)|replace_file|write_file|read_file|search_file|grep)\b[^>]*$/i;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
